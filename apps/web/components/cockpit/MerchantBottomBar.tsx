@@ -1,22 +1,13 @@
 'use client';
 
-/**
- * MerchantBottomBar — navigation principale admin.
- *
- * Utilise les classes CSS Cockpit : .ct-bottom-bar, .ct-bottom-bar-inner,
- * .ct-bottom-label, .ct-seg-track, .ct-seg-btn.
- *
- * Rendu uniquement sur les routes /admin/* (AppFrame le monte conditionnellement).
- * Ne touche pas au storefront (/shop/*, /cart, /checkout).
- */
-
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface NavSegment {
   label: string;
   href: string;
-  /** Si true → toujours actif sur ce préfixe exact (évite que / matche tout) */
   exact?: boolean;
 }
 
@@ -32,31 +23,42 @@ const NAV: NavSegment[] = [
 
 export function MerchantBottomBar() {
   const pathname = usePathname();
+  const [track, setTrack] = useState<Element | null>(null);
+
+  useEffect(() => {
+    // Poll until HubBottomBar (from @hearst/cockpit-shell) mounts its .ct-hub-bar-track
+    let raf: number;
+    function find() {
+      const el = document.querySelector('.ct-hub-bar-track');
+      if (el) {
+        setTrack(el);
+      } else {
+        raf = requestAnimationFrame(find);
+      }
+    }
+    raf = requestAnimationFrame(find);
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   function isActive(seg: NavSegment): boolean {
     if (seg.exact) return pathname === seg.href;
     return pathname.startsWith(seg.href);
   }
 
-  return (
-    <div className="ct-bottom-bar">
-      <div className="ct-bottom-bar-inner">
-        {/* Wordmark / brand label */}
-        <span className="ct-bottom-label">● Merchant</span>
+  if (!track) return null;
 
-        {/* Main nav segments */}
-        <nav aria-label="Navigation admin" className="ct-seg-track">
-          {NAV.map((seg) => (
-            <Link
-              key={seg.href}
-              href={seg.href}
-              className={`ct-seg-btn${isActive(seg) ? ' active' : ''}`}
-            >
-              {seg.label}
-            </Link>
-          ))}
-        </nav>
-      </div>
-    </div>
+  return createPortal(
+    <>
+      {NAV.map((seg) => (
+        <Link
+          key={seg.href}
+          href={seg.href}
+          className={`ct-hub-bar-seg${isActive(seg) ? ' active' : ''}`}
+        >
+          {seg.label}
+        </Link>
+      ))}
+    </>,
+    track,
   );
 }
