@@ -11,6 +11,7 @@
     "eslint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "vitest run e2e",
     "go-live:check": "node scripts/check-go-live.mjs",
     "vercel-build": "next build"
   },

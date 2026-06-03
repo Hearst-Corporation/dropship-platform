@@ -86,18 +86,34 @@ vi.mock('@/lib/db', () => ({
   }),
 }));
 
-vi.mock('@/lib/agent/kimi', () => ({
-  trackedKimiMessage: vi.fn(({ step }: { step: string }) => {
-    const branding = {
-      tagline: 'Test Tagline',
-      description: 'Test store description',
-      primaryColor: '#1F3D2C',
-      secondaryColor: '#EAF2EC',
-      accentColor: '#2E7D5C',
-      logoEmoji: '🧘',
-    };
+/**
+ * Mutable Kimi harness. `responder` decides what each `trackedKimiMessage` call
+ * returns; the default reproduces the production-shaped happy path. Tests swap
+ * `kimi.responder` to drive failure modes (truncation, invalid JSON) without
+ * re-mocking the module. `calls` captures (meta, messages, opts) so we can
+ * assert the call site requests the right token budget. `vi.hoisted` lets the
+ * `vi.mock` factory (hoisted above imports) reference it safely.
+ */
+const kimi = vi.hoisted(() => {
+  const branding = {
+    tagline: 'Test Tagline',
+    description: 'Test store description',
+    primaryColor: '#1F3D2C',
+    secondaryColor: '#EAF2EC',
+    accentColor: '#2E7D5C',
+    logoEmoji: '🧘',
+  };
+  const usage = { prompt_tokens: 100, completion_tokens: 200, total_tokens: 300 };
+  type KimiResult = { text: string; usage: typeof usage; finishReason: string | null };
+  type Responder = (
+    meta: { step: string },
+    messages?: unknown,
+    opts?: { maxTokens?: number },
+  ) => KimiResult;
+
+  const defaultResponder: Responder = ({ step }) => {
     if (step === 'generate-products') {
-      return Promise.resolve({
+      return {
         text: JSON.stringify({
           products: [
             { id: 'ai-001', originalTitle: 'Yoga Mat Pro', enrichedTitle: 'Tapis Yoga Pro', enrichedDescription: 'Tapis premium antidérapant.', costCents: 800, retailPriceCents: 2199, imageUrl: '', supplierUrl: '' },
@@ -106,27 +122,47 @@ vi.mock('@/lib/agent/kimi', () => ({
           ],
           branding,
         }),
-        usage: { prompt_tokens: 100, completion_tokens: 200, total_tokens: 300 },
-      });
+        usage,
+        finishReason: 'stop',
+      };
     }
     if (step === 'enrich-products') {
-      return Promise.resolve({
+      return {
         text: JSON.stringify({
+          branding,
           products: [
             { index: 0, enrichedTitle: 'Tapis Yoga Pro', enrichedDescription: 'Tapis premium antidérapant.', retailPriceCents: 2199, costCents: 800 },
             { index: 1, enrichedTitle: 'Bloc Yoga', enrichedDescription: 'Bloc en mousse dense.', retailPriceCents: 1499, costCents: 500 },
             { index: 2, enrichedTitle: 'Sangle Yoga', enrichedDescription: 'Sangle de stretching.', retailPriceCents: 999, costCents: 300 },
           ],
-          branding,
         }),
-        usage: { prompt_tokens: 100, completion_tokens: 200, total_tokens: 300 },
-      });
+        usage,
+        finishReason: 'stop',
+      };
     }
-    return Promise.resolve({
-      text: '',
-      usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
-    });
-  }),
+    return { text: '', usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }, finishReason: 'stop' };
+  };
+
+  return {
+    branding,
+    usage,
+    defaultResponder,
+    responder: defaultResponder,
+    calls: [] as Array<{ meta: { step: string }; opts?: { maxTokens?: number } }>,
+    reset() {
+      this.responder = defaultResponder;
+      this.calls = [];
+    },
+  };
+});
+
+vi.mock('@/lib/agent/kimi', () => ({
+  trackedKimiMessage: vi.fn(
+    (meta: { step: string }, messages?: unknown, opts?: { maxTokens?: number }) => {
+      kimi.calls.push({ meta, opts });
+      return Promise.resolve(kimi.responder(meta, messages, opts));
+    },
+  ),
 }));
 
 /** Drain an AsyncGenerator into an array. */
@@ -141,6 +177,7 @@ async function collectEvents(
 beforeEach(() => {
   captured.length = 0;
   resetMedusaCounter();
+  kimi.reset();
 });
 
 afterEach(() => {
@@ -262,5 +299,118 @@ describe('createStore — E2E pipeline', () => {
     );
     expect(activations).toHaveLength(1);
     expect(activations[0]!.params[8]).toBe(3); // product_count
+  });
+});
+
+/**
+ * Regression coverage for the prod incident where Kimi truncated the
+ * enrichment JSON at the (old) 4096-token ceiling and the pipeline died with
+ * "Claude returned invalid JSON" (store "Roadly", 2026-06-03).
+ *
+ * These drive the *real* extractJson + error handling in store-creator.ts via
+ * the mutable `kimi.responder`, so they exercise the salvage + truncation-aware
+ * error paths the happy-path tests above never hit.
+ */
+describe('createStore — JSON resilience (Roadly regression)', () => {
+  it('recovers a truncated enrichment payload (salvage keeps complete products)', async () => {
+    // Branding emitted first (survives truncation), 2 complete products, the
+    // 3rd cut mid-string — exactly the max_tokens failure shape.
+    kimi.responder = ({ step }) => {
+      if (step === 'enrich-products') {
+        const truncated =
+          '{\n' +
+          `  "branding": ${JSON.stringify(kimi.branding)},\n` +
+          '  "products": [\n' +
+          '    {"index":0,"enrichedTitle":"Tapis Yoga Pro","enrichedDescription":"desc a","retailPriceCents":2199,"costCents":800},\n' +
+          '    {"index":1,"enrichedTitle":"Bloc Yoga","enrichedDescription":"desc b","retailPriceCents":1499,"costCents":500},\n' +
+          '    {"index":2,"enrichedTitle":"Sangle Yoga","enrichedDescription":"ce texte est coupé au milieu';
+        return { text: truncated, usage: kimi.usage, finishReason: 'length' };
+      }
+      return kimi.defaultResponder({ step });
+    };
+
+    const { createStore } = await import('./store-creator');
+    const events = await collectEvents(
+      createStore({
+        niche: 'yoga équipement',
+        storeName: 'Zen Salvage',
+        maxProducts: 3,
+        mode: 'collection',
+        language: 'fr',
+      }),
+    );
+
+    // No hard failure — the store still ships, with the recoverable subset.
+    expect(events.filter((e) => e.type === 'error')).toEqual([]);
+    const success = events.find((e) => e.type === 'success');
+    expect(success).toBeDefined();
+    expect(success!.data).toMatchObject({ productCount: 2, mode: 'collection' });
+
+    const productInserts = captured.filter((q) =>
+      q.sql.startsWith('INSERT INTO dropship_store_products'),
+    );
+    expect(productInserts).toHaveLength(2);
+
+    const activations = captured.filter(
+      (q) =>
+        q.sql.includes('UPDATE dropship_stores') &&
+        q.sql.includes("status = 'active'"),
+    );
+    expect(activations[0]!.params[8]).toBe(2); // product_count
+  });
+
+  it('fails gracefully on unrecoverable truncation (clear error, store marked error)', async () => {
+    // Cut off before any element closes → nothing to salvage → must surface the
+    // truncation-specific message, not a crash.
+    kimi.responder = ({ step }) => {
+      if (step === 'enrich-products') {
+        return { text: '{"branding": {"tagline": "coupé tout de suite', usage: kimi.usage, finishReason: 'length' };
+      }
+      return kimi.defaultResponder({ step });
+    };
+
+    const { createStore } = await import('./store-creator');
+    const events = await collectEvents(
+      createStore({
+        niche: 'organisateur voiture famille',
+        storeName: 'Roadly',
+        maxProducts: 12,
+        mode: 'collection',
+        language: 'fr',
+      }),
+    );
+
+    // Exactly one error event, no success, terminal 'done'.
+    const errors = events.filter((e) => e.type === 'error');
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.message).toMatch(/tronquée/i);
+    expect(events.find((e) => e.type === 'success')).toBeUndefined();
+    expect(events[events.length - 1]!.type).toBe('done');
+
+    // Store row flipped to 'error' with the same message persisted.
+    const errorUpdates = captured.filter(
+      (q) => q.sql.includes('UPDATE dropship_stores') && q.sql.includes("status='error'"),
+    );
+    expect(errorUpdates).toHaveLength(1);
+    expect(errorUpdates[0]!.params[0]).toMatch(/tronquée/i);
+  });
+
+  it('requests a token budget large enough to avoid truncation (root-cause wiring)', async () => {
+    const { createStore } = await import('./store-creator');
+    await collectEvents(
+      createStore({
+        niche: 'yoga équipement',
+        storeName: 'Zen Budget',
+        maxProducts: 12,
+        mode: 'collection',
+        language: 'fr',
+      }),
+    );
+
+    const enrichCall = kimi.calls.find((c) => c.meta.step === 'enrich-products');
+    expect(enrichCall).toBeDefined();
+    // The old bug was a flat 4096 ceiling. The call site must now request a
+    // budget scaled to the product count, well above that.
+    expect(enrichCall!.opts?.maxTokens).toBeGreaterThanOrEqual(8192);
   });
 });
