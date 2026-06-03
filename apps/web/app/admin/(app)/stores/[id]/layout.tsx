@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
 import { getDbRead } from '@/lib/db';
 import { StoreLogo } from '@/components/ui';
 import { StoreTabsBar } from './_components/StoreTabsBar';
+import { BreadcrumbBackLink } from './_components/BreadcrumbBackLink';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,14 +41,7 @@ export default async function StoreLayout({
         }}
         aria-label="Fil d'Ariane"
       >
-        <Link
-          href="/admin/stores"
-          style={{ color: 'var(--ct-text-muted)', textDecoration: 'none', transition: 'color var(--ct-dur-base)' }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--ct-text-primary)'; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--ct-text-muted)'; }}
-        >
-          ← Stores
-        </Link>
+        <BreadcrumbBackLink />
         <span style={{ color: 'var(--ct-border-strong)' }}>/</span>
         <span style={{ color: 'var(--ct-text-muted)', display: 'inline-flex' }}>
           <StoreLogo emoji={store.logo_emoji} size={16} />
