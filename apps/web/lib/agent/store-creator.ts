@@ -154,6 +154,15 @@ async function searchSuppliers(
   return results;
 }
 
+// Output token budget for a multi-product JSON payload. Each product carries a
+// 130-170 word description (~250 tokens) plus title/price/keys; branding adds
+// ~250. The old flat 4096 ceiling truncated ~12-product payloads mid-JSON,
+// surfacing as "invalid JSON". Scale with product count, clamp to Kimi's
+// practical output limit.
+function tokenBudgetForProducts(maxProducts: number): number {
+  return Math.min(16384, Math.max(8192, maxProducts * 500 + 2000));
+}
+
 // Called when supplier APIs have no results — Claude generates product concepts
 async function generateProductsWithClaude(
   niche: string,
@@ -168,7 +177,7 @@ async function generateProductsWithClaude(
     ? 'Write ALL content in French (titles, descriptions).'
     : 'Write ALL content in English.';
 
-  const { text } = await trackedKimiMessage({ step: 'generate-products' }, [
+  const { text, finishReason } = await trackedKimiMessage({ step: 'generate-products' }, [
     {
       role: 'user',
       content: `You are a dropshipping expert. Create a complete product catalog for a dropshipping store.
@@ -206,7 +215,7 @@ Return ONLY valid JSON:
 
 Hard color rule: the three colors must form a coherent palette. If you cannot guarantee that, default to a monochromatic palette built from one hue (e.g. primary=#1F3D2C dark, secondary=#EAF2EC light, accent=#2E7D5C mid). Random complementary stunts ruin the storefront.`,
     },
-  ]);
+  ], { maxTokens: tokenBudgetForProducts(maxProducts) });
 
   const parsed = extractJson<{
     products: Array<{
@@ -221,7 +230,13 @@ Hard color rule: the three colors must form a coherent palette. If you cannot gu
     }>;
     branding: BrandingResult;
   }>(text);
-  if (!parsed) throw new Error('Claude returned invalid JSON for product generation');
+  if (!parsed) {
+    throw new Error(
+      finishReason === 'length'
+        ? 'Réponse IA tronquée (limite de tokens) — réessayez ou réduisez le nombre de produits'
+        : 'Claude returned invalid JSON for product generation',
+    );
+  }
 
   if (!parsed.products?.length || !parsed.branding) {
     throw new Error(`Claude returned incomplete payload (products=${parsed.products?.length ?? 0}, branding=${!!parsed.branding})`);
@@ -275,10 +290,12 @@ async function enrichSupplierProductsWithClaude(
     2,
   );
 
-  const { text } = await trackedKimiMessage({ step: 'enrich-products' }, [
-    {
-      role: 'user',
-      content: `You are an expert dropshipping product specialist and copywriter.
+  const { text, finishReason } = await trackedKimiMessage(
+    { step: 'enrich-products' },
+    [
+      {
+        role: 'user',
+        content: `You are an expert dropshipping product specialist and copywriter.
 
 Store name: "${storeName}"
 Niche: "${niche}"
@@ -293,8 +310,17 @@ Tasks:
 3. Retail price = cost * 2.2 rounded to nearest .99, minimum €9.99.
 4. Generate store branding.
 
-Return ONLY valid JSON:
+Return ONLY valid JSON. Emit "branding" FIRST so it survives even if the
+response is long:
 {
+  "branding": {
+    "tagline": "...",
+    "description": "...",
+    "primaryColor": "#hex dark/saturated",
+    "secondaryColor": "#hex very light tint of the SAME hue as primaryColor",
+    "accentColor": "#hex vibrant but ANALOGOUS to primaryColor (same hue family, never a complementary clash like green+pink, blue+orange, purple+yellow). Prefer monochromatic. Random complementary stunts ruin the storefront.",
+    "logoEmoji": "emoji"
+  },
   "products": [
     {
       "index": <original index number>,
@@ -303,18 +329,12 @@ Return ONLY valid JSON:
       "retailPriceCents": <integer>,
       "costCents": <integer from cost_eur * 100>
     }
-  ],
-  "branding": {
-    "tagline": "...",
-    "description": "...",
-    "primaryColor": "#hex dark/saturated",
-    "secondaryColor": "#hex very light tint of the SAME hue as primaryColor",
-    "accentColor": "#hex vibrant but ANALOGOUS to primaryColor (same hue family, never a complementary clash like green+pink, blue+orange, purple+yellow). Prefer monochromatic. Random complementary stunts ruin the storefront.",
-    "logoEmoji": "emoji"
-  }
+  ]
 }`,
-    },
-  ]);
+      },
+    ],
+    { maxTokens: tokenBudgetForProducts(maxProducts) },
+  );
 
   const parsed = extractJson<{
     products: Array<{
@@ -326,22 +346,40 @@ Return ONLY valid JSON:
     }>;
     branding: BrandingResult;
   }>(text);
-  if (!parsed) throw new Error('Claude returned invalid JSON');
+  if (!parsed) {
+    throw new Error(
+      finishReason === 'length'
+        ? 'Réponse IA tronquée (limite de tokens) — réessayez ou réduisez le nombre de produits'
+        : 'Claude returned invalid JSON',
+    );
+  }
 
-  const enriched: EnrichedProduct[] = parsed.products.map(ep => {
-    const raw = rawProducts[ep.index];
-    return {
-      originalTitle: raw.title,
-      enrichedTitle: ep.enrichedTitle,
-      enrichedDescription: ep.enrichedDescription,
-      priceCents: ep.retailPriceCents,
-      costCents: ep.costCents,
-      imageUrl: raw.imageUrl,
-      supplierUrl: raw.supplierUrl,
-      supplier: raw.supplier,
-      externalId: raw.externalId,
-    };
-  });
+  // A salvaged (truncated) payload can carry products whose `index` is missing
+  // from rawProducts — skip those rather than crash on `raw.title`.
+  const enriched: EnrichedProduct[] = (parsed.products ?? [])
+    .filter(ep => rawProducts[ep.index])
+    .map(ep => {
+      const raw = rawProducts[ep.index];
+      return {
+        originalTitle: raw.title,
+        enrichedTitle: ep.enrichedTitle,
+        enrichedDescription: ep.enrichedDescription,
+        priceCents: ep.retailPriceCents,
+        costCents: ep.costCents,
+        imageUrl: raw.imageUrl,
+        supplierUrl: raw.supplierUrl,
+        supplier: raw.supplier,
+        externalId: raw.externalId,
+      };
+    });
+
+  if (!enriched.length || !parsed.branding) {
+    throw new Error(
+      finishReason === 'length'
+        ? 'Réponse IA tronquée (limite de tokens) — réessayez ou réduisez le nombre de produits'
+        : `Claude returned incomplete payload (products=${enriched.length}, branding=${!!parsed.branding})`,
+    );
+  }
 
   emit({
     type: 'progress',

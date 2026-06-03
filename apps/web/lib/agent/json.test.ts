@@ -57,4 +57,31 @@ describe('extractJson', () => {
     const input = '{"msg": "he said \\"hi\\""}';
     expect(extractJson<{ msg: string }>(input)).toEqual({ msg: 'he said "hi"' });
   });
+
+  it('salvages a payload truncated mid-element (recovers complete items)', () => {
+    // Branding-first shape from enrichSupplierProductsWithClaude — the response
+    // was cut off mid-description on the second product (max_tokens hit).
+    const input = `{
+      "branding": { "tagline": "Roule malin", "description": "d", "primaryColor": "#1F3D2C", "secondaryColor": "#EAF2EC", "accentColor": "#2E7D5C", "logoEmoji": "🚗" },
+      "products": [
+        { "index": 0, "enrichedTitle": "Organisateur arrière", "enrichedDescription": "desc complete", "retailPriceCents": 1999, "costCents": 900 },
+        { "index": 1, "enrichedTitle": "Tapis coffre", "enrichedDescription": "ce texte est coupé au milieu`;
+    const parsed = extractJson<{
+      branding: { logoEmoji: string };
+      products: Array<{ index: number; enrichedTitle: string }>;
+    }>(input);
+    expect(parsed?.branding.logoEmoji).toBe('🚗');
+    expect(parsed?.products).toHaveLength(1);
+    expect(parsed?.products[0].index).toBe(0);
+  });
+
+  it('salvages a truncated body wrapped in an unclosed code fence', () => {
+    const input = '```json\n{"branding":{"logoEmoji":"x"},"products":[{"index":0,"enrichedTitle":"A"},{"index":1,"enrichedTitle":"B incomplet';
+    const parsed = extractJson<{ products: unknown[] }>(input);
+    expect(parsed?.products).toHaveLength(1);
+  });
+
+  it('does not invent content when nothing complete was emitted', () => {
+    expect(extractJson('{"branding": {"tagline": "coupé tout de suite')).toBeNull();
+  });
 });

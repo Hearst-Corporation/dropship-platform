@@ -133,11 +133,12 @@ export interface KimiRunMeta {
 export async function trackedKimiMessage(
   meta: KimiRunMeta,
   messages: KimiMessage[],
-  options?: { tools?: KimiTool[] },
-): Promise<{ text: string; usage: KimiUsage; tool_calls?: KimiToolCall[] }> {
+  options?: { tools?: KimiTool[]; maxTokens?: number },
+): Promise<{ text: string; usage: KimiUsage; tool_calls?: KimiToolCall[]; finishReason: string | null }> {
   const startedAt = Date.now();
   let responseText = '';
   let toolCalls: KimiToolCall[] | undefined;
+  let finishReason: string | null = null;
   let usage: KimiUsage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
   let errorJson: string | null = null;
 
@@ -145,7 +146,10 @@ export async function trackedKimiMessage(
     const body: Record<string, unknown> = {
       model: MODEL,
       messages,
-      max_tokens: 4096,
+      // 4096 was too small for multi-product enrichment (12 products ×
+      // 170-word descriptions truncated mid-JSON → "invalid JSON"). Default to
+      // 8192 and let callers request more for large payloads.
+      max_tokens: options?.maxTokens ?? 8192,
       temperature: 0.7,
     };
     if (options?.tools) {
@@ -173,6 +177,7 @@ export async function trackedKimiMessage(
               content?: string | null;
               tool_calls?: KimiToolCall[];
             };
+            finish_reason?: string | null;
           }>;
         };
 
@@ -186,11 +191,13 @@ export async function trackedKimiMessage(
           continue;
         }
 
-        const msg = data.choices?.[0]?.message;
+        const choice = data.choices?.[0];
+        const msg = choice?.message;
         if (msg?.tool_calls && msg.tool_calls.length > 0) {
           toolCalls = msg.tool_calls;
         }
         responseText = msg?.content ?? '';
+        finishReason = choice?.finish_reason ?? null;
         usage = data.usage ?? usage;
         break;
       } catch (e) {
@@ -205,7 +212,7 @@ export async function trackedKimiMessage(
       }
     }
 
-    return { text: responseText, usage, tool_calls: toolCalls };
+    return { text: responseText, usage, tool_calls: toolCalls, finishReason };
   } catch (e) {
     errorJson = JSON.stringify({
       message: e instanceof Error ? e.message : String(e),
