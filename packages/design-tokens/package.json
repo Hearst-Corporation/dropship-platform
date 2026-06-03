@@ -1,0 +1,17 @@
+{
+  "name": "@hearst/design-tokens",
+  "version": "1.0.0",
+  "description": "Design tokens — primitives, semantics, Tailwind config",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tailwind": "./tailwind.config.ts",
+    "./css": "./src/globals.css"
+  },
+  "sideEffects": ["./src/globals.css"],
+  "keywords": ["design-tokens", "css-variables", "tailwind"],
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}

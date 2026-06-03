@@ -1,0 +1,20 @@
+{
+  "name": "@hearst/theme-engine",
+  "version": "1.0.0",
+  "description": "Runtime theme switching, CSS variable generation, white-label engine",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "dependencies": {
+    "@hearst/design-tokens": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}
