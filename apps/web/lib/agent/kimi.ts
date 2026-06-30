@@ -10,6 +10,7 @@
  * `trackedMessage` so the cost dashboard stays consistent.
  */
 
+import 'server-only';
 import { getDb } from '@/lib/db';
 import { runContext } from './run-context';
 
