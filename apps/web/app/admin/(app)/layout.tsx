@@ -1,9 +1,7 @@
-import { AdminShell } from '@/app/admin/_components/AdminShell';
-import { getHeaderStats } from '@/app/admin/_components/getHeaderStats';
-
+// ⟪RASÉ⟫ admin shell. Aucun chrome pour l'instant — les blocs UI seront fournis
+// puis branchés ici à la reconstruction. Layout neutre, pass-through.
 export const revalidate = 0;
 
-export default async function AdminAppLayout({ children }: { children: React.ReactNode }) {
-  const stats = await getHeaderStats();
-  return <AdminShell stats={stats}>{children}</AdminShell>;
+export default function AdminAppLayout({ children }: { children: React.ReactNode }) {
+  return <div className="min-h-screen bg-zinc-50 text-zinc-900">{children}</div>;
 }

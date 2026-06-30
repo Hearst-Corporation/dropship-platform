@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { TrashIcon } from '@/app/admin/_components/AdminUI';
+import { TrashIcon } from '@heroicons/react/24/outline';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 export function StoreActions({
@@ -39,7 +39,8 @@ export function StoreActions({
     }
   };
 
-  const sizeCls = compact ? 'w-7 h-7' : 'w-9 h-9';
+  const sizeCls = compact ? 'size-7' : 'size-9';
+  const iconCls = compact ? 'size-3.5' : 'size-4';
   return (
     <>
       <button
@@ -48,20 +49,11 @@ export function StoreActions({
         disabled={deleting}
         aria-label={`Supprimer ${storeName}`}
         title={error || `Supprimer ${storeName}`}
-        className={`inline-flex items-center justify-center rounded-lg border transition-colors focus-visible:outline-none disabled:opacity-40 disabled:cursor-not-allowed ${sizeCls}`}
-        style={{
-          background: 'var(--ct-surface-1)',
-          borderColor: error ? 'var(--ct-border-accent)' : 'var(--ct-border)',
-          color: error ? 'var(--ct-accent-strong)' : 'var(--ct-text-muted)',
-        }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.background = 'var(--ct-surface-2)';
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.background = 'var(--ct-surface-1)';
-        }}
+        className={`inline-flex items-center justify-center rounded-lg border bg-white transition-colors hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-40 ${sizeCls} ${
+          error ? 'border-red-300 text-red-600' : 'border-zinc-200 text-zinc-500 hover:text-zinc-700'
+        }`}
       >
-        <TrashIcon size={compact ? 13 : 15} />
+        <TrashIcon className={iconCls} aria-hidden />
       </button>
       <ConfirmDialog
         open={confirmOpen}

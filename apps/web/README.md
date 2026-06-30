@@ -41,7 +41,7 @@ app/
 │  │  │     └ settings/        Template + domaine + tokens analytics
 │  │  ├ orders/                Commandes Stripe + forward AE
 │  │  └ observability/         Coût Claude par step
-│  └ _components/AdminShell    Sidebar + layout
+│  └ _components/getHeaderStats  KPIs admin (data). Le chrome admin (shell/nav) a été rasé (reset Tailwind) et sera reconstruit sur blocs Tailwind Plus.
 ├ api/
 │  ├ agent/                    Routes SSE des copilotes
 │  ├ analytics/                Tracking server-side (purchase, view_content...)
