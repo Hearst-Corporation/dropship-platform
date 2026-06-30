@@ -26,12 +26,12 @@
     "@stripe/stripe-js": "^9.5.0",
     "clsx": "^2.1.1",
     "lucide-react": "^1.14.0",
+    "motion": "^12.42.0",
     "next": "^16.2.9",
     "openai": "^6.38.0",
     "pg": "^8.20.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "recharts": "^3.9.0",
     "server-only": "^0.0.1",
     "tailwind-merge": "^3.6.0",
     "zod": "^4.4.3"

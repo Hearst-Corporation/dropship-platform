@@ -1,12 +1,24 @@
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
 import { getDbRead } from '@/lib/db';
 import { resolveStoreId } from '@/lib/resolve-store';
 import { formatMoney } from '@/lib/medusa-store';
-import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
-import { AdminStatGrid, AdminStatCard } from '@/components/admin/AdminStatCard';
-import { AdminCard, AdminCardHeader } from '@/components/admin/AdminCard';
-import { FunnelChart } from '@/components/admin/AdminCharts';
+import { Heading, Subheading } from '@/components/catalyst/heading';
+import { Text, TextLink, Strong, Code } from '@/components/catalyst/text';
+import { Badge } from '@/components/catalyst/badge';
+import { Button } from '@/components/catalyst/button';
+import {
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableHeader,
+  TableCell,
+} from '@/components/catalyst/table';
+import {
+  DescriptionList,
+  DescriptionTerm,
+  DescriptionDetails,
+} from '@/components/catalyst/description-list';
 
 export const dynamic = 'force-dynamic';
 
@@ -122,197 +134,182 @@ export default async function StoreAnalyticsPage({ params, searchParams }: Props
   const aov = totalPurchases > 0 ? totalRevenue / totalPurchases : 0;
   const cartToPurchase = totalAdds > 0 ? (totalPurchases / totalAdds) * 100 : 0;
 
+  const stats: { label: string; value: string; hint?: string }[] = [
+    {
+      label: 'Revenu',
+      value: totalRevenue > 0 ? formatMoney(totalRevenue / 100, 'eur') : '—',
+    },
+    { label: 'Commandes', value: String(totalPurchases) },
+    {
+      label: 'Panier moyen',
+      value: aov > 0 ? formatMoney(aov / 100, 'eur') : '—',
+    },
+    {
+      label: 'Conv. cart → purchase',
+      value: totalAdds > 0 ? `${cartToPurchase.toFixed(1)} %` : '—',
+      hint: cartToPurchase >= 30 ? 'Au-dessus du seuil' : undefined,
+    },
+  ];
+
   return (
     <div className="flex flex-1 flex-col space-y-6">
-      <AdminPageHeader
-        eyebrow={`Analytics · ${store.name}`}
-        title={
-          <span>
-            Acquisition <em className="font-normal not-italic text-gray-500">&amp; comportement</em>
-          </span>
-        }
-        description={`Période : ${cfg.label}.`}
-        actions={
-          <div className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-gray-800/50 p-1">
-            {Object.entries(RANGE_TO_INTERVAL).map(([key, c]) => (
-              <Link
-                key={key}
-                href={`?range=${key}`}
-                className={
-                  'rounded-full px-4 py-1 text-[11px] font-semibold uppercase tracking-wider transition-colors ' +
-                  (key === range ? 'bg-indigo-500 text-white' : 'text-gray-400 hover:text-white')
-                }
-              >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <Text className="text-xs/5 font-medium uppercase tracking-wider">
+            Analytics · {store.name}
+          </Text>
+          <Heading>Acquisition & comportement</Heading>
+          <Text>Période : {cfg.label}.</Text>
+        </div>
+        <div className="flex items-center gap-2">
+          {Object.entries(RANGE_TO_INTERVAL).map(([key, c]) =>
+            key === range ? (
+              <Button key={key} href={`?range=${key}`} color="indigo">
                 {c.label}
-              </Link>
-            ))}
-          </div>
-        }
-      />
+              </Button>
+            ) : (
+              <Button key={key} href={`?range=${key}`} plain>
+                {c.label}
+              </Button>
+            ),
+          )}
+        </div>
+      </div>
 
       {/* Aggregate KPIs */}
-      <AdminStatGrid>
-        <AdminStatCard
-          label="Revenu"
-          value={totalRevenue > 0 ? formatMoney(totalRevenue / 100, 'eur') : '—'}
-        />
-        <AdminStatCard label="Commandes" value={String(totalPurchases)} />
-        <AdminStatCard
-          label="Panier moyen"
-          value={aov > 0 ? formatMoney(aov / 100, 'eur') : '—'}
-        />
-        <AdminStatCard
-          label="Conv. cart → purchase"
-          value={totalAdds > 0 ? `${cartToPurchase.toFixed(1)} %` : '—'}
-          hint={cartToPurchase >= 30 ? 'Au-dessus du seuil' : undefined}
-        />
-      </AdminStatGrid>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {stats.map((s) => (
+          <div
+            key={s.label}
+            className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10"
+          >
+            <Text className="text-xs/5 font-medium uppercase tracking-wider">{s.label}</Text>
+            <Heading level={2} className="mt-2 text-2xl/8">
+              {s.value}
+            </Heading>
+            {s.hint && (
+              <Text className="mt-1 text-xs/5">{s.hint}</Text>
+            )}
+          </div>
+        ))}
+      </div>
 
       {/* UX — Funnel */}
-      <AdminCard>
-        <AdminCardHeader
-          title={
-            <span>
-              Comportement <em className="font-normal not-italic text-gray-500">(UX)</em>
-            </span>
-          }
-        />
-        <div className="px-5 pt-4">
-          <p className="text-xs text-gray-500">
-            Funnel des sessions uniques sur les events serveur. Les session_id se persistent 30 jours.
-          </p>
-        </div>
-        <div className="px-5 py-5">
-          <FunnelChart
-            height={220}
-            data={FUNNEL_ORDER.map((name) => ({
-              stage: FUNNEL_LABEL[name],
-              value: funnelByName.get(name)?.sessions ?? 0,
-            }))}
-          />
+      <div className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+        <Subheading>Comportement (UX)</Subheading>
+        <Text className="mt-1">
+          Funnel des sessions uniques sur les events serveur. Les session_id se persistent 30 jours.
+        </Text>
+        <div className="mt-4">
+          <DescriptionList>
+            {FUNNEL_ORDER.map((name) => (
+              <DescriptionListPair
+                key={name}
+                term={FUNNEL_LABEL[name] ?? name}
+                detail={funnelByName.get(name)?.sessions ?? 0}
+              />
+            ))}
+          </DescriptionList>
         </div>
         {store.clarity_id && (
-          <div className="border-t border-white/10 bg-gray-900/40 px-5 py-3 text-xs text-gray-500">
+          <Text className="mt-4 text-xs/5">
             Pour les replays vidéo et les heatmaps, ouvre le projet sur{' '}
-            <a
+            <TextLink
               href={`https://clarity.microsoft.com/projects/view/${store.clarity_id}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-indigo-400 underline underline-offset-2 hover:text-indigo-300"
             >
-              Microsoft Clarity &#8599;
-            </a>
+              Microsoft Clarity ↗
+            </TextLink>
             .
-          </div>
+          </Text>
         )}
-      </AdminCard>
+      </div>
 
       {/* UA — Acquisition by source/campaign */}
-      <AdminCard>
-        <AdminCardHeader
-          title={
-            <span>
-              Acquisition <em className="font-normal not-italic text-gray-500">(UA)</em>
-            </span>
-          }
-        />
-        <div className="px-5 pt-4 pb-1">
-          <p className="text-xs text-gray-500">
-            Décomposition par utm_source / utm_campaign. Les visiteurs sans UTM sont regroupés sous{' '}
-            <code className="rounded-sm bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-gray-400">
-              (direct)
-            </code>
-            .
-          </p>
-        </div>
+      <div className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+        <Subheading>Acquisition (UA)</Subheading>
+        <Text className="mt-1">
+          Décomposition par utm_source / utm_campaign. Les visiteurs sans UTM sont regroupés sous{' '}
+          <Code>(direct)</Code>.
+        </Text>
         {acquisitionRows.length === 0 ? (
-          <div className="px-6 py-12 text-center text-sm text-gray-500">
-            Aucun évènement enregistré sur cette période.
-          </div>
+          <Text className="mt-6 text-center">Aucun évènement enregistré sur cette période.</Text>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-white/10 text-sm">
-              <thead>
-                <tr className="text-left text-[10px] uppercase tracking-wider text-gray-500">
-                  <th className="px-5 py-3 font-medium">Source</th>
-                  <th className="px-5 py-3 font-medium">Campagne</th>
-                  <th className="px-5 py-3 text-right font-medium">Sessions</th>
-                  <th className="px-5 py-3 text-right font-medium">Cart</th>
-                  <th className="px-5 py-3 text-right font-medium">Checkout</th>
-                  <th className="px-5 py-3 text-right font-medium">Achats</th>
-                  <th className="px-5 py-3 text-right font-medium">Revenu</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/10">
-                {acquisitionRows.map((r, i) => {
-                  const conv = r.adds_to_cart > 0 ? (r.purchases / r.adds_to_cart) * 100 : 0;
-                  return (
-                    <tr key={i}>
-                      <td className="px-5 py-3 font-medium text-white">{r.source}</td>
-                      <td className="px-5 py-3 text-gray-400">{r.campaign}</td>
-                      <td className="px-5 py-3 text-right tabular-nums text-gray-400">{r.visits}</td>
-                      <td className="px-5 py-3 text-right tabular-nums text-gray-400">
-                        {r.adds_to_cart}
-                      </td>
-                      <td className="px-5 py-3 text-right tabular-nums text-gray-400">
-                        {r.initiate_checkouts}
-                      </td>
-                      <td className="px-5 py-3 text-right tabular-nums">
-                        <span className="font-medium text-white">{r.purchases}</span>
-                        {r.adds_to_cart > 0 && (
-                          <span className="ml-1.5 text-[10px] text-gray-500">{conv.toFixed(0)} %</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3 text-right font-semibold tabular-nums text-white">
+          <Table className="mt-4" dense>
+            <TableHead>
+              <TableRow>
+                <TableHeader>Source</TableHeader>
+                <TableHeader>Campagne</TableHeader>
+                <TableHeader className="text-right">Sessions</TableHeader>
+                <TableHeader className="text-right">Cart</TableHeader>
+                <TableHeader className="text-right">Checkout</TableHeader>
+                <TableHeader className="text-right">Achats</TableHeader>
+                <TableHeader className="text-right">Revenu</TableHeader>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {acquisitionRows.map((r, i) => {
+                const conv = r.adds_to_cart > 0 ? (r.purchases / r.adds_to_cart) * 100 : 0;
+                return (
+                  <TableRow key={i}>
+                    <TableCell>
+                      <Strong>{r.source}</Strong>
+                    </TableCell>
+                    <TableCell className="text-zinc-500">{r.campaign}</TableCell>
+                    <TableCell className="text-right tabular-nums">{r.visits}</TableCell>
+                    <TableCell className="text-right tabular-nums">{r.adds_to_cart}</TableCell>
+                    <TableCell className="text-right tabular-nums">{r.initiate_checkouts}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      <Strong>{r.purchases}</Strong>
+                      {r.adds_to_cart > 0 && (
+                        <span className="ml-1.5 text-xs text-zinc-500">{conv.toFixed(0)} %</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      <Strong>
                         {r.revenue_minor > 0 ? formatMoney(r.revenue_minor / 100, 'eur') : '—'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </Strong>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         )}
-      </AdminCard>
+      </div>
 
       {/* Pixel/CAPI status */}
-      <div className="rounded-xl border border-dashed border-white/15 bg-gray-800/30 px-5 py-4">
-        <h4 className="mb-3 text-[10px] font-bold uppercase tracking-wider text-gray-500">
-          Plomberie connectée
-        </h4>
-        <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+      <div className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+        <Subheading>Plomberie connectée</Subheading>
+        <div className="mt-4 flex flex-wrap gap-3">
           <ConnState label="GA4" set={!!store.ga4_measurement_id} />
           <ConnState label="Meta Pixel" set={!!store.meta_pixel_id} />
           <ConnState label="TikTok Pixel" set={!!store.tiktok_pixel_id} />
           <ConnState label="Clarity" set={!!store.clarity_id} />
         </div>
-        <p className="mt-4 text-xs text-gray-500">
+        <Text className="mt-4 text-xs/5">
           IDs vides ?{' '}
-          <Link
-            href={`/admin/stores/${id}/settings`}
-            className="text-indigo-400 underline underline-offset-2 hover:text-indigo-300"
-          >
-            Configure-les dans les Réglages
-          </Link>
-        </p>
+          <TextLink href={`/admin/stores/${id}/settings`}>Configure-les dans les Réglages</TextLink>
+        </Text>
       </div>
     </div>
   );
 }
 
+function DescriptionListPair({ term, detail }: { term: string; detail: number }) {
+  return (
+    <>
+      <DescriptionTerm>{term}</DescriptionTerm>
+      <DescriptionDetails className="tabular-nums">{detail}</DescriptionDetails>
+    </>
+  );
+}
+
 function ConnState({ label, set }: { label: string; set: boolean }) {
   return (
-    <div className="flex items-center gap-2 text-sm">
-      <span
-        className={
-          'inline-block size-1.5 shrink-0 rounded-full ' + (set ? 'bg-indigo-400' : 'bg-white/20')
-        }
-        aria-hidden="true"
-      />
-      <span className={set ? 'font-semibold text-white' : 'text-gray-400'}>{label}</span>
-      <span className="ml-auto text-[10px] uppercase tracking-wider text-gray-500">
-        {set ? 'connecté' : 'inactif'}
-      </span>
-    </div>
+    <Badge color={set ? 'indigo' : 'zinc'}>
+      {label} · {set ? 'connecté' : 'inactif'}
+    </Badge>
   );
 }

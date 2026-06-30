@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation';
 import { getDbRead } from '@/lib/db';
 import { StoreLogo } from '@/components/ui';
-import { AdminBadge } from '@/components/admin/AdminBadge';
+import { Badge } from '@/components/catalyst/badge';
+import { Heading } from '@/components/catalyst/heading';
 import { StoreTabsBar } from './_components/StoreTabsBar';
 import { BreadcrumbBackLink } from './_components/BreadcrumbBackLink';
 
@@ -41,14 +42,14 @@ export default async function StoreLayout({
       >
         <BreadcrumbBackLink />
         <span className="text-gray-600" aria-hidden="true">/</span>
-        <span className="inline-flex text-gray-500">
+        <span className="inline-flex">
           <StoreLogo emoji={store.logo_emoji} size={16} />
         </span>
-        <span className="overflow-hidden text-ellipsis whitespace-nowrap font-medium text-white">
+        <Heading className="overflow-hidden text-ellipsis whitespace-nowrap !text-base/6">
           {store.name}
-        </span>
+        </Heading>
         {store.status !== 'active' && (
-          <AdminBadge color="indigo">{store.status}</AdminBadge>
+          <Badge color="indigo">{store.status}</Badge>
         )}
       </nav>
 

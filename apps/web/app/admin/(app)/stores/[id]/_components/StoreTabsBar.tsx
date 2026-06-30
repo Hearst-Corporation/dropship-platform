@@ -87,7 +87,7 @@ export function StoreTabsBar({ storeId }: StoreTabsBarProps) {
     <nav
       role="tablist"
       aria-label="Onglets du store"
-      className="flex shrink-0 gap-6 overflow-x-auto border-b border-white/10"
+      className="flex shrink-0 gap-6 overflow-x-auto border-b border-zinc-950/10 dark:border-white/10"
     >
       {STORE_TABS.map((tab) => {
         const active = isActive(tab);
@@ -100,8 +100,8 @@ export function StoreTabsBar({ storeId }: StoreTabsBarProps) {
             className={[
               'inline-flex items-center gap-2 whitespace-nowrap border-b-2 px-1 py-3 text-sm transition-colors',
               active
-                ? 'border-indigo-400 font-semibold text-white'
-                : 'border-transparent font-medium text-gray-400 hover:border-white/20 hover:text-gray-200',
+                ? 'border-indigo-500 font-semibold text-zinc-950 dark:border-indigo-400 dark:text-white'
+                : 'border-transparent font-medium text-zinc-500 hover:border-zinc-950/20 hover:text-zinc-800 dark:text-zinc-400 dark:hover:border-white/20 dark:hover:text-zinc-200',
             ].join(' ')}
           >
             <tab.Icon size={16} strokeWidth={1.75} aria-hidden />

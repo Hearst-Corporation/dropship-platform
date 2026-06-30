@@ -2,7 +2,8 @@ import { notFound } from 'next/navigation';
 import { getDbRead } from '@/lib/db';
 import { resolveStoreId } from '@/lib/resolve-store';
 import { ASSET_KINDS, type AssetKind } from '@/lib/agent/asset-regenerator';
-import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import { Heading } from '@/components/catalyst/heading';
+import { Text, Code, Strong } from '@/components/catalyst/text';
 import { AssetRegenerator } from './AssetRegenerator';
 
 export const dynamic = 'force-dynamic';
@@ -100,31 +101,21 @@ export default async function StoreAssetsPage({ params }: { params: Promise<{ id
 
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <AdminPageHeader
-        eyebrow={`Production · Assets · ${store.niche}`}
-        title={
-          <>
-            Assets de <em className="italic text-gray-400">{store.name}</em>
-          </>
-        }
-        description={
-          <>
-            Régénère chaque visuel sans toucher au produit. Le prompt est éditable, l&apos;historique
-            conserve les 10 derniers runs et un clic suffit pour revenir à une version précédente. Le
-            storefront{' '}
-            <code className="rounded-sm bg-white/5 px-1.5 py-0.5 font-mono text-[11px] text-gray-400 ring-1 ring-white/10">
-              /shop/{store.slug}
-            </code>{' '}
-            reflète immédiatement la version courante.
-          </>
-        }
-      />
+      <div className="flex flex-col gap-1">
+        <Text className="text-xs uppercase tracking-wide">{`Production · Assets · ${store.niche}`}</Text>
+        <Heading>Assets de {store.name}</Heading>
+        <Text>
+          Régénère chaque visuel sans toucher au produit. Le prompt est éditable, l&apos;historique
+          conserve les 10 derniers runs et un clic suffit pour revenir à une version précédente. Le
+          storefront <Code>/shop/{store.slug}</Code> reflète immédiatement la version courante.
+        </Text>
+      </div>
 
       {!product?.image_url && (
-        <div className="rounded-xl bg-amber-500/10 px-5 py-4 text-sm text-amber-400 ring-1 ring-amber-500/20">
-          <strong className="font-semibold">Aucun produit de référence.</strong> Aucune image produit
-          n&apos;est associée à ce store, la régénération ne peut pas s&apos;appuyer sur un visuel
-          source. Importe un produit avec une image avant d&apos;utiliser cette page.
+        <div className="rounded-lg bg-amber-50 p-4 text-sm text-amber-700 ring-1 ring-amber-600/20 dark:bg-amber-500/10 dark:text-amber-400 dark:ring-amber-500/20">
+          <Strong>Aucun produit de référence.</Strong> Aucune image produit n&apos;est associée à ce
+          store, la régénération ne peut pas s&apos;appuyer sur un visuel source. Importe un produit
+          avec une image avant d&apos;utiliser cette page.
         </div>
       )}
 

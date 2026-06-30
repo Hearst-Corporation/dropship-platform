@@ -4,14 +4,22 @@ import { apiFetch } from '@/lib/client-fetch';
 
 import { useState, useRef, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/20/solid';
-import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
-import { AdminCard, AdminCardHeader } from '@/components/admin/AdminCard';
+import { Heading, Subheading } from '@/components/catalyst/heading';
+import { Text, TextLink } from '@/components/catalyst/text';
+import { Badge } from '@/components/catalyst/badge';
+import { Fieldset, FieldGroup, Field, Label, Description } from '@/components/catalyst/fieldset';
+import { Input } from '@/components/catalyst/input';
+import { Select } from '@/components/catalyst/select';
+import { CheckboxField, Checkbox } from '@/components/catalyst/checkbox';
+import { Button } from '@/components/catalyst/button';
+
+const surfaceClass =
+  'rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10';
 
 interface AgentEvent {
   type: 'step' | 'progress' | 'success' | 'error' | 'done';
@@ -125,7 +133,7 @@ function NewStoreForm() {
       });
 
       if (!res.ok || !res.body) {
-        setError('Erreur serveur. Vérifie ANTHROPIC_API_KEY dans Réglages.');
+        setError('Erreur serveur. Vérifie OPENAI_API_KEY dans Réglages.');
         setRunning(false);
         return;
       }
@@ -194,15 +202,15 @@ function NewStoreForm() {
 
   return (
     <div className="space-y-8">
-      <AdminPageHeader
-        eyebrow={
-          <Link href="/admin/stores" className="text-indigo-400 hover:text-indigo-300">
-            &larr; Stores
-          </Link>
-        }
-        title="Nouveau store"
-        description="Renseigne une niche et un nom, l’agent construit le store de bout en bout."
-      />
+      <div>
+        <Text>
+          <TextLink href="/admin/stores">&larr; Stores</TextLink>
+        </Text>
+        <Heading className="mt-2">Nouveau store</Heading>
+        <Text className="mt-1">
+          Renseigne une niche et un nom, l’agent construit le store de bout en bout.
+        </Text>
+      </div>
 
       {isActive ? (
         <CreationScreen
@@ -218,108 +226,87 @@ function NewStoreForm() {
         />
       ) : (
         <div className="mx-auto w-full max-w-2xl">
-          <AdminCard>
-            <AdminCardHeader eyebrow="Création" title="Configurer le store" />
-            <form onSubmit={handleSubmit} className="mt-6 space-y-6">
-              <div>
-                <label htmlFor="niche" className="block text-sm font-medium text-white">
-                  Niche
-                </label>
-                <p className="mt-1 text-sm text-gray-400">
-                  Le mot-clé produit ou thème autour duquel l’agent construit le store.
-                </p>
-                <input
-                  id="niche"
-                  type="text"
-                  value={niche}
-                  onChange={(e) => setNiche(e.target.value)}
-                  placeholder="ex. lampes de bureau design"
-                  autoFocus
-                  className="mt-2 block w-full rounded-md bg-white/5 px-3 py-2 text-base text-white outline-hidden ring-1 ring-inset ring-white/10 placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm"
-                />
-              </div>
+          <div className={surfaceClass}>
+            <Subheading>Configurer le store</Subheading>
+            <form onSubmit={handleSubmit} className="mt-6">
+              <Fieldset>
+                <FieldGroup>
+                  <Field>
+                    <Label>Niche</Label>
+                    <Description>
+                      Le mot-clé produit ou thème autour duquel l’agent construit le store.
+                    </Description>
+                    <Input
+                      name="niche"
+                      value={niche}
+                      onChange={(e) => setNiche(e.target.value)}
+                      placeholder="ex. lampes de bureau design"
+                      autoFocus
+                    />
+                  </Field>
 
-              <div>
-                <label htmlFor="storeName" className="block text-sm font-medium text-white">
-                  Nom du store
-                </label>
-                <input
-                  id="storeName"
-                  type="text"
-                  value={storeName}
-                  onChange={(e) => setStoreName(e.target.value)}
-                  placeholder="ex. Lueur Studio"
-                  className="mt-2 block w-full rounded-md bg-white/5 px-3 py-2 text-base text-white outline-hidden ring-1 ring-inset ring-white/10 placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm"
-                />
-              </div>
+                  <Field>
+                    <Label>Nom du store</Label>
+                    <Input
+                      name="storeName"
+                      value={storeName}
+                      onChange={(e) => setStoreName(e.target.value)}
+                      placeholder="ex. Lueur Studio"
+                    />
+                  </Field>
 
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="mode" className="block text-sm font-medium text-white">
-                    Mode
-                  </label>
-                  <select
-                    id="mode"
-                    value={mode}
-                    onChange={(e) => setMode(e.target.value as 'mono' | 'collection')}
-                    className="mt-2 block w-full rounded-md bg-white/5 px-3 py-2 text-base text-white outline-hidden ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm"
-                  >
-                    <option value="mono" className="bg-gray-800">Mono-produit</option>
-                    <option value="collection" className="bg-gray-800">Collection</option>
-                  </select>
-                </div>
+                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <Field>
+                      <Label>Mode</Label>
+                      <Select
+                        name="mode"
+                        value={mode}
+                        onChange={(e) => setMode(e.target.value as 'mono' | 'collection')}
+                      >
+                        <option value="mono">Mono-produit</option>
+                        <option value="collection">Collection</option>
+                      </Select>
+                    </Field>
 
-                <div>
-                  <label htmlFor="language" className="block text-sm font-medium text-white">
-                    Langue
-                  </label>
-                  <select
-                    id="language"
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value as 'fr' | 'en')}
-                    className="mt-2 block w-full rounded-md bg-white/5 px-3 py-2 text-base text-white outline-hidden ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm"
-                  >
-                    <option value="fr" className="bg-gray-800">Français</option>
-                    <option value="en" className="bg-gray-800">English</option>
-                  </select>
-                </div>
-              </div>
+                    <Field>
+                      <Label>Langue</Label>
+                      <Select
+                        name="language"
+                        value={language}
+                        onChange={(e) => setLanguage(e.target.value as 'fr' | 'en')}
+                      >
+                        <option value="fr">Français</option>
+                        <option value="en">English</option>
+                      </Select>
+                    </Field>
+                  </div>
 
-              <div className="flex items-center gap-3">
-                <input
-                  id="skipVideo"
-                  type="checkbox"
-                  checked={skipVideo}
-                  onChange={(e) => setSkipVideo(e.target.checked)}
-                  className="size-4 rounded-sm border-white/10 bg-white/5 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-gray-900"
-                />
-                <label htmlFor="skipVideo" className="text-sm text-gray-400">
-                  Ignorer la génération vidéo (création plus rapide)
-                </label>
-              </div>
+                  <CheckboxField>
+                    <Checkbox
+                      name="skipVideo"
+                      checked={skipVideo}
+                      onChange={(checked) => setSkipVideo(checked)}
+                    />
+                    <Label>Ignorer la génération vidéo (création plus rapide)</Label>
+                  </CheckboxField>
+                </FieldGroup>
+              </Fieldset>
 
-              <div className="flex items-center justify-between gap-3 border-t border-white/10 pt-6">
-                <p className="min-h-5 text-xs text-gray-500" aria-live="polite">
+              <div className="mt-8 flex items-center justify-between gap-3 border-t border-zinc-950/10 pt-6 dark:border-white/10">
+                <Text className="min-h-5 text-xs" aria-live="polite">
                   {disabledHint}
-                </p>
+                </Text>
                 <div className="flex items-center gap-3">
-                  <Link
-                    href="/admin/stores"
-                    className="rounded-md px-3 py-2 text-sm font-semibold text-gray-400 hover:text-white"
-                  >
+                  <Button plain href="/admin/stores">
                     Annuler
-                  </Link>
-                  <button
-                    type="submit"
-                    disabled={!canSubmit}
-                    className="rounded-md bg-indigo-500 px-3.5 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-400 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
+                  </Button>
+                  <Button type="submit" color="indigo" disabled={!canSubmit}>
                     Créer le store
-                  </button>
+                  </Button>
                 </div>
               </div>
             </form>
-          </AdminCard>
+          </div>
         </div>
       )}
     </div>
@@ -355,78 +342,62 @@ function CreationScreen({
   if (result) {
     return (
       <div className="mx-auto w-full max-w-2xl">
-        <AdminCard className="text-center">
+        <div className={`${surfaceClass} text-center`}>
           <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-green-500/10 ring-1 ring-green-500/20">
-            <CheckCircleIcon className="size-7 text-green-400" aria-hidden="true" />
+            <CheckCircleIcon className="size-7 text-green-500 dark:text-green-400" aria-hidden="true" />
           </div>
-          <h2 className="mt-4 text-xl font-semibold tracking-tight text-white">{result.storeName}</h2>
-          <p className="mt-1 text-sm text-gray-400">
-            {result.productCount} produit{result.productCount > 1 ? 's' : ''} importé
-            {result.productCount > 1 ? 's' : ''} &middot; prêt à vendre
-          </p>
+          <Subheading className="mt-4 text-xl!">{result.storeName}</Subheading>
+          <div className="mt-2 flex items-center justify-center gap-2">
+            <Badge color="green">Prêt à vendre</Badge>
+            <Text className="text-sm!">
+              {result.productCount} produit{result.productCount > 1 ? 's' : ''} importé
+              {result.productCount > 1 ? 's' : ''}
+            </Text>
+          </div>
           <div className="mt-6 flex items-center justify-center gap-3">
-            <Link
-              href={`/shop/${result.slug}`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-md bg-indigo-500 px-3.5 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-400"
-            >
+            <Button color="indigo" href={`/shop/${result.slug}`} target="_blank" rel="noreferrer">
               Ouvrir le store
-              <ArrowTopRightOnSquareIcon className="size-4" aria-hidden="true" />
-            </Link>
-            <Link
-              href="/admin/stores"
-              className="rounded-md bg-white/5 px-3.5 py-2 text-sm font-semibold text-white ring-1 ring-inset ring-white/10 hover:bg-white/10"
-            >
+              <ArrowTopRightOnSquareIcon data-slot="icon" className="size-4" aria-hidden="true" />
+            </Button>
+            <Button plain href="/admin/stores">
               Voir tous les stores
-            </Link>
-            <button
-              type="button"
-              onClick={onReset}
-              className="rounded-md px-3.5 py-2 text-sm font-semibold text-gray-400 hover:text-white"
-            >
+            </Button>
+            <Button plain type="button" onClick={onReset}>
               Créer un autre
-            </button>
+            </Button>
           </div>
-        </AdminCard>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      <AdminCard className="overflow-hidden p-0">
+      <div className="overflow-hidden rounded-lg bg-white p-0 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
         {/* Header */}
-        <div className="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-3">
+        <div className="flex items-center justify-between gap-4 border-b border-zinc-950/10 px-5 py-3 dark:border-white/10">
           <div className="flex min-w-0 items-center gap-3">
-            <span
-              className={`size-2 shrink-0 rounded-full ${running ? 'animate-pulse bg-indigo-400' : 'bg-red-400'}`}
-              aria-hidden="true"
-            />
-            <span className="truncate text-sm font-semibold text-white">
+            <Badge color={running ? 'indigo' : 'red'}>{running ? 'En cours' : 'Erreur'}</Badge>
+            <span className="truncate text-sm font-semibold text-zinc-950 dark:text-white">
               {running ? `Construction de « ${storeName} »` : `Erreur — « ${storeName} »`}
             </span>
           </div>
           <div className="flex shrink-0 items-center gap-3">
             {running && (
-              <span className="text-xs font-medium tabular-nums text-gray-400">
+              <span className="text-xs font-medium tabular-nums text-zinc-500 dark:text-zinc-400">
                 {percent}% &middot; {elapsed}s
               </span>
             )}
             {error && (
-              <button
-                type="button"
-                onClick={onReset}
-                className="rounded-md bg-white/5 px-3 py-1 text-xs font-medium text-gray-400 ring-1 ring-inset ring-white/10 hover:text-white"
-              >
+              <Button plain type="button" onClick={onReset}>
                 Réessayer
-              </button>
+              </Button>
             )}
           </div>
         </div>
 
         {/* Barre de progression */}
-        <div className="h-0.5 bg-white/5">
+        <div className="h-0.5 bg-zinc-950/5 dark:bg-white/5">
           <div
             className="h-full bg-indigo-500 transition-[width] duration-500"
             style={{ width: `${Math.max(2, Math.min(100, percent))}%` }}
@@ -435,19 +406,19 @@ function CreationScreen({
 
         {/* Étape courante */}
         {currentStep && (
-          <div className="border-b border-white/10 bg-white/5 px-5 py-2">
-            <p className="truncate text-xs italic text-gray-400">{currentStep}</p>
+          <div className="border-b border-zinc-950/10 bg-zinc-950/[0.025] px-5 py-2 dark:border-white/10 dark:bg-white/5">
+            <p className="truncate text-xs italic text-zinc-500 dark:text-zinc-400">{currentStep}</p>
           </div>
         )}
 
         {/* Error banner */}
         {error && (
           <div className="border-b border-red-500/20 bg-red-500/10 px-5 py-3">
-            <p className="flex items-center gap-1.5 text-sm font-medium text-red-400">
+            <p className="flex items-center gap-1.5 text-sm font-medium text-red-600 dark:text-red-400">
               <ExclamationTriangleIcon className="size-4" aria-hidden="true" />
               Erreur de création
             </p>
-            <p className="mt-1 whitespace-pre-wrap text-xs text-red-400/80">{error}</p>
+            <p className="mt-1 whitespace-pre-wrap text-xs text-red-600/80 dark:text-red-400/80">{error}</p>
           </div>
         )}
 
@@ -455,27 +426,27 @@ function CreationScreen({
         <div className="flex max-h-[60vh] min-h-64 flex-col gap-1.5 overflow-y-auto px-5 py-4 font-mono text-xs">
           {logs.map((l) => (
             <div key={l.id} className="flex items-start gap-3">
-              <span className="shrink-0 pt-px tabular-nums text-gray-500">{l.ts}</span>
+              <span className="shrink-0 pt-px tabular-nums text-zinc-500">{l.ts}</span>
               <span
                 className={
                   l.type === 'error'
-                    ? 'text-red-400'
+                    ? 'text-red-600 dark:text-red-400'
                     : l.type === 'success'
-                      ? 'text-green-400'
+                      ? 'text-green-600 dark:text-green-400'
                       : l.type === 'step'
-                        ? 'font-medium text-white'
-                        : 'text-gray-400'
+                        ? 'font-medium text-zinc-950 dark:text-white'
+                        : 'text-zinc-500 dark:text-zinc-400'
                 }
               >
-                {l.type === 'step' && <span className="mr-1.5 text-gray-500">&rsaquo;</span>}
+                {l.type === 'step' && <span className="mr-1.5 text-zinc-500">&rsaquo;</span>}
                 {l.message}
               </span>
             </div>
           ))}
-          {running && logs.length === 0 && <p className="text-gray-500">Démarrage&hellip;</p>}
+          {running && logs.length === 0 && <p className="text-zinc-500">Démarrage&hellip;</p>}
           <div ref={logsEndRef} />
         </div>
-      </AdminCard>
+      </div>
     </div>
   );
 }

@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation';
 import { getDbRead } from '@/lib/db';
 import { resolveStoreId } from '@/lib/resolve-store';
-import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import { Heading } from '@/components/catalyst/heading';
+import { Text } from '@/components/catalyst/text';
 import { StoreTemplateForm } from '../StoreTemplateForm';
 import { LuxuryUpgradeButton } from '../LuxuryUpgradeButton';
 import { StoreCustomDomainForm } from '../StoreCustomDomainForm';
@@ -45,11 +46,13 @@ export default async function StoreSettingsPage({ params }: { params: Promise<{ 
 
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <AdminPageHeader
-        eyebrow="Réglages"
-        title="Configuration du store"
-        description="Rendu, domaine et tokens analytics. Tous les changements sont instantanés, sans rebuild."
-      />
+      <div>
+        <Text className="text-xs font-medium uppercase tracking-wide text-zinc-500">Réglages</Text>
+        <Heading>Configuration du store</Heading>
+        <Text className="mt-1">
+          Rendu, domaine et tokens analytics. Tous les changements sont instantanés, sans rebuild.
+        </Text>
+      </div>
 
       <StoreTemplateForm
         storeId={store.id}

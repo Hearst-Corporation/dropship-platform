@@ -1,11 +1,18 @@
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
 import { getDbRead } from '@/lib/db';
 import { resolveStoreId } from '@/lib/resolve-store';
-import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
-import { AdminStatGrid, AdminStatCard } from '@/components/admin/AdminStatCard';
-import { AdminCard, AdminCardHeader } from '@/components/admin/AdminCard';
-import { AdminBadge } from '@/components/admin/AdminBadge';
+import { Heading, Subheading } from '@/components/catalyst/heading';
+import { Text } from '@/components/catalyst/text';
+import { Badge } from '@/components/catalyst/badge';
+import { Button } from '@/components/catalyst/button';
+import {
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableHeader,
+  TableCell,
+} from '@/components/catalyst/table';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,152 +74,142 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
     return acc;
   }, {});
 
+  const stats = [
+    { label: 'Produits', value: products.length.toString() },
+    { label: 'Prix moyen', value: `${avgPrice.toFixed(2)} €` },
+    { label: 'Marge moy.', value: `${avgMargin.toFixed(2)} €` },
+    { label: 'Fournisseurs', value: Object.keys(supplierCounts).length.toString() },
+  ];
+
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <AdminPageHeader
-        eyebrow="Catalogue"
-        title={
-          <span>
-            Produits <em className="font-normal italic text-gray-400">du store</em>
-          </span>
-        }
-        description={`Niche · ${store.niche} · Géré par l'agent à la création, modifiable via Curation.`}
-        actions={
-          <Link
-            href={`/admin/stores/${id}/copilot`}
-            className="rounded-md bg-indigo-500 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-400"
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <Text className="text-xs font-medium uppercase tracking-wide">Catalogue</Text>
+          <Heading>Produits du store</Heading>
+          <Text>
+            Niche · {store.niche} · Géré par l&apos;agent à la création, modifiable via Curation.
+          </Text>
+        </div>
+        <Button color="indigo" href={`/admin/stores/${id}/copilot`}>
+          Discuter avec le copilote
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {stats.map((stat) => (
+          <div
+            key={stat.label}
+            className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10"
           >
-            Discuter avec le copilote
-          </Link>
-        }
-      />
+            <Text>{stat.label}</Text>
+            <Heading level={2} className="mt-1">
+              {stat.value}
+            </Heading>
+          </div>
+        ))}
+      </div>
 
-      <AdminStatGrid>
-        <AdminStatCard label="Produits" value={products.length.toString()} />
-        <AdminStatCard label="Prix moyen" value={`${avgPrice.toFixed(2)} €`} />
-        <AdminStatCard label="Marge moy." value={`${avgMargin.toFixed(2)} €`} />
-        <AdminStatCard label="Fournisseurs" value={Object.keys(supplierCounts).length.toString()} />
-      </AdminStatGrid>
-
-      <AdminCard className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <AdminCardHeader
-          title={`${products.length} produit${products.length > 1 ? 's' : ''}`}
-          action={
-            Object.entries(supplierCounts).length > 0 ? (
-              <span className="text-xs text-gray-500">
-                {Object.entries(supplierCounts)
-                  .map(([s, c]) => `${s}·${c}`)
-                  .join(' / ')}
-              </span>
-            ) : undefined
-          }
-        />
+      <div className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Subheading>
+            {products.length} produit{products.length > 1 ? 's' : ''}
+          </Subheading>
+          {Object.entries(supplierCounts).length > 0 ? (
+            <Text className="text-xs">
+              {Object.entries(supplierCounts)
+                .map(([s, c]) => `${s}·${c}`)
+                .join(' / ')}
+            </Text>
+          ) : null}
+        </div>
 
         {products.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-10 text-center">
-            <p className="max-w-sm text-sm text-gray-500">
+          <div className="flex flex-col items-center justify-center gap-4 py-10 text-center">
+            <Text className="max-w-sm">
               Aucun produit dans ce store. Lance le copilote de curation pour en importer.
-            </p>
-            <Link
-              href={`/admin/stores/${id}/copilot`}
-              className="inline-flex items-center rounded-md bg-indigo-500 px-3.5 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-400 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-            >
+            </Text>
+            <Button color="indigo" href={`/admin/stores/${id}/copilot`}>
               Ajouter des produits
-            </Link>
+            </Button>
           </div>
         ) : (
-          <div className="flex-1 overflow-x-auto">
-            <table className="min-w-full divide-y divide-white/10 text-sm">
-              <thead>
-                <tr className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                  <th scope="col" className="px-5 py-3 text-left">
-                    Produit
-                  </th>
-                  <th scope="col" className="px-3 py-3 text-left">
-                    Source
-                  </th>
-                  <th scope="col" className="px-3 py-3 text-right">
-                    Coût
-                  </th>
-                  <th scope="col" className="px-3 py-3 text-right">
-                    Prix
-                  </th>
-                  <th scope="col" className="px-3 py-3 text-right">
-                    Marge
-                  </th>
-                  <th scope="col" className="px-3 py-3 text-right">
-                    Image
-                  </th>
-                  <th scope="col" className="px-5 py-3 text-right">
-                    État
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/10">
-                {products.map((p) => {
-                  const margin = (p.price_cents - p.cost_cents) / 100;
-                  const marginPct =
-                    p.cost_cents > 0
-                      ? Math.round(((p.price_cents - p.cost_cents) / p.cost_cents) * 100)
-                      : 0;
-                  const supplierColor = p.supplier === 'ai-generated' ? 'zinc' : 'green';
-                  return (
-                    <tr key={p.id}>
-                      <td className="px-5 py-3 align-middle">
-                        <div className="flex min-w-0 items-center gap-3">
-                          <div className="size-10 shrink-0 overflow-hidden rounded-lg bg-white/5 ring-1 ring-white/10">
-                            {p.image_url ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={p.image_url} alt="" className="size-full object-cover" />
-                            ) : (
-                              <div className="flex size-full items-center justify-center text-lg">
-                                {store.logo_emoji}
-                              </div>
-                            )}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="max-w-[28ch] truncate font-medium text-white">
-                              {p.enriched_title}
+          <Table className="mt-4" dense>
+            <TableHead>
+              <TableRow>
+                <TableHeader>Produit</TableHeader>
+                <TableHeader>Source</TableHeader>
+                <TableHeader className="text-right">Coût</TableHeader>
+                <TableHeader className="text-right">Prix</TableHeader>
+                <TableHeader className="text-right">Marge</TableHeader>
+                <TableHeader className="text-right">Image</TableHeader>
+                <TableHeader className="text-right">État</TableHeader>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {products.map((p) => {
+                const margin = (p.price_cents - p.cost_cents) / 100;
+                const marginPct =
+                  p.cost_cents > 0
+                    ? Math.round(((p.price_cents - p.cost_cents) / p.cost_cents) * 100)
+                    : 0;
+                const supplierColor = p.supplier === 'ai-generated' ? 'zinc' : 'green';
+                return (
+                  <TableRow key={p.id}>
+                    <TableCell>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="size-10 shrink-0 overflow-hidden rounded-lg bg-zinc-100 ring-1 ring-zinc-950/5 dark:bg-white/5 dark:ring-white/10">
+                          {p.image_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={p.image_url} alt="" className="size-full object-cover" />
+                          ) : (
+                            <div className="flex size-full items-center justify-center text-lg">
+                              {store.logo_emoji}
                             </div>
-                            <div className="mt-0.5 max-w-[36ch] truncate text-xs text-gray-500">
-                              {p.enriched_description}
-                            </div>
-                          </div>
+                          )}
                         </div>
-                      </td>
-                      <td className="px-3 py-3 align-middle">
-                        <AdminBadge color={supplierColor}>{p.supplier}</AdminBadge>
-                      </td>
-                      <td className="px-3 py-3 text-right align-middle tabular-nums text-gray-400">
-                        {(p.cost_cents / 100).toFixed(2)} €
-                      </td>
-                      <td className="px-3 py-3 text-right align-middle font-medium tabular-nums text-white">
-                        {(p.price_cents / 100).toFixed(2)} €
-                      </td>
-                      <td className="px-3 py-3 text-right align-middle tabular-nums">
-                        <span className="font-medium text-indigo-400">+{margin.toFixed(2)} €</span>
-                        <span className="block text-xs text-gray-500">{marginPct}%</span>
-                      </td>
-                      <td className="px-3 py-3 text-right align-middle tabular-nums text-gray-400">
-                        {p.image_quality_score != null
-                          ? `${Math.round(parseFloat(p.image_quality_score) * 100)}%`
-                          : '—'}
-                      </td>
-                      <td className="px-5 py-3 text-right align-middle">
-                        {p.medusa_product_id ? (
-                          <AdminBadge color="green">Live</AdminBadge>
-                        ) : (
-                          <AdminBadge color="zinc">En attente</AdminBadge>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        <div className="min-w-0">
+                          <div className="max-w-[28ch] truncate font-medium text-zinc-950 dark:text-white">
+                            {p.enriched_title}
+                          </div>
+                          <Text className="mt-0.5 max-w-[36ch] truncate text-xs">
+                            {p.enriched_description}
+                          </Text>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge color={supplierColor}>{p.supplier}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-zinc-500">
+                      {(p.cost_cents / 100).toFixed(2)} €
+                    </TableCell>
+                    <TableCell className="text-right font-medium tabular-nums text-zinc-950 dark:text-white">
+                      {(p.price_cents / 100).toFixed(2)} €
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      <span className="font-medium text-indigo-500">+{margin.toFixed(2)} €</span>
+                      <span className="block text-xs text-zinc-500">{marginPct}%</span>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-zinc-500">
+                      {p.image_quality_score != null
+                        ? `${Math.round(parseFloat(p.image_quality_score) * 100)}%`
+                        : '—'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {p.medusa_product_id ? (
+                        <Badge color="green">Live</Badge>
+                      ) : (
+                        <Badge color="zinc">En attente</Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         )}
-      </AdminCard>
+      </div>
     </div>
   );
 }

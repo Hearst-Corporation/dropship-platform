@@ -5,9 +5,10 @@ import { DryRunPendingButton } from './DryRunPendingButton';
 import { MarkPaidButton } from './MarkPaidButton';
 import { formatMoney } from '@/lib/medusa-store';
 import { aliExpressOrderUrl } from '@/lib/suppliers/aliexpress';
-import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
-import { AdminStatGrid, AdminStatCard } from '@/components/admin/AdminStatCard';
-import { AdminBadge } from '@/components/admin/AdminBadge';
+import { Heading, Subheading } from '@/components/catalyst/heading';
+import { Text, Strong } from '@/components/catalyst/text';
+import { Badge } from '@/components/catalyst/badge';
+import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from '@/components/catalyst/table';
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid';
 
 export const dynamic = 'force-dynamic';
@@ -100,215 +101,236 @@ export default async function OrdersPage() {
     errors: Array.from(forwardsByOrder.values()).filter((f) => f.status === 'error').length,
   };
 
+  const kpis = [
+    { label: 'Commandes payées', value: String(stats.paidOrders) },
+    { label: 'À payer chez AE', value: String(stats.awaitingPayment) },
+    { label: 'Payées chez AE', value: String(stats.paidAtAe) },
+    { label: 'Erreurs forward', value: String(stats.errors) },
+  ];
+
   return (
     <div className="flex flex-1 flex-col space-y-6">
-      <AdminPageHeader
-        eyebrow="Production · Dropship"
-        title="Carnet de commandes"
-        description="Forward chaque commande payée vers AliExpress. Le dry-run sauve le payload sans rien envoyer."
-        actions={<DryRunPendingButton />}
-      />
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <Text className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+            Production · Dropship
+          </Text>
+          <Heading>Carnet de commandes</Heading>
+          <Text>
+            Forward chaque commande payée vers AliExpress. Le dry-run sauve le payload sans rien envoyer.
+          </Text>
+        </div>
+        <DryRunPendingButton />
+      </div>
 
-      <AdminStatGrid>
-        <AdminStatCard label="Commandes payées" value={String(stats.paidOrders)} />
-        <AdminStatCard label="À payer chez AE" value={String(stats.awaitingPayment)} />
-        <AdminStatCard label="Payées chez AE" value={String(stats.paidAtAe)} />
-        <AdminStatCard label="Erreurs forward" value={String(stats.errors)} />
-      </AdminStatGrid>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {kpis.map((kpi) => (
+          <div
+            key={kpi.label}
+            className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10"
+          >
+            <Text>{kpi.label}</Text>
+            <p className="mt-2 text-2xl font-semibold tabular-nums text-zinc-950 dark:text-white">
+              {kpi.value}
+            </p>
+          </div>
+        ))}
+      </div>
 
       {fetchError && (
         <div className="rounded-lg bg-red-500/10 px-4 py-3 ring-1 ring-red-500/20">
-          <span className="text-sm text-red-400">Erreur Medusa : {fetchError}</span>
+          <Text className="text-red-600 dark:text-red-400">Erreur Medusa : {fetchError}</Text>
         </div>
       )}
 
       {awaitingPayment.length > 0 && (
-        <section className="overflow-hidden rounded-xl bg-gray-800/50 ring-1 ring-white/10">
-          <div className="border-b border-white/10 px-4 py-4 sm:px-6">
-            <div className="flex items-baseline gap-2">
-              <h3 className="text-base font-semibold text-white">À payer chez AliExpress</h3>
-              <span className="text-xs uppercase tracking-wider text-gray-500">
-                · {awaitingPayment.length} commande{awaitingPayment.length > 1 ? 's' : ''}
-              </span>
-            </div>
-            <p className="mt-1 text-sm text-gray-400">
-              AE n&apos;a pas d&apos;API de paiement. Ouvre le lien, paie sur aliexpress.com, puis clique{' '}
-              <strong className="font-medium text-white">Marquer payée</strong>. Annulation auto après{' '}
-              <strong className="font-medium text-white">20 jours</strong>.
-            </p>
+        <div className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div className="flex items-baseline gap-2">
+            <Subheading>À payer chez AliExpress</Subheading>
+            <Text className="text-xs uppercase tracking-wider text-zinc-500">
+              · {awaitingPayment.length} commande{awaitingPayment.length > 1 ? 's' : ''}
+            </Text>
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-white/10">
-              <thead>
-                <tr>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-white sm:px-6">Commande</th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-white">Client</th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-white">Total</th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-white">Order AE</th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-white">Forwardée</th>
-                  <th scope="col" className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-white sm:px-6">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {awaitingPayment.map((row) => {
-                  const ageMs = Date.now() - new Date(row.forwarded_at).getTime();
-                  const ageHours = Math.floor(ageMs / 3_600_000);
-                  const ageLabel =
-                    ageHours < 1 ? '< 1 h' : ageHours < 48 ? `${ageHours} h` : `${Math.floor(ageHours / 24)} j`;
-                  const stale = ageHours >= 24 * 15;
-                  return (
-                    <tr key={row.medusa_order_id}>
-                      <td className="px-4 py-3 sm:px-6">
-                        <div className="font-medium text-white">
-                          #{row.display_id ?? row.medusa_order_id.slice(0, 8)}
+          <Text className="mt-1">
+            AE n&apos;a pas d&apos;API de paiement. Ouvre le lien, paie sur aliexpress.com, puis clique{' '}
+            <Strong>Marquer payée</Strong>. Annulation auto après <Strong>20 jours</Strong>.
+          </Text>
+          <Table className="mt-4">
+            <TableHead>
+              <TableRow>
+                <TableHeader>Commande</TableHeader>
+                <TableHeader>Client</TableHeader>
+                <TableHeader>Total</TableHeader>
+                <TableHeader>Order AE</TableHeader>
+                <TableHeader>Forwardée</TableHeader>
+                <TableHeader className="text-right">Action</TableHeader>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {awaitingPayment.map((row) => {
+                const ageMs = Date.now() - new Date(row.forwarded_at).getTime();
+                const ageHours = Math.floor(ageMs / 3_600_000);
+                const ageLabel =
+                  ageHours < 1 ? '< 1 h' : ageHours < 48 ? `${ageHours} h` : `${Math.floor(ageHours / 24)} j`;
+                const stale = ageHours >= 24 * 15;
+                return (
+                  <TableRow key={row.medusa_order_id}>
+                    <TableCell>
+                      <div className="font-medium text-zinc-950 dark:text-white">
+                        #{row.display_id ?? row.medusa_order_id.slice(0, 8)}
+                      </div>
+                      <div className="mt-0.5 max-w-[140px] truncate font-mono text-xs text-zinc-500">
+                        {row.medusa_order_id}
+                      </div>
+                    </TableCell>
+                    <TableCell className="max-w-[160px] truncate text-zinc-500">
+                      {row.customer_email ?? '—'}
+                    </TableCell>
+                    <TableCell className="font-semibold tabular-nums text-zinc-950 dark:text-white">
+                      {row.total_minor != null && row.currency_code
+                        ? formatMoney(row.total_minor, row.currency_code)
+                        : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <a
+                        href={aliExpressOrderUrl(row.ae_order_id)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 font-mono text-xs text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
+                      >
+                        {row.ae_order_id}
+                        <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                      </a>
+                    </TableCell>
+                    <TableCell>
+                      <Badge color={stale ? 'amber' : 'zinc'}>il y a {ageLabel}</Badge>
+                      {stale && (
+                        <div className="mt-1 text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                          proche annulation
                         </div>
-                        <div className="mt-0.5 max-w-[140px] truncate font-mono text-xs text-gray-500">
-                          {row.medusa_order_id}
-                        </div>
-                      </td>
-                      <td className="max-w-[160px] truncate px-4 py-3 text-sm text-gray-400">
-                        {row.customer_email ?? '—'}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-semibold tabular-nums text-white">
-                        {row.total_minor != null && row.currency_code
-                          ? formatMoney(row.total_minor, row.currency_code)
-                          : '—'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <a
-                          href={aliExpressOrderUrl(row.ae_order_id)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 font-mono text-xs text-indigo-400 hover:text-indigo-300"
-                        >
-                          {row.ae_order_id}
-                          <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                        </a>
-                      </td>
-                      <td className="px-4 py-3">
-                        <AdminBadge color={stale ? 'amber' : 'zinc'}>il y a {ageLabel}</AdminBadge>
-                        {stale && <div className="mt-1 text-xs font-medium text-indigo-400">proche annulation</div>}
-                      </td>
-                      <td className="px-4 py-3 text-right sm:px-6">
-                        <MarkPaidButton orderId={row.medusa_order_id} />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <MarkPaidButton orderId={row.medusa_order_id} />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       )}
 
       {!fetchError && orders.length === 0 && (
-        <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-white/10 bg-gray-800/50 px-6 py-12 text-center">
-          <p className="text-sm font-semibold text-white">Aucune commande pour le moment.</p>
-          <p className="mt-1 text-sm text-gray-400">
+        <div className="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-zinc-950/10 bg-white px-6 py-12 text-center dark:border-white/10 dark:bg-zinc-900">
+          <Text className="font-semibold text-zinc-950 dark:text-white">
+            Aucune commande pour le moment.
+          </Text>
+          <Text className="mt-1">
             Les commandes Medusa payées apparaîtront ici dès qu&apos;un client passera commande.
-          </p>
+          </Text>
         </div>
       )}
 
       {orders.length > 0 && (
-        <section className="flex flex-1 flex-col overflow-hidden rounded-xl bg-gray-800/50 ring-1 ring-white/10">
-          <div className="flex items-baseline gap-2 border-b border-white/10 px-4 py-4 sm:px-6">
-            <h3 className="text-base font-semibold text-white">Toutes les commandes</h3>
-            <span className="text-xs uppercase tracking-wider text-gray-500">
+        <div className="flex flex-1 flex-col rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div className="flex items-baseline gap-2">
+            <Subheading>Toutes les commandes</Subheading>
+            <Text className="text-xs uppercase tracking-wider text-zinc-500">
               · {orders.length} affichée{orders.length > 1 ? 's' : ''}
-            </span>
+            </Text>
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-white/10">
-              <thead>
-                <tr>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-white sm:px-6">Commande</th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-white">Client</th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-white">Total</th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-white">Paiement</th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-white">AliExpress</th>
-                  <th scope="col" className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-white sm:px-6">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {orders.map((order) => {
-                  const forward = forwardsByOrder.get(order.id) ?? null;
-                  const sent = forward?.status === 'sent';
-                  const paymentOk =
-                    order.payment_status === 'captured' || order.payment_status === 'authorized';
-                  return (
-                    <tr key={order.id}>
-                      <td className="px-4 py-3 sm:px-6">
-                        <div className="font-medium text-white">#{order.display_id ?? order.id.slice(0, 8)}</div>
-                        <div className="mt-0.5 text-xs text-gray-500">
-                          {new Date(order.created_at).toLocaleDateString('fr-FR', {
-                            day: '2-digit', month: 'short', year: 'numeric',
-                          })}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="max-w-[160px] truncate text-sm text-gray-400">
-                          {order.email ?? '—'}
-                        </div>
-                        {order.shipping_address?.city && (
-                          <div className="mt-0.5 text-xs text-gray-500">{order.shipping_address.city}</div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-semibold tabular-nums text-white">
-                        {formatMoney(order.total, order.currency_code)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <AdminBadge color={paymentOk ? 'green' : 'zinc'}>
-                          {order.payment_status ?? order.status ?? '—'}
-                        </AdminBadge>
-                      </td>
-                      <td className="px-4 py-3">
-                        {forward ? (
-                          forward.status === 'sent' && forward.ae_order_id ? (
-                            <div className="flex flex-col items-start gap-1">
-                              <AdminBadge color={forward.paid_at ? 'green' : 'zinc'}>
-                                {forward.paid_at ? 'payée' : 'à payer'}
-                              </AdminBadge>
-                              <a
-                                href={aliExpressOrderUrl(forward.ae_order_id)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="font-mono text-xs text-indigo-400 hover:text-indigo-300"
-                              >
-                                {forward.ae_order_id}
-                              </a>
-                            </div>
-                          ) : forward.status === 'dry_run' ? (
-                            <AdminBadge color="green">dry-run prêt</AdminBadge>
-                          ) : (
-                            <div className="flex max-w-[200px] flex-col items-start gap-1">
-                              <AdminBadge color="red">erreur</AdminBadge>
-                              {forward.error_message && (
-                                <span
-                                  className="line-clamp-2 text-xs text-gray-500"
-                                  title={forward.error_message}
-                                >
-                                  {forward.error_message}
-                                </span>
-                              )}
-                            </div>
-                          )
+          <Table className="mt-4">
+            <TableHead>
+              <TableRow>
+                <TableHeader>Commande</TableHeader>
+                <TableHeader>Client</TableHeader>
+                <TableHeader>Total</TableHeader>
+                <TableHeader>Paiement</TableHeader>
+                <TableHeader>AliExpress</TableHeader>
+                <TableHeader className="text-right">Action</TableHeader>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {orders.map((order) => {
+                const forward = forwardsByOrder.get(order.id) ?? null;
+                const sent = forward?.status === 'sent';
+                const paymentOk =
+                  order.payment_status === 'captured' || order.payment_status === 'authorized';
+                return (
+                  <TableRow key={order.id}>
+                    <TableCell>
+                      <div className="font-medium text-zinc-950 dark:text-white">
+                        #{order.display_id ?? order.id.slice(0, 8)}
+                      </div>
+                      <div className="mt-0.5 text-xs text-zinc-500">
+                        {new Date(order.created_at).toLocaleDateString('fr-FR', {
+                          day: '2-digit', month: 'short', year: 'numeric',
+                        })}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="max-w-[160px] truncate text-zinc-500">
+                        {order.email ?? '—'}
+                      </div>
+                      {order.shipping_address?.city && (
+                        <div className="mt-0.5 text-xs text-zinc-500">{order.shipping_address.city}</div>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-semibold tabular-nums text-zinc-950 dark:text-white">
+                      {formatMoney(order.total, order.currency_code)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge color={paymentOk ? 'green' : 'zinc'}>
+                        {order.payment_status ?? order.status ?? '—'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {forward ? (
+                        forward.status === 'sent' && forward.ae_order_id ? (
+                          <div className="flex flex-col items-start gap-1">
+                            <Badge color={forward.paid_at ? 'green' : 'zinc'}>
+                              {forward.paid_at ? 'payée' : 'à payer'}
+                            </Badge>
+                            <a
+                              href={aliExpressOrderUrl(forward.ae_order_id)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-mono text-xs text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
+                            >
+                              {forward.ae_order_id}
+                            </a>
+                          </div>
+                        ) : forward.status === 'dry_run' ? (
+                          <Badge color="green">dry-run prêt</Badge>
                         ) : (
-                          <span className="text-sm text-gray-500">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right sm:px-6">
-                        <div className="flex justify-end">
-                          <ForwardButton orderId={order.id} alreadySent={sent} />
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                          <div className="flex max-w-[200px] flex-col items-start gap-1">
+                            <Badge color="red">erreur</Badge>
+                            {forward.error_message && (
+                              <span
+                                className="line-clamp-2 text-xs text-zinc-500"
+                                title={forward.error_message}
+                              >
+                                {forward.error_message}
+                              </span>
+                            )}
+                          </div>
+                        )
+                      ) : (
+                        <span className="text-sm text-zinc-500">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end">
+                        <ForwardButton orderId={order.id} alreadySent={sent} />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       )}
     </div>
   );

@@ -1,13 +1,13 @@
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
 import { getDbRead } from '@/lib/db';
 import { resolveStoreId } from '@/lib/resolve-store';
 import { StoreAvatar } from '@/components/ui';
 import { StoreActions } from '../StoreActions';
-import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
-import { AdminStatGrid, AdminStatCard } from '@/components/admin/AdminStatCard';
-import { AdminCard, AdminCardHeader } from '@/components/admin/AdminCard';
-import { AdminBadge } from '@/components/admin/AdminBadge';
+import { Heading, Subheading } from '@/components/catalyst/heading';
+import { Text, TextLink, Strong, Code } from '@/components/catalyst/text';
+import { Badge } from '@/components/catalyst/badge';
+import { Button } from '@/components/catalyst/button';
+import { DescriptionList, DescriptionTerm, DescriptionDetails } from '@/components/catalyst/description-list';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,105 +101,106 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
 
   const statusActive = store.status === 'active';
 
+  const kpis = [
+    { label: 'Produits', value: products.length.toString() },
+    { label: 'Prix moyen', value: `${avgPrice.toFixed(2)} €` },
+    { label: 'Marge moy.', value: `${margin.toFixed(2)} €` },
+    { label: 'Statut', value: statusActive ? 'En ligne' : store.status },
+  ];
+
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <AdminPageHeader
-        eyebrow="Boutique"
-        title={
-          <span className="flex items-center gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <Text className="text-xs/5 uppercase tracking-wide">Boutique</Text>
+          <Heading className="mt-1 flex items-center gap-3">
             <StoreAvatar slug={store.slug} name={store.name} size={40} />
             <span className="min-w-0 truncate">{store.name}</span>
-          </span>
-        }
-        description={store.tagline || undefined}
-        actions={<StoreActions storeId={store.id} storeName={store.name} />}
-      />
+          </Heading>
+          {store.tagline && <Text className="mt-1">{store.tagline}</Text>}
+        </div>
+        <div className="shrink-0">
+          <StoreActions storeId={store.id} storeName={store.name} />
+        </div>
+      </div>
 
-      <AdminStatGrid>
-        <AdminStatCard label="Produits" value={products.length.toString()} />
-        <AdminStatCard label="Prix moyen" value={`${avgPrice.toFixed(2)} €`} />
-        <AdminStatCard label="Marge moy." value={`${margin.toFixed(2)} €`} />
-        <AdminStatCard label="Statut" value={statusActive ? 'En ligne' : store.status} />
-      </AdminStatGrid>
-
-      <AdminCard>
-        <AdminCardHeader
-          title="Informations"
-          eyebrow="Boutique"
-          action={
-            <AdminBadge color={statusActive ? 'green' : 'zinc'}>
-              {statusActive ? 'En ligne' : store.status}
-            </AdminBadge>
-          }
-        />
-        <dl className="divide-y divide-white/10">
-          <div className="px-5 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
-            <dt className="text-sm font-medium text-gray-400">Niche</dt>
-            <dd className="mt-1 text-sm text-white sm:col-span-2 sm:mt-0">{store.niche || '—'}</dd>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {kpis.map((kpi) => (
+          <div
+            key={kpi.label}
+            className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10"
+          >
+            <Text>{kpi.label}</Text>
+            <p className="mt-2 text-2xl/8 font-semibold text-zinc-950 dark:text-white">{kpi.value}</p>
           </div>
+        ))}
+      </div>
 
-          <div className="px-5 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
-            <dt className="text-sm font-medium text-gray-400">Fournisseurs</dt>
-            <dd className="mt-1 text-sm text-white sm:col-span-2 sm:mt-0">
-              {Object.entries(supplierCounts).map(([s, count]) => `${s} (${count})`).join(', ') || '—'}
-            </dd>
-          </div>
+      <div className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+        <div className="flex items-start justify-between gap-4">
+          <Subheading>Informations</Subheading>
+          <Badge color={statusActive ? 'green' : 'zinc'}>
+            {statusActive ? 'En ligne' : store.status}
+          </Badge>
+        </div>
+
+        <DescriptionList className="mt-4">
+          <DescriptionTerm>Niche</DescriptionTerm>
+          <DescriptionDetails>{store.niche || '—'}</DescriptionDetails>
+
+          <DescriptionTerm>Fournisseurs</DescriptionTerm>
+          <DescriptionDetails>
+            {Object.entries(supplierCounts).map(([s, count]) => `${s} (${count})`).join(', ') || '—'}
+          </DescriptionDetails>
 
           {store.medusa_publishable_key && (
-            <div className="px-5 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
-              <dt className="text-sm font-medium text-gray-400">Clé API</dt>
-              <dd className="mt-1 text-sm text-white sm:col-span-2 sm:mt-0">
-                <code className="rounded-sm bg-white/5 px-2 py-1 font-mono text-xs text-gray-400 ring-1 ring-white/10">
-                  {store.medusa_publishable_key.slice(0, 24)}&hellip;
-                </code>
-              </dd>
-            </div>
+            <>
+              <DescriptionTerm>Clé API</DescriptionTerm>
+              <DescriptionDetails>
+                <Code>{store.medusa_publishable_key.slice(0, 24)}&hellip;</Code>
+              </DescriptionDetails>
+            </>
           )}
 
           {store.description && (
-            <div className="px-5 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
-              <dt className="text-sm font-medium text-gray-400">Description</dt>
-              <dd className="mt-1 text-sm text-gray-400 sm:col-span-2 sm:mt-0">{store.description}</dd>
-            </div>
+            <>
+              <DescriptionTerm>Description</DescriptionTerm>
+              <DescriptionDetails>{store.description}</DescriptionDetails>
+            </>
           )}
 
-          <div className="px-5 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
-            <dt className="text-sm font-medium text-gray-400">Domaine</dt>
-            <dd className="mt-1 text-sm text-white sm:col-span-2 sm:mt-0">{store.custom_domain || '—'}</dd>
-          </div>
+          <DescriptionTerm>Domaine</DescriptionTerm>
+          <DescriptionDetails>{store.custom_domain || '—'}</DescriptionDetails>
 
           {store.error_message && !statusActive && (
-            <div className="px-5 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
-              <dt className="text-sm font-medium text-gray-400">Erreur</dt>
-              <dd className="mt-1 text-sm text-gray-400 sm:col-span-2 sm:mt-0">
+            <>
+              <DescriptionTerm>Erreur</DescriptionTerm>
+              <DescriptionDetails>
                 <span>{store.error_message}</span>
-                <Link
+                <TextLink
                   href={`/admin/stores/new?niche=${encodeURIComponent(store.niche)}&name=${encodeURIComponent(store.name)}`}
-                  className="ml-3 font-medium text-indigo-400 underline hover:text-indigo-300"
+                  className="ml-3"
                 >
                   Recr&eacute;er ce store
-                </Link>
-              </dd>
-            </div>
+                </TextLink>
+              </DescriptionDetails>
+            </>
           )}
-        </dl>
-      </AdminCard>
+        </DescriptionList>
+      </div>
 
-      <AdminCard className="flex items-center justify-between gap-4 px-5 py-4">
+      <div className="flex items-center justify-between gap-4 rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Catalogue</p>
-          <p className="mt-1 text-sm text-gray-400">
-            <span className="font-semibold tabular-nums text-white">{products.length}</span>{' '}
+          <Subheading>Catalogue</Subheading>
+          <Text className="mt-1">
+            <Strong>{products.length}</Strong>{' '}
             produit{products.length > 1 ? 's' : ''} import&eacute;{products.length > 1 ? 's' : ''}.
-          </p>
+          </Text>
         </div>
-        <Link
-          href={`/admin/stores/${store.id}/catalog`}
-          className="inline-flex shrink-0 items-center rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-        >
+        <Button color="indigo" href={`/admin/stores/${store.id}/catalog`} className="shrink-0">
           Voir le catalogue
-        </Link>
-      </AdminCard>
+        </Button>
+      </div>
     </div>
   );
 }

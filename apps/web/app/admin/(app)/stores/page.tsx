@@ -3,13 +3,23 @@ import Image from 'next/image';
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid';
 import { getDbRead } from '@/lib/db';
 import { StoreAvatar } from '@/components/ui';
-import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
-import { AdminStatGrid, AdminStatCard } from '@/components/admin/AdminStatCard';
-import { AdminCard } from '@/components/admin/AdminCard';
-import { AdminBadge, type AdminBadgeColor } from '@/components/admin/AdminBadge';
+import { Heading, Subheading } from '@/components/catalyst/heading';
+import { Text } from '@/components/catalyst/text';
+import { Badge } from '@/components/catalyst/badge';
+import { Button } from '@/components/catalyst/button';
+import {
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableHeader,
+  TableCell,
+} from '@/components/catalyst/table';
 import { StoreActions } from './StoreActions';
 
 export const dynamic = 'force-dynamic';
+
+type StatusColor = 'green' | 'amber' | 'red';
 
 interface StoreRow {
   id: string;
@@ -39,7 +49,7 @@ function pickStoreCover(s: StoreRow): string | null {
   return null;
 }
 
-function statusOf(s: StoreRow): { color: AdminBadgeColor; label: string } {
+function statusOf(s: StoreRow): { color: StatusColor; label: string } {
   if (s.status === 'active') return { color: 'green', label: 'En ligne' };
   if (s.status === 'creating') return { color: 'amber', label: 'Création en cours' };
   return { color: 'red', label: 'Erreur' };
@@ -78,100 +88,114 @@ export default async function StoresPage({
 
   return (
     <div className="space-y-6">
-      <AdminPageHeader
-        eyebrow="Production · Agent IA"
-        title="Stores dropshipping"
-        description="L'agent recherche les produits, enrichit les fiches puis publie le store Medusa complet."
-        actions={
-          <Link
-            href="/admin/stores/new"
-            className="inline-flex items-center gap-1.5 rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-400 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-          >
-            <span aria-hidden className="text-base leading-none">+</span> Nouveau store
-          </Link>
-        }
-      />
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <Text className="text-xs/5 font-semibold uppercase tracking-wide text-indigo-500 dark:text-indigo-400">
+            Production · Agent IA
+          </Text>
+          <Heading>Stores dropshipping</Heading>
+          <Text>
+            L&apos;agent recherche les produits, enrichit les fiches puis publie le store Medusa
+            complet.
+          </Text>
+        </div>
+        <Button color="indigo" href="/admin/stores/new">
+          Nouveau store
+        </Button>
+      </div>
 
-      <AdminStatGrid>
-        <AdminStatCard label="En ligne" value={String(active.length)} />
-        <AdminStatCard label="En création" value={String(creating.length)} />
-        <AdminStatCard label="En erreur" value={String(failed.length)} />
-        <AdminStatCard label="Produits publiés" value={String(totalProducts)} />
-      </AdminStatGrid>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <StatSurface label="En ligne" value={String(active.length)} />
+        <StatSurface label="En création" value={String(creating.length)} />
+        <StatSurface label="En erreur" value={String(failed.length)} />
+        <StatSurface label="Produits publiés" value={String(totalProducts)} />
+      </div>
 
       {rows.length === 0 ? (
         <EmptyState />
       ) : (
-        <AdminCard className="overflow-hidden">
-          <table className="min-w-full divide-y divide-white/10">
-            <thead>
-              <tr>
-                <th scope="col" className="py-3 pl-6 pr-3 text-left text-xs font-semibold uppercase tracking-wide text-white">Store</th>
-                <th scope="col" className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-white">Niche</th>
-                <th scope="col" className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-white">Statut</th>
-                <th scope="col" className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-white">Produits</th>
-                <th scope="col" className="py-3 pl-3 pr-6 text-right text-xs font-semibold uppercase tracking-wide text-white">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
+        <div className="rounded-lg bg-white p-2 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <Table dense>
+            <TableHead>
+              <TableRow>
+                <TableHeader>Store</TableHeader>
+                <TableHeader>Niche</TableHeader>
+                <TableHeader>Statut</TableHeader>
+                <TableHeader className="text-right">Produits</TableHeader>
+                <TableHeader className="text-right">Actions</TableHeader>
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {rows.map((store) => {
                 const s = statusOf(store);
                 const cover = pickStoreCover(store);
                 return (
-                  <tr key={store.id} className="hover:bg-white/5">
-                    <td className="py-3 pl-6 pr-3">
+                  <TableRow key={store.id}>
+                    <TableCell>
                       <div className="flex items-center gap-3">
-                        <div className="relative size-9 shrink-0 overflow-hidden rounded-lg bg-white/5 ring-1 ring-white/10">
+                        <div className="relative size-9 shrink-0 overflow-hidden rounded-lg bg-zinc-100 ring-1 ring-zinc-950/10 dark:bg-white/5 dark:ring-white/10">
                           {cover ? (
                             <Image src={cover} alt="" fill sizes="36px" className="object-cover" />
                           ) : (
-                            <StoreAvatar slug={store.slug} name={store.name} size={36} className="size-full rounded-none" />
+                            <StoreAvatar
+                              slug={store.slug}
+                              name={store.name}
+                              size={36}
+                              className="size-full rounded-none"
+                            />
                           )}
                         </div>
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-medium text-white">{store.name}</div>
-                          <div className="truncate text-xs tabular-nums text-gray-500">/shop/{store.slug}</div>
+                          <div className="truncate font-medium text-zinc-950 dark:text-white">
+                            {store.name}
+                          </div>
+                          <div className="truncate text-xs tabular-nums text-zinc-500">
+                            /shop/{store.slug}
+                          </div>
                         </div>
                       </div>
-                    </td>
-                    <td className="px-3 py-3 text-sm text-gray-400">{store.niche}</td>
-                    <td className="px-3 py-3"><AdminBadge color={s.color}>{s.label}</AdminBadge></td>
-                    <td className="px-3 py-3 text-right text-sm tabular-nums text-gray-400">{store.product_count}</td>
-                    <td className="py-3 pl-3 pr-6">
+                    </TableCell>
+                    <TableCell className="text-zinc-500">{store.niche}</TableCell>
+                    <TableCell>
+                      <Badge color={s.color}>{s.label}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-zinc-500">
+                      {store.product_count}
+                    </TableCell>
+                    <TableCell>
                       <div className="flex items-center justify-end gap-2">
-                        <Link
-                          href={`/admin/stores/${store.id}`}
-                          className="rounded-md bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-white shadow-xs ring-1 ring-inset ring-white/10 hover:bg-white/20"
-                        >
+                        <Button plain href={`/admin/stores/${store.id}`}>
                           Gérer
-                        </Link>
+                        </Button>
                         {store.status === 'active' && (
-                          <Link
+                          <Button
+                            plain
                             href={`/shop/${store.slug}`}
                             target="_blank"
                             rel="noreferrer"
                             aria-label="Ouvrir la boutique"
                             title="Ouvrir la boutique"
-                            className="inline-flex size-7 items-center justify-center rounded-md ring-1 ring-inset ring-white/10 text-gray-400 hover:bg-white/5 hover:text-white"
                           >
-                            <ArrowTopRightOnSquareIcon className="size-3.5" aria-hidden />
-                          </Link>
+                            <ArrowTopRightOnSquareIcon aria-hidden />
+                          </Button>
                         )}
                         <StoreActions storeId={store.id} storeName={store.name} compact />
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
-        </AdminCard>
+            </TableBody>
+          </Table>
+        </div>
       )}
 
       {totalPages > 1 && (
         <nav className="flex items-center justify-center gap-2 pt-2">
           <PaginationLink page={page - 1} disabled={page <= 1} label="← Précédent" />
-          <span className="px-3 text-sm tabular-nums text-gray-500">Page {page} / {totalPages}</span>
+          <Text className="px-3 tabular-nums">
+            Page {page} / {totalPages}
+          </Text>
           <PaginationLink page={page + 1} disabled={page >= totalPages} label="Suivant →" />
         </nav>
       )}
@@ -179,35 +203,55 @@ export default async function StoresPage({
   );
 }
 
-function PaginationLink({ page, disabled, label }: { page: number; disabled: boolean; label: string }) {
+function StatSurface({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+      <Text>{label}</Text>
+      <Heading level={2} className="mt-1 text-2xl/8 tabular-nums">
+        {value}
+      </Heading>
+    </div>
+  );
+}
+
+function PaginationLink({
+  page,
+  disabled,
+  label,
+}: {
+  page: number;
+  disabled: boolean;
+  label: string;
+}) {
   if (disabled) {
-    return <span className="cursor-not-allowed rounded-md px-3 py-1.5 text-sm text-gray-600">{label}</span>;
+    return (
+      <Button plain disabled>
+        {label}
+      </Button>
+    );
   }
   return (
-    <Link
-      href={`/admin/stores?page=${page}`}
-      className="rounded-md ring-1 ring-inset ring-white/10 px-3 py-1.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
-    >
+    <Button plain href={`/admin/stores?page=${page}`}>
       {label}
-    </Link>
+    </Button>
   );
 }
 
 function EmptyState() {
   return (
-    <div className="rounded-xl border border-dashed border-white/15 bg-gray-800/50 px-6 py-20 text-center ring-1 ring-white/10">
-      <p className="text-xs font-semibold uppercase tracking-wide text-indigo-400">Premier pas</p>
-      <h3 className="mt-2 text-lg font-semibold text-white">Lance ton premier store.</h3>
-      <p className="mx-auto mt-2 max-w-md text-sm text-gray-400">
-        L&apos;agent IA recherche les produits, génère les visuels, écrit les fiches et publie le store. Une niche suffit.
-      </p>
+    <div className="rounded-lg border border-dashed border-zinc-950/10 bg-white px-6 py-20 text-center ring-1 ring-zinc-950/5 dark:border-white/15 dark:bg-zinc-900 dark:ring-white/10">
+      <Text className="text-xs/5 font-semibold uppercase tracking-wide text-indigo-500 dark:text-indigo-400">
+        Premier pas
+      </Text>
+      <Subheading className="mt-2">Lance ton premier store.</Subheading>
+      <Text className="mx-auto mt-2 max-w-md">
+        L&apos;agent IA recherche les produits, génère les visuels, écrit les fiches et publie le
+        store. Une niche suffit.
+      </Text>
       <div className="mt-6">
-        <Link
-          href="/admin/stores/new"
-          className="inline-flex items-center gap-1.5 rounded-md bg-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-400"
-        >
+        <Button color="indigo" href="/admin/stores/new">
           Créer un store
-        </Link>
+        </Button>
       </div>
     </div>
   );

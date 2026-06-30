@@ -11,6 +11,8 @@ const eslintConfig = [
       'out/**',
       'next-env.d.ts',
       '.refonte-backup-*/**',
+      // Catalyst is a vendored third-party UI kit — keep it as shipped.
+      'components/catalyst/**',
     ],
   },
   {

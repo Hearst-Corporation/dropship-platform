@@ -7,9 +7,18 @@ import {
   ExclamationTriangleIcon,
   PlusIcon,
 } from '@heroicons/react/20/solid';
-import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
-import { AdminStatGrid, AdminStatCard } from '@/components/admin/AdminStatCard';
-import { AdminCard } from '@/components/admin/AdminCard';
+import { Heading } from '@/components/catalyst/heading';
+import { Text, TextLink, Strong } from '@/components/catalyst/text';
+import { Badge } from '@/components/catalyst/badge';
+import { Button } from '@/components/catalyst/button';
+import {
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableHeader,
+  TableCell,
+} from '@/components/catalyst/table';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -154,7 +163,7 @@ function PeriodTabs({ value, onChange }: { value: Period; onChange: (p: Period) 
     { value: 'mtd', label: 'Ce mois' },
   ];
   return (
-    <div className="inline-flex items-center gap-1 rounded-lg bg-gray-800/50 p-1 ring-1 ring-white/10">
+    <div className="inline-flex items-center gap-1 rounded-lg bg-zinc-100 p-1 ring-1 ring-zinc-950/5 dark:bg-zinc-800/50 dark:ring-white/10">
       {tabs.map((t) => (
         <button
           key={t.value}
@@ -162,8 +171,8 @@ function PeriodTabs({ value, onChange }: { value: Period; onChange: (p: Period) 
           onClick={() => onChange(t.value)}
           className={
             value === t.value
-              ? 'rounded-md bg-gray-700 px-3 py-1 text-xs font-medium text-white'
-              : 'rounded-md px-3 py-1 text-xs font-medium text-gray-400 hover:text-white'
+              ? 'rounded-md bg-white px-3 py-1 text-xs font-medium text-zinc-950 ring-1 ring-zinc-950/5 dark:bg-zinc-700 dark:text-white dark:ring-0'
+              : 'rounded-md px-3 py-1 text-xs font-medium text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
           }
         >
           {t.label}
@@ -173,23 +182,36 @@ function PeriodTabs({ value, onChange }: { value: Period; onChange: (p: Period) 
   );
 }
 
+const CHANNEL_BADGE_COLOR: Record<Channel, 'blue' | 'indigo' | 'pink' | 'amber'> = {
+  google: 'blue',
+  meta: 'indigo',
+  tiktok: 'pink',
+  amazon: 'amber',
+};
+
 function ChannelBadge({ channel }: { channel: Channel }) {
   const { Logo } = CHANNEL_META[channel];
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-md bg-gray-800/50 px-2 py-1 text-xs font-medium text-gray-300 ring-1 ring-inset ring-white/10">
+    <Badge color={CHANNEL_BADGE_COLOR[channel]} className="gap-1.5">
       <Logo />
       {CHANNEL_META[channel].label.split(' ')[0]}
-    </span>
+    </Badge>
   );
 }
 
-function StatusDot({ status }: { status: Campaign['status'] }) {
-  const cls: Record<Campaign['status'], string> = {
-    active: 'bg-indigo-400',
-    paused: 'bg-gray-500',
-    ended: 'bg-white/10',
-  };
-  return <span className={`inline-block size-1.5 rounded-full ${cls[status]}`} />;
+const STATUS_COLOR: Record<Campaign['status'], 'indigo' | 'zinc'> = {
+  active: 'indigo',
+  paused: 'zinc',
+  ended: 'zinc',
+};
+const STATUS_LABEL: Record<Campaign['status'], string> = {
+  active: 'Active',
+  paused: 'En pause',
+  ended: 'Terminée',
+};
+
+function StatusBadge({ status }: { status: Campaign['status'] }) {
+  return <Badge color={STATUS_COLOR[status]}>{STATUS_LABEL[status]}</Badge>;
 }
 
 function RoasBadge({ value }: { value: number }) {
@@ -197,7 +219,7 @@ function RoasBadge({ value }: { value: number }) {
   const Icon = good ? ArrowTrendingUpIcon : ArrowTrendingDownIcon;
   return (
     <span
-      className={`inline-flex items-center gap-1 text-xs font-semibold tabular-nums ${good ? 'text-indigo-400' : 'text-gray-500'}`}
+      className={`inline-flex items-center gap-1 text-xs font-semibold tabular-nums ${good ? 'text-indigo-600 dark:text-indigo-400' : 'text-zinc-500'}`}
     >
       <Icon className="size-3" aria-hidden />
       &times;{value.toFixed(2)}
@@ -207,12 +229,21 @@ function RoasBadge({ value }: { value: number }) {
 
 function ConnectBanner({ channel }: { channel: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-xl bg-gray-800/50 px-4 py-3 text-xs text-gray-400 ring-1 ring-white/10">
-      <ExclamationTriangleIcon className="size-4 shrink-0" aria-hidden />
-      <span>
-        <strong className="font-semibold text-gray-300">{channel}</strong> — compte non connect&eacute;. Configure la cl&eacute; API dans{' '}
-        <a href="/admin/settings" className="text-indigo-400 underline underline-offset-2 hover:text-indigo-300">R&eacute;glages</a>.
-      </span>
+    <div className="flex items-center gap-2 rounded-xl bg-zinc-50 px-4 py-3 ring-1 ring-zinc-950/5 dark:bg-zinc-800/50 dark:ring-white/10">
+      <ExclamationTriangleIcon className="size-4 shrink-0 text-zinc-500" aria-hidden />
+      <Text>
+        <Strong>{channel}</Strong> — compte non connecté. Configure la clé API dans{' '}
+        <TextLink href="/admin/settings">Réglages</TextLink>.
+      </Text>
+    </div>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+      <Text className="!text-xs uppercase tracking-widest">{label}</Text>
+      <p className="mt-2 text-2xl font-semibold tabular-nums text-zinc-950 dark:text-white">{value}</p>
     </div>
   );
 }
@@ -236,85 +267,84 @@ export default function MarketingPage() {
   return (
     <div className="flex flex-1 flex-col gap-6">
       {/* Mock data warning banner */}
-      <div className="flex items-center gap-2.5 rounded-xl bg-amber-400/10 px-4 py-2.5 text-xs text-amber-400 ring-1 ring-inset ring-amber-400/20">
+      <div className="flex items-center gap-2.5 rounded-xl bg-amber-400/10 px-4 py-2.5 text-xs text-amber-700 ring-1 ring-inset ring-amber-400/20 dark:text-amber-400">
         <ExclamationTriangleIcon className="size-4 shrink-0" aria-hidden />
         <span>
-          <strong className="font-semibold">Donn&eacute;es mock&eacute;es</strong> — connecte Google Ads, Meta Graph API, TikTok Business API et Amazon Ads dans{' '}
-          <a href="/admin/settings" className="font-medium underline underline-offset-2 hover:text-amber-300">R&eacute;glages</a>{' '}
-          pour afficher les vraies m&eacute;triques.
+          <strong className="font-semibold">Données mockées</strong> — connecte Google Ads, Meta Graph API, TikTok Business API et Amazon Ads dans{' '}
+          <a href="/admin/settings" className="font-medium underline underline-offset-2 hover:text-amber-500 dark:hover:text-amber-300">Réglages</a>{' '}
+          pour afficher les vraies métriques.
         </span>
       </div>
 
-      <AdminPageHeader
-        eyebrow="Marketing · Pub payée"
-        title="Campagnes & revenus"
-        description="Vue consolidée de toutes les campagnes actives — Google, Meta, TikTok, Amazon. Dépenses, revenus, ROAS et conversions en temps réel."
-        actions={
-          <div className="flex items-center gap-3">
-            <PeriodTabs value={period} onChange={setPeriod} />
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 rounded-md bg-indigo-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-400"
-            >
-              <PlusIcon className="size-4" aria-hidden />
-              Nouvelle campagne
-            </button>
-          </div>
-        }
-      />
+      {/* En-tête */}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <Text className="!text-xs uppercase tracking-widest">Marketing · Pub payée</Text>
+          <Heading>Campagnes & revenus</Heading>
+          <Text className="mt-1 max-w-2xl">
+            Vue consolidée de toutes les campagnes actives — Google, Meta, TikTok, Amazon. Dépenses, revenus, ROAS et conversions en temps réel.
+          </Text>
+        </div>
+        <div className="flex items-center gap-3">
+          <PeriodTabs value={period} onChange={setPeriod} />
+          <Button color="indigo">
+            <PlusIcon aria-hidden />
+            Nouvelle campagne
+          </Button>
+        </div>
+      </div>
 
       {/* KPIs globaux */}
-      <AdminStatGrid>
-        <AdminStatCard label="Dépensé" value={fmtEur(totalSpent)} />
-        <AdminStatCard label="Revenus" value={fmtEur(totalRevenue)} />
-        <AdminStatCard label="ROAS global" value={roas(totalRevenue, totalSpent)} />
-        <AdminStatCard label="Conversions" value={fmtNum(totalConversions)} />
-        <AdminStatCard label="Clics" value={fmtNum(totalClicks)} />
-        <AdminStatCard label="Campagnes actives" value={String(activeCampaigns)} />
-      </AdminStatGrid>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        <StatCard label="Dépensé" value={fmtEur(totalSpent)} />
+        <StatCard label="Revenus" value={fmtEur(totalRevenue)} />
+        <StatCard label="ROAS global" value={roas(totalRevenue, totalSpent)} />
+        <StatCard label="Conversions" value={fmtNum(totalConversions)} />
+        <StatCard label="Clics" value={fmtNum(totalClicks)} />
+        <StatCard label="Campagnes actives" value={String(activeCampaigns)} />
+      </div>
 
       {/* Par canal */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {summaries.map((s) => {
           const { Logo } = CHANNEL_META[s.channel];
           return (
-            <AdminCard key={s.channel} className="flex flex-col gap-3 p-4">
+            <div
+              key={s.channel}
+              className="flex flex-col gap-3 rounded-lg bg-white p-4 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10"
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <span className="flex size-8 items-center justify-center rounded-lg bg-gray-800/50 ring-1 ring-inset ring-white/10">
+                  <span className="flex size-8 items-center justify-center rounded-lg bg-zinc-100 ring-1 ring-zinc-950/5 dark:bg-zinc-800/50 dark:ring-white/10">
                     <Logo />
                   </span>
-                  <span className="text-sm font-semibold text-white">{s.label}</span>
+                  <span className="text-sm font-semibold text-zinc-950 dark:text-white">{s.label}</span>
                 </div>
                 {s.connected ? (
-                  <span className="flex items-center gap-1 text-[10px] font-medium text-indigo-400">
-                    <span className="size-1.5 rounded-full bg-indigo-400" /> Connecté
-                  </span>
+                  <Badge color="indigo">Connecté</Badge>
                 ) : (
-                  <span className="flex items-center gap-1 text-[10px] font-medium text-gray-500">
-                    <span className="size-1.5 rounded-full bg-gray-600" /> Non connecté
-                  </span>
+                  <Badge color="zinc">Non connecté</Badge>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <p className="text-[10px] uppercase tracking-widest text-gray-500">Dépensé</p>
-                  <p className="font-semibold tabular-nums text-white">{fmtEur(s.spent_eur)}</p>
+                  <p className="text-[10px] uppercase tracking-widest text-zinc-500">Dépensé</p>
+                  <p className="font-semibold tabular-nums text-zinc-950 dark:text-white">{fmtEur(s.spent_eur)}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-widest text-gray-500">Revenus</p>
-                  <p className="font-semibold tabular-nums text-white">{fmtEur(s.revenue_eur)}</p>
+                  <p className="text-[10px] uppercase tracking-widest text-zinc-500">Revenus</p>
+                  <p className="font-semibold tabular-nums text-zinc-950 dark:text-white">{fmtEur(s.revenue_eur)}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-widest text-gray-500">ROAS</p>
+                  <p className="text-[10px] uppercase tracking-widest text-zinc-500">ROAS</p>
                   <RoasBadge value={s.spent_eur > 0 ? s.revenue_eur / s.spent_eur : 0} />
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-widest text-gray-500">Campagnes</p>
-                  <p className="font-semibold text-white">{s.campaigns_active} actives</p>
+                  <p className="text-[10px] uppercase tracking-widest text-zinc-500">Campagnes</p>
+                  <p className="font-semibold text-zinc-950 dark:text-white">{s.campaigns_active} actives</p>
                 </div>
               </div>
-            </AdminCard>
+            </div>
           );
         })}
       </section>
@@ -328,95 +358,88 @@ export default function MarketingPage() {
             onClick={() => setChannelFilter(c)}
             className={
               channelFilter === c
-                ? 'rounded-lg bg-indigo-500 px-3 py-1 text-xs font-medium text-white'
-                : 'rounded-lg bg-gray-800/50 px-3 py-1 text-xs font-medium text-gray-400 ring-1 ring-inset ring-white/10 hover:text-white'
+                ? 'rounded-lg bg-indigo-600 px-3 py-1 text-xs font-medium text-white dark:bg-indigo-500'
+                : 'rounded-lg bg-white px-3 py-1 text-xs font-medium text-zinc-500 ring-1 ring-zinc-950/5 hover:text-zinc-950 dark:bg-zinc-800/50 dark:text-zinc-400 dark:ring-white/10 dark:hover:text-white'
             }
           >
             {c === 'all' ? 'Tous' : c === 'google' ? 'Google' : c === 'meta' ? 'Meta' : c === 'tiktok' ? 'TikTok' : 'Amazon'}
           </button>
         ))}
-        <span className="ml-2 text-xs text-gray-500">{filtered.length} campagne{filtered.length > 1 ? 's' : ''}</span>
+        <span className="ml-2 text-xs text-zinc-500">{filtered.length} campagne{filtered.length > 1 ? 's' : ''}</span>
       </div>
 
       {/* Tableau campagnes */}
-      <AdminCard className="min-h-0 flex-1 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-white/10 text-xs">
-            <thead>
-              <tr className="text-[10px] uppercase tracking-[0.14em] text-gray-500">
-                <th scope="col" className="px-4 py-2.5 text-left font-medium text-white">Campagne</th>
-                <th scope="col" className="px-3 py-2.5 text-left font-medium text-white">Canal</th>
-                <th scope="col" className="px-3 py-2.5 text-left font-medium text-white">Store</th>
-                <th scope="col" className="px-3 py-2.5 text-right font-medium text-white">Budget</th>
-                <th scope="col" className="px-3 py-2.5 text-right font-medium text-white">Dépensé</th>
-                <th scope="col" className="px-3 py-2.5 text-right font-medium text-white">Revenus</th>
-                <th scope="col" className="px-3 py-2.5 text-right font-medium text-white">ROAS</th>
-                <th scope="col" className="px-3 py-2.5 text-right font-medium text-white">Conv.</th>
-                <th scope="col" className="px-3 py-2.5 text-right font-medium text-white">CPA</th>
-                <th scope="col" className="px-3 py-2.5 text-right font-medium text-white">Clics</th>
-                <th scope="col" className="px-3 py-2.5 text-right font-medium text-white">CTR</th>
-                <th scope="col" className="px-3 py-2.5" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/10">
-              {filtered.map((c) => (
-                <tr key={c.id}>
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-center gap-2">
-                      <StatusDot status={c.status} />
-                      <span className="font-medium text-white">{c.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-3 py-2.5"><ChannelBadge channel={c.channel} /></td>
-                  <td className="px-3 py-2.5 text-gray-400">{c.store}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-gray-400">{fmtEur(c.budget_eur)}/j</td>
-                  <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-white">{fmtEur(c.spent_eur)}</td>
-                  <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-indigo-400">{fmtEur(c.revenue_eur)}</td>
-                  <td className="px-3 py-2.5 text-right">
-                    <RoasBadge value={c.spent_eur > 0 ? c.revenue_eur / c.spent_eur : 0} />
-                  </td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-white">{c.conversions}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-gray-400">{cpa(c.spent_eur, c.conversions)}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-gray-400">{fmtNum(c.clicks)}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-gray-500">{ctr(c.clicks, c.impressions)}</td>
-                  <td className="px-3 py-2.5 text-right"></td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot className="border-t border-white/10 text-[11px] font-semibold uppercase tracking-widest text-gray-400">
-              <tr>
-                <td className="px-4 py-2.5 text-gray-500" colSpan={4}>Total &middot; {filtered.length} campagnes</td>
-                <td className="px-3 py-2.5 text-right tabular-nums text-white">
-                  {fmtEur(filtered.reduce((s, c) => s + c.spent_eur, 0))}
-                </td>
-                <td className="px-3 py-2.5 text-right tabular-nums text-indigo-400">
-                  {fmtEur(filtered.reduce((s, c) => s + c.revenue_eur, 0))}
-                </td>
-                <td className="px-3 py-2.5 text-right">
-                  {(() => {
-                    const s = filtered.reduce((a, c) => a + c.spent_eur, 0);
-                    const r = filtered.reduce((a, c) => a + c.revenue_eur, 0);
-                    return <RoasBadge value={s > 0 ? r / s : 0} />;
-                  })()}
-                </td>
-                <td className="px-3 py-2.5 text-right tabular-nums text-white">
-                  {filtered.reduce((s, c) => s + c.conversions, 0)}
-                </td>
-                <td className="px-3 py-2.5 text-right tabular-nums text-gray-400">
-                  {cpa(filtered.reduce((s, c) => s + c.spent_eur, 0), filtered.reduce((s, c) => s + c.conversions, 0))}
-                </td>
-                <td className="px-3 py-2.5 text-right tabular-nums text-gray-400">
-                  {fmtNum(filtered.reduce((s, c) => s + c.clicks, 0))}
-                </td>
-                <td className="px-3 py-2.5 text-right tabular-nums text-gray-500">
-                  {ctr(filtered.reduce((s, c) => s + c.clicks, 0), filtered.reduce((s, c) => s + c.impressions, 0))}
-                </td>
-                <td />
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </AdminCard>
+      <Table dense className="[--gutter:--spacing(4)]">
+        <TableHead>
+          <TableRow>
+            <TableHeader>Campagne</TableHeader>
+            <TableHeader>Canal</TableHeader>
+            <TableHeader>Store</TableHeader>
+            <TableHeader className="text-right">Budget</TableHeader>
+            <TableHeader className="text-right">Dépensé</TableHeader>
+            <TableHeader className="text-right">Revenus</TableHeader>
+            <TableHeader className="text-right">ROAS</TableHeader>
+            <TableHeader className="text-right">Conv.</TableHeader>
+            <TableHeader className="text-right">CPA</TableHeader>
+            <TableHeader className="text-right">Clics</TableHeader>
+            <TableHeader className="text-right">CTR</TableHeader>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {filtered.map((c) => (
+            <TableRow key={c.id}>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <StatusBadge status={c.status} />
+                  <span className="font-medium text-zinc-950 dark:text-white">{c.name}</span>
+                </div>
+              </TableCell>
+              <TableCell><ChannelBadge channel={c.channel} /></TableCell>
+              <TableCell className="text-zinc-500">{c.store}</TableCell>
+              <TableCell className="text-right tabular-nums text-zinc-500">{fmtEur(c.budget_eur)}/j</TableCell>
+              <TableCell className="text-right font-semibold tabular-nums text-zinc-950 dark:text-white">{fmtEur(c.spent_eur)}</TableCell>
+              <TableCell className="text-right font-semibold tabular-nums text-indigo-600 dark:text-indigo-400">{fmtEur(c.revenue_eur)}</TableCell>
+              <TableCell className="text-right">
+                <RoasBadge value={c.spent_eur > 0 ? c.revenue_eur / c.spent_eur : 0} />
+              </TableCell>
+              <TableCell className="text-right tabular-nums text-zinc-950 dark:text-white">{c.conversions}</TableCell>
+              <TableCell className="text-right tabular-nums text-zinc-500">{cpa(c.spent_eur, c.conversions)}</TableCell>
+              <TableCell className="text-right tabular-nums text-zinc-500">{fmtNum(c.clicks)}</TableCell>
+              <TableCell className="text-right tabular-nums text-zinc-500">{ctr(c.clicks, c.impressions)}</TableCell>
+            </TableRow>
+          ))}
+          <TableRow>
+            <TableCell colSpan={4} className="font-semibold uppercase tracking-widest text-zinc-500">
+              Total &middot; {filtered.length} campagnes
+            </TableCell>
+            <TableCell className="text-right font-semibold tabular-nums text-zinc-950 dark:text-white">
+              {fmtEur(filtered.reduce((s, c) => s + c.spent_eur, 0))}
+            </TableCell>
+            <TableCell className="text-right font-semibold tabular-nums text-indigo-600 dark:text-indigo-400">
+              {fmtEur(filtered.reduce((s, c) => s + c.revenue_eur, 0))}
+            </TableCell>
+            <TableCell className="text-right">
+              {(() => {
+                const s = filtered.reduce((a, c) => a + c.spent_eur, 0);
+                const r = filtered.reduce((a, c) => a + c.revenue_eur, 0);
+                return <RoasBadge value={s > 0 ? r / s : 0} />;
+              })()}
+            </TableCell>
+            <TableCell className="text-right font-semibold tabular-nums text-zinc-950 dark:text-white">
+              {filtered.reduce((s, c) => s + c.conversions, 0)}
+            </TableCell>
+            <TableCell className="text-right tabular-nums text-zinc-500">
+              {cpa(filtered.reduce((s, c) => s + c.spent_eur, 0), filtered.reduce((s, c) => s + c.conversions, 0))}
+            </TableCell>
+            <TableCell className="text-right tabular-nums text-zinc-500">
+              {fmtNum(filtered.reduce((s, c) => s + c.clicks, 0))}
+            </TableCell>
+            <TableCell className="text-right tabular-nums text-zinc-500">
+              {ctr(filtered.reduce((s, c) => s + c.clicks, 0), filtered.reduce((s, c) => s + c.impressions, 0))}
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
 
       {/* Banner non connectés */}
       {summaries.filter((s) => !s.connected).length > 0 && (
@@ -427,8 +450,8 @@ export default function MarketingPage() {
         </div>
       )}
 
-      <p className="pb-1 text-center text-[10px] text-gray-500">
-        Donn&eacute;es mock&eacute;es — connecte Google Ads, Meta Graph API, TikTok Business API et Amazon Ads API dans R&eacute;glages pour afficher les vraies m&eacute;triques.
+      <p className="pb-1 text-center text-[10px] text-zinc-500">
+        Données mockées — connecte Google Ads, Meta Graph API, TikTok Business API et Amazon Ads API dans Réglages pour afficher les vraies métriques.
       </p>
     </div>
   );

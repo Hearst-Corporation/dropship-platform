@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TrashIcon } from '@heroicons/react/24/outline';
+import { Button } from '@/components/catalyst/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 export function StoreActions({
@@ -39,22 +40,20 @@ export function StoreActions({
     }
   };
 
-  const sizeCls = compact ? 'size-7' : 'size-9';
   const iconCls = compact ? 'size-3.5' : 'size-4';
   return (
     <>
-      <button
+      <Button
+        plain
         type="button"
         onClick={() => setConfirmOpen(true)}
         disabled={deleting}
         aria-label={`Supprimer ${storeName}`}
         title={error || `Supprimer ${storeName}`}
-        className={`inline-flex items-center justify-center rounded-lg ring-1 ring-inset transition-colors hover:bg-white/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-40 ${sizeCls} ${
-          error ? 'ring-rose-500/40 text-rose-400' : 'ring-white/10 text-gray-400 hover:text-white'
-        }`}
+        className={error ? 'text-red-600 dark:text-red-500' : undefined}
       >
         <TrashIcon className={iconCls} aria-hidden />
-      </button>
+      </Button>
       <ConfirmDialog
         open={confirmOpen}
         title={`Supprimer le store « ${storeName} » ?`}

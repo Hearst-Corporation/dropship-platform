@@ -11,7 +11,11 @@ import { apiFetch } from '@/lib/client-fetch';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { AssetKind } from '@/lib/agent/asset-regenerator';
-import { AdminCard, AdminCardHeader } from '@/components/admin/AdminCard';
+import { Subheading } from '@/components/catalyst/heading';
+import { Text } from '@/components/catalyst/text';
+import { Badge } from '@/components/catalyst/badge';
+import { Button } from '@/components/catalyst/button';
+import { Textarea } from '@/components/catalyst/textarea';
 
 interface RunLite {
   id: string;
@@ -200,22 +204,23 @@ export function AssetRegenerator({
   const successRuns = runs.filter((r) => r.status === 'success' && r.resultUrl);
 
   return (
-    <AdminCard className="overflow-hidden">
-      <AdminCardHeader
-        eyebrow={kind}
-        title={<span>{label.title}</span>}
-        action={
-          <button
-            type="button"
-            onClick={() => setPanelOpen((v) => !v)}
-            disabled={running || !referenceImageUrl}
-            className="shrink-0 rounded-md bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {panelOpen ? 'Fermer' : 'Régénérer'}
-          </button>
-        }
-      />
-      <p className="px-5 pt-3 text-xs text-gray-400">{label.hint}</p>
+    <div className="overflow-hidden rounded-lg bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+      <div className="flex items-start justify-between gap-4 px-5 pt-5">
+        <div className="space-y-1">
+          <Badge color="zinc">{kind}</Badge>
+          <Subheading>{label.title}</Subheading>
+        </div>
+        <Button
+          type="button"
+          color="indigo"
+          onClick={() => setPanelOpen((v) => !v)}
+          disabled={running || !referenceImageUrl}
+          className="shrink-0"
+        >
+          {panelOpen ? 'Fermer' : 'Régénérer'}
+        </Button>
+      </div>
+      <Text className="px-5 pt-3 text-xs">{label.hint}</Text>
 
       <div className="space-y-5 p-5">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-[280px_1fr]">
@@ -262,27 +267,27 @@ export function AssetRegenerator({
                 <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gray-500">
                   Prompt FLUX (anglais, sans texte/badges)
                 </label>
-                <textarea
+                <Textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   disabled={running}
                   rows={5}
                   placeholder="Laisse vide pour laisser Claude rédiger un nouveau prompt..."
-                  className="w-full rounded-lg bg-white/5 px-3 py-2 font-mono text-sm text-white ring-1 ring-white/10 placeholder:text-gray-500 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                  className="font-mono"
                 />
                 <p className="mt-1 text-xs text-gray-500">
                   Vide = Claude réécrit le prompt à partir du produit et de la niche.
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <button
+                <Button
                   type="button"
+                  color="indigo"
                   onClick={launch}
                   disabled={running || !referenceImageUrl}
-                  className="rounded-md bg-indigo-500 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {running ? 'Génération en cours…' : 'Lancer'}
-                </button>
+                </Button>
                 {error && <span className="text-xs text-red-400">{error}</span>}
               </div>
 
@@ -377,14 +382,15 @@ export function AssetRegenerator({
                         </p>
                       )}
                       {usable && !r.isCurrent && (
-                        <button
+                        <Button
                           type="button"
+                          plain
                           onClick={() => setAsCurrent(r.id)}
                           disabled={pendingSet}
-                          className="w-full rounded-md bg-white/5 px-2 py-1.5 text-xs font-medium text-white ring-1 ring-white/10 transition-colors hover:bg-white/10 disabled:opacity-40"
+                          className="w-full"
                         >
                           {pendingSet ? '…' : 'Définir comme courant'}
-                        </button>
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -397,6 +403,6 @@ export function AssetRegenerator({
           )}
         </div>
       </div>
-    </AdminCard>
+    </div>
   );
 }
