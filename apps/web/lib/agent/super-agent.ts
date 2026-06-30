@@ -381,6 +381,37 @@ const SUPER_TOOLS: Anthropic.Messages.Tool[] = [
       required: ['commit_message'],
     },
   },
+  {
+    name: 'google_ads_push',
+    description:
+      'Programme (crée et publie) une campagne Google Ads pour un produit d\'un store. Dépense de l\'argent réel : CONFIRMATION OBLIGATOIRE. Nécessite que Google Ads soit configuré (developer token + OAuth). Donne storeId, variantId Medusa du produit, le texte de l\'annonce, le budget quotidien en EUR et la durée en jours.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        store_id: { type: 'string', description: 'UUID du store.' },
+        variant_id: { type: 'string', description: 'ID de variante Medusa du produit à promouvoir.' },
+        headline: { type: 'string', description: 'Titre de l\'annonce (court, accrocheur).' },
+        primary_text: { type: 'string', description: 'Texte principal de l\'annonce.' },
+        description: { type: 'string', description: 'Description courte (optionnel).' },
+        cta: { type: 'string', description: 'Call to action (ex: Acheter, Découvrir). Optionnel.' },
+        daily_budget_eur: { type: 'number', description: 'Budget quotidien en euros (ex: 10).' },
+        days: { type: 'number', description: 'Durée de la campagne en jours (ex: 7).' },
+      },
+      required: ['store_id', 'variant_id', 'headline', 'primary_text', 'daily_budget_eur', 'days'],
+    },
+  },
+  {
+    name: 'ads_performance',
+    description:
+      'Lit les performances des campagnes publicitaires (Google Ads, Meta, TikTok) d\'un store : dépense, revenus, ROAS, conversions, clics. Lecture seule, pas de confirmation.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        store_id: { type: 'string', description: 'UUID du store.' },
+      },
+      required: ['store_id'],
+    },
+  },
 ];
 
 // ── Tool executors ─────────────────────────────────────────────────────
@@ -888,6 +919,90 @@ async function execDeployVercel(
   };
 }
 
+async function execGoogleAdsPush(
+  input: unknown,
+  confirmations: Record<string, boolean>,
+): Promise<ExecResult> {
+  const schema = z.object({
+    store_id: z.string().uuid(),
+    variant_id: z.string().min(1),
+    headline: z.string().min(1),
+    primary_text: z.string().min(1),
+    description: z.string().nullish(),
+    cta: z.string().nullish(),
+    daily_budget_eur: z.number().positive(),
+    days: z.number().int().positive(),
+  });
+  const args = schema.parse(input);
+
+  const { isGoogleAdsConfigured, pushGoogleAdsCampaign } = await import('@/lib/ads/google-ads');
+  if (!isGoogleAdsConfigured()) {
+    return {
+      output: { error: 'Google Ads non configuré (developer token / OAuth manquants dans les env vars).' },
+      summary: 'google_ads_push — non configuré',
+    };
+  }
+
+  // Resolve store slug + base URL for the product landing.
+  const db = getDb();
+  const { rows } = await db.query<{ slug: string }>(
+    `SELECT slug FROM dropship_stores WHERE id = $1 LIMIT 1`,
+    [args.store_id],
+  );
+  const slug = rows[0]?.slug;
+  if (!slug) {
+    return { output: { error: `Store ${args.store_id} introuvable.` }, summary: 'google_ads_push — store introuvable' };
+  }
+
+  // Money-spending action: require explicit confirmation.
+  const confirmKey = `google_ads_push:${args.store_id}:${args.variant_id}`;
+  if (!isConfirmed(confirmations, confirmKey)) {
+    return {
+      output: {
+        reason: `Campagne Google Ads — ${args.daily_budget_eur} EUR/jour pendant ${args.days} jours (dépense réelle).`,
+        store: slug,
+        budget_total_eur: args.daily_budget_eur * args.days,
+      },
+      summary: `google_ads_push — confirmation requise (${args.daily_budget_eur}€/j × ${args.days}j)`,
+      confirm_required: true,
+      confirm_key: confirmKey,
+    };
+  }
+
+  const productUrl = `https://${slug}.hearstcorporation.io/`;
+  const result = await pushGoogleAdsCampaign({
+    storeId: args.store_id,
+    storeSlug: slug,
+    variantId: args.variant_id,
+    headline: args.headline,
+    primaryText: args.primary_text,
+    description: args.description ?? null,
+    cta: args.cta ?? null,
+    imageUrl: null,
+    productUrl,
+    dailyBudgetEur: args.daily_budget_eur,
+    days: args.days,
+  });
+
+  return {
+    output: result,
+    summary: `google_ads_push — ${result.status}${result.externalId ? ` (${result.externalId})` : ''}`,
+  };
+}
+
+async function execAdsPerformance(input: unknown): Promise<ExecResult> {
+  const schema = z.object({ store_id: z.string().uuid() });
+  const { store_id } = schema.parse(input);
+
+  const { getCampaignPerformance } = await import('@/lib/ads/performance');
+  const rows = await getCampaignPerformance(store_id);
+
+  return {
+    output: { campaigns: rows, count: rows.length },
+    summary: `ads_performance — ${rows.length} campagne(s)`,
+  };
+}
+
 // ── Dispatcher ─────────────────────────────────────────────────────────
 
 const DEV_TOOL_NAMES = new Set([
@@ -924,6 +1039,8 @@ async function executeSuperTool(
     case 'medusa_admin': return execMedusaAdmin(input, ctx.confirmations);
     case 'trigger_workflow': return execTriggerWorkflow(input, ctx.confirmations);
     case 'deploy_vercel': return execDeployVercel(input, ctx.confirmations);
+    case 'google_ads_push': return execGoogleAdsPush(input, ctx.confirmations);
+    case 'ads_performance': return execAdsPerformance(input);
   }
 
   throw new Error(`Outil inconnu: ${name}`);
@@ -935,6 +1052,7 @@ function buildSuperSystemPrompt(page: string, storeId?: string): string {
   return [
     'Tu es le Super Agent de la plateforme Hearst Dropship.',
     'Tu as un accès TOTAL : lire/modifier le code, exécuter du SQL (read + write), supprimer ou modifier des stores, appeler l\'API Medusa Admin, déclencher des workflows GitHub, régénérer des assets, committer, pousser et déployer.',
+    'Tu peux aussi PROGRAMMER de la publicité : google_ads_push crée et publie une campagne Google Ads (AdWords) pour un produit ; ads_performance lit les perfs (dépense, ROAS, conversions) des campagnes d\'un store.',
     '',
     `Contexte actuel: page="${page}", store_id="${storeId || 'aucun'}"`,
     '',
@@ -945,6 +1063,7 @@ function buildSuperSystemPrompt(page: string, storeId?: string): string {
     '- trigger_workflow : confirmation obligatoire.',
     '- git_push : confirmation obligatoire (clé `git_push`).',
     '- deploy_vercel : confirmation obligatoire (clé `deploy_vercel`).',
+    '- google_ads_push : confirmation obligatoire (dépense de l\'argent réel ; clé `google_ads_push:<store>:<variant>`). Annonce le budget total avant de lancer.',
     '- Le bouton "Confirmer" de l\'UI envoie soit la clé précise reçue, soit le wildcard `*` (le wildcard libère tout pour le tour suivant).',
     '',
     'Méthode de travail:',
