@@ -16,7 +16,7 @@ const schema = z.object({
    * stream so the client can store it for the next turn.
    */
   sessionId: z.string().uuid().optional(),
-  confirmations: z.record(z.boolean()).optional().default({}),
+  confirmations: z.record(z.string(), z.boolean()).optional().default({}),
 });
 
 export async function POST(req: NextRequest) {

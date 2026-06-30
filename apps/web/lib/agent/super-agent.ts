@@ -784,7 +784,7 @@ async function execMedusaAdmin(
     method: z.enum(['GET', 'POST', 'PUT', 'DELETE']),
     path: z.string().min(1),
     body: z.unknown().optional(),
-    query: z.record(z.unknown()).optional(),
+    query: z.record(z.string(), z.unknown()).optional(),
   });
   const { method, path, body, query } = schema.parse(input);
 
@@ -814,7 +814,7 @@ async function execTriggerWorkflow(
   const schema = z.object({
     workflow: z.string().min(1),
     ref: z.string().optional().default('main'),
-    inputs: z.record(z.unknown()).optional(),
+    inputs: z.record(z.string(), z.unknown()).optional(),
   });
   const { workflow, ref, inputs } = schema.parse(input);
 

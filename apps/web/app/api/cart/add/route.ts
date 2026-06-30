@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (e) {
     if (e instanceof z.ZodError) {
-      return NextResponse.json({ success: false, error: 'Invalid params', details: e.errors }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Invalid params', details: e.issues }, { status: 400 });
     }
     return NextResponse.json({ success: false, error: e instanceof Error ? e.message : 'Erreur' }, { status: 500 });
   }

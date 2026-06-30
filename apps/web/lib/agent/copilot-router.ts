@@ -588,7 +588,7 @@ export async function* runCopilotTurn(
               const message = e instanceof Error ? e.message : String(e);
               const zodIssues =
                 e instanceof z.ZodError
-                  ? e.errors.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')
+                  ? e.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')
                   : null;
               toolOutput = { error: message, ...(zodIssues ? { issues: zodIssues } : {}) };
               summary = `Erreur: ${message}`;

@@ -60,7 +60,7 @@ export async function POST(
   } catch (e) {
     if (e instanceof z.ZodError) {
       return NextResponse.json(
-        { ok: false, error: 'Invalid params', details: e.errors },
+        { ok: false, error: 'Invalid params', details: e.issues },
         { status: 400 },
       );
     }

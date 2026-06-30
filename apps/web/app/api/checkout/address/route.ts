@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (e) {
     if (e instanceof z.ZodError) {
-      return NextResponse.json({ success: false, error: 'Champs invalides', details: e.errors }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Champs invalides', details: e.issues }, { status: 400 });
     }
     return NextResponse.json({ success: false, error: e instanceof Error ? e.message : 'Erreur' }, { status: 500 });
   }
