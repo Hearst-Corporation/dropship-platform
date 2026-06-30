@@ -5,6 +5,7 @@ import { StoreAvatar } from '@/components/ui';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import { AdminStatGrid, AdminStatCard } from '@/components/admin/AdminStatCard';
 import { AdminCard, AdminCardHeader } from '@/components/admin/AdminCard';
+import { FunnelChart, TrendLine } from '@/components/admin/AdminCharts';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -47,6 +48,11 @@ interface CostRow {
   errors: number;
   avg_cost_per_run: string;
 }
+interface TrendRow {
+  label: string;
+  revenue_cents: number;
+  orders: number;
+}
 
 async function safeQuery<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
   try {
@@ -64,7 +70,7 @@ function eur(cents: number): string {
 export default async function PortfolioDashboard() {
   const db = getDbRead();
 
-  const [stores, revenue, funnel, topStores, cost] = await Promise.all([
+  const [stores, revenue, funnel, topStores, cost, trend] = await Promise.all([
     safeQuery<StoresRow>(
       async () => {
         const { rows } = await db.query<StoresRow>(
@@ -145,6 +151,22 @@ export default async function PortfolioDashboard() {
       },
       { total_cost_eur: '0', runs: 0, errors: 0, avg_cost_per_run: '0' },
     ),
+    safeQuery<TrendRow[]>(
+      async () => {
+        const { rows } = await db.query<TrendRow>(
+          `SELECT
+             to_char(date_trunc('day', created_at), 'DD/MM') AS label,
+             COALESCE(SUM(value_minor) FILTER (WHERE event_name = 'purchase'), 0)::bigint AS revenue_cents,
+             COUNT(*) FILTER (WHERE event_name = 'purchase')::int AS orders
+           FROM dropship_funnel_events
+           WHERE created_at > now() - interval '14 days'
+           GROUP BY date_trunc('day', created_at)
+           ORDER BY date_trunc('day', created_at)`,
+        );
+        return rows;
+      },
+      [],
+    ),
   ]);
 
   const revenue30dCents = Number(revenue.revenue_30d_cents);
@@ -168,6 +190,28 @@ export default async function PortfolioDashboard() {
         <AdminStatCard label="CA 30j" value={eur(revenue30dCents)} hint={`${revenue.orders_30d} commandes`} />
         <AdminStatCard label="CA 7j" value={eur(revenue7dCents)} hint={`${revenue.orders_7d} commandes`} />
       </AdminStatGrid>
+
+      {/* Trend — revenue + orders over 14 days */}
+      <AdminCard>
+        <AdminCardHeader eyebrow="Tendance 14j" title="CA et commandes par jour" />
+        <div className="px-5 py-4">
+          {trend.length === 0 ? (
+            <p className="py-8 text-center text-sm text-gray-500">Pas encore de ventes sur les 14 derniers jours.</p>
+          ) : (
+            <TrendLine
+              data={trend.map((t) => ({
+                label: t.label,
+                'CA (€)': Math.round(Number(t.revenue_cents) / 100),
+                Commandes: Number(t.orders),
+              }))}
+              series={[
+                { key: 'CA (€)', label: 'CA (€)', color: '#818cf8' },
+                { key: 'Commandes', label: 'Commandes', color: '#34d399' },
+              ]}
+            />
+          )}
+        </div>
+      </AdminCard>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Top stores */}
@@ -214,11 +258,15 @@ export default async function PortfolioDashboard() {
             title="Conversion globale"
             action={<span className="text-xs font-semibold tabular-nums text-white">{globalConv.toFixed(1)}%</span>}
           />
-          <div className="space-y-4 px-5 py-4">
-            <FunnelBar label="View content" value={funnel.view_content} reference={funnel.view_content} />
-            <FunnelBar label="Add to cart" value={funnel.add_to_cart} reference={funnel.view_content} />
-            <FunnelBar label="Initiate checkout" value={funnel.initiate_checkout} reference={funnel.view_content} />
-            <FunnelBar label="Purchase" value={funnel.purchase} reference={funnel.view_content} highlight />
+          <div className="px-5 py-4">
+            <FunnelChart
+              data={[
+                { stage: 'View content', value: funnel.view_content },
+                { stage: 'Add to cart', value: funnel.add_to_cart },
+                { stage: 'Initiate checkout', value: funnel.initiate_checkout },
+                { stage: 'Purchase', value: funnel.purchase },
+              ]}
+            />
           </div>
         </AdminCard>
 
@@ -263,40 +311,6 @@ function StatRow({ label, value, warning = false }: { label: string; value: stri
       <dd className={warning ? 'font-semibold tabular-nums text-amber-400' : 'font-semibold tabular-nums text-white'}>
         {value}
       </dd>
-    </div>
-  );
-}
-
-function FunnelBar({
-  label,
-  value,
-  reference,
-  highlight = false,
-}: {
-  label: string;
-  value: number;
-  reference: number;
-  highlight?: boolean;
-}) {
-  const ratio = reference > 0 ? Math.min(1, value / reference) : 0;
-  const pct = reference > 0 ? Math.round(ratio * 100) : 0;
-  return (
-    <div>
-      <div className="mb-1 flex justify-between text-xs">
-        <span className={highlight ? 'font-medium text-white' : 'text-gray-400'}>{label}</span>
-        <span className="tabular-nums">
-          <span className={highlight ? 'font-semibold text-white' : 'font-medium text-gray-300'}>
-            {value.toLocaleString('fr-FR')}
-          </span>
-          <span className="ml-1.5 text-gray-500">{pct}%</span>
-        </span>
-      </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-        <div
-          className={highlight ? 'h-full rounded-full bg-indigo-500' : 'h-full rounded-full bg-gray-400'}
-          style={{ width: `${ratio * 100}%` }}
-        />
-      </div>
     </div>
   );
 }

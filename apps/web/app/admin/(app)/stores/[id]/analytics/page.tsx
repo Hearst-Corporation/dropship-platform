@@ -6,6 +6,7 @@ import { formatMoney } from '@/lib/medusa-store';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import { AdminStatGrid, AdminStatCard } from '@/components/admin/AdminStatCard';
 import { AdminCard, AdminCardHeader } from '@/components/admin/AdminCard';
+import { FunnelChart } from '@/components/admin/AdminCharts';
 
 export const dynamic = 'force-dynamic';
 
@@ -109,8 +110,6 @@ export default async function StoreAnalyticsPage({ params, searchParams }: Props
   const aov = totalPurchases > 0 ? totalRevenue / totalPurchases : 0;
   const cartToPurchase = totalAdds > 0 ? (totalPurchases / totalAdds) * 100 : 0;
 
-  const funnelTop = funnelByName.get(FUNNEL_ORDER[0])?.sessions ?? 0;
-
   return (
     <div className="flex flex-1 flex-col space-y-6">
       <AdminPageHeader
@@ -171,29 +170,14 @@ export default async function StoreAnalyticsPage({ params, searchParams }: Props
             Funnel des sessions uniques sur les events serveur. Les session_id se persistent 30 jours.
           </p>
         </div>
-        <div className="flex flex-col gap-4 px-5 py-5">
-          {FUNNEL_ORDER.map((name) => {
-            const row = funnelByName.get(name);
-            const sessions = row?.sessions ?? 0;
-            const ratio = funnelTop > 0 ? (sessions / funnelTop) * 100 : 0;
-            return (
-              <div key={name}>
-                <div className="mb-1.5 flex items-baseline justify-between gap-4">
-                  <span className="text-sm font-medium text-white">{FUNNEL_LABEL[name]}</span>
-                  <span className="text-sm tabular-nums text-gray-400">
-                    {sessions} sessions{' '}
-                    <span className="text-xs text-gray-500">({ratio.toFixed(0)} %)</span>
-                  </span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className="h-full rounded-full bg-indigo-500 transition-all"
-                    style={{ width: `${Math.max(2, ratio)}%` }}
-                  />
-                </div>
-              </div>
-            );
-          })}
+        <div className="px-5 py-5">
+          <FunnelChart
+            height={220}
+            data={FUNNEL_ORDER.map((name) => ({
+              stage: FUNNEL_LABEL[name],
+              value: funnelByName.get(name)?.sessions ?? 0,
+            }))}
+          />
         </div>
         {store.clarity_id && (
           <div className="border-t border-white/10 bg-gray-900/40 px-5 py-3 text-xs text-gray-500">
