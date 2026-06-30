@@ -1,16 +1,6 @@
-'use client';
-
-import React, { useState } from 'react';
-import {
-  ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
-  ExclamationTriangleIcon,
-  PlusIcon,
-} from '@heroicons/react/20/solid';
 import { Heading, Subheading } from '@/components/catalyst/heading';
-import { Text, TextLink, Strong } from '@/components/catalyst/text';
+import { Text, TextLink } from '@/components/catalyst/text';
 import { Badge } from '@/components/catalyst/badge';
-import { Button } from '@/components/catalyst/button';
 import {
   Table,
   TableHead,
@@ -23,279 +13,88 @@ import {
   DescriptionTerm,
   DescriptionDetails,
 } from '@/components/catalyst/description-list';
+import { getAllCampaigns, getChannelConnections, type AdChannel } from '@/lib/ads/all-campaigns';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+export const dynamic = 'force-dynamic';
 
-type Channel = 'google' | 'meta' | 'tiktok' | 'amazon';
-type Period = '7d' | '30d' | 'mtd';
-
-interface Campaign {
-  id: string;
-  name: string;
-  channel: Channel;
-  status: 'active' | 'paused' | 'ended';
-  budget_eur: number;
-  spent_eur: number;
-  revenue_eur: number;
-  clicks: number;
-  impressions: number;
-  conversions: number;
-  store: string;
-}
-
-interface ChannelSummary {
-  channel: Channel;
-  label: string;
-  spent_eur: number;
-  revenue_eur: number;
-  clicks: number;
-  impressions: number;
-  conversions: number;
-  campaigns_active: number;
-  connected: boolean;
-}
-
-// ─── Channel SVG logos ────────────────────────────────────────────────────────
-
-function GoogleLogo() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-4" aria-hidden>
-      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-    </svg>
-  );
-}
-
-function MetaLogo() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-4" aria-hidden fill="none">
-      <path d="M12 2.5C6.753 2.5 2.5 6.753 2.5 12S6.753 21.5 12 21.5 21.5 17.247 21.5 12 17.247 2.5 12 2.5z" fill="url(#meta-grad)"/>
-      <path d="M8.08 14.93c.44.72 1.1 1.2 1.9 1.2.73 0 1.28-.28 1.73-.97l2.39-3.77 1.33 2.12c.16.26.23.55.18.83-.06.33-.26.6-.54.77-.28.18-.62.22-.94.12-.32-.1-.57-.33-.7-.64l-.3-.72-.87 1.4c.35.56.82.96 1.38 1.17.56.2 1.17.18 1.71-.06.54-.24.97-.67 1.2-1.22.23-.55.22-1.17-.04-1.7l-1.54-2.47 1.16-1.82c.28-.44.72-.7 1.18-.7s.9.26 1.18.7c.27.44.3.97.08 1.43l-.88 1.82.93 1.5c.42-.88.55-1.88.36-2.85-.19-.97-.73-1.84-1.53-2.44-.8-.6-1.79-.88-2.78-.8-.99.09-1.91.54-2.58 1.27L12 10.73l-.42-.67c-.67-.73-1.59-1.18-2.58-1.27-.99-.08-1.98.2-2.78.8-.8.6-1.34 1.47-1.53 2.44-.19.97-.06 1.97.36 2.85l.93-1.5-.88-1.82c-.22-.46-.19-.99.08-1.43.27-.44.72-.7 1.18-.7s.9.26 1.18.7l3.24 5.13c-.25.38-.58.6-.97.6-.46 0-.87-.28-1.13-.76l-.9 1.13z" fill="white"/>
-      <defs>
-        <linearGradient id="meta-grad" x1="12" y1="2.5" x2="12" y2="21.5" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#18ACFE"/>
-          <stop offset="1" stopColor="#0163E0"/>
-        </linearGradient>
-      </defs>
-    </svg>
-  );
-}
-
-function TikTokLogo() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-4" aria-hidden fill="currentColor">
-      <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.2 8.2 0 004.79 1.53V6.77a4.85 4.85 0 01-1.02-.08z"/>
-    </svg>
-  );
-}
-
-function AmazonLogo() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-4" aria-hidden>
-      <path d="M13.958 10.09c0 1.232.03 2.257-.591 3.347-.502.891-1.301 1.44-2.186 1.44-1.214 0-1.922-.924-1.922-2.292 0-2.692 2.415-3.182 4.7-3.182v.687zm3.186 7.705a.66.66 0 01-.76.074c-1.068-.887-1.258-1.299-1.845-2.144-1.76 1.795-3.008 2.332-5.291 2.332-2.703 0-4.806-1.668-4.806-5.005 0-2.607 1.414-4.382 3.425-5.252 1.743-.77 4.176-.907 6.038-1.117v-.417c0-.768.06-1.675-.392-2.337-.392-.591-1.144-.835-1.807-.835-1.227 0-2.319.63-2.588 1.937-.054.293-.267.582-.56.596l-3.147-.339c-.264-.059-.556-.273-.482-.678C5.947 2.015 8.793 1 11.35 1c1.31 0 3.022.349 4.056 1.341C16.738 3.555 16.62 5.17 16.62 6.91v4.666c0 1.402.581 2.018 1.129 2.775.193.271.235.595-.01.796l-2.595 2.648zm3.675 1.49c-2.958 2.187-7.253 3.35-10.95 3.35-5.18 0-9.843-1.913-13.373-5.098-.277-.25-.03-.592.303-.397 3.808 2.217 8.513 3.55 13.37 3.55 3.278 0 6.88-.679 10.198-2.088.5-.213.92.329.452.683zm1.287-1.47c-.378-.485-2.496-.229-3.449-.115-.29.035-.334-.217-.073-.4 1.689-1.187 4.459-.845 4.783-.447.324.4-.085 3.176-1.668 4.502-.243.204-.474.095-.366-.174.356-.89 1.152-2.882.773-3.366z" fill="#FF9900"/>
-    </svg>
-  );
-}
-
-// ─── Mock data (remplacé par vraies APIs — Google Ads, Meta Graph, TikTok Business, Amazon Ads) ──
-
-const MOCK_CAMPAIGNS: Campaign[] = [
-  { id: 'c1', name: 'Yoga Mat Pro — Search', channel: 'google', status: 'active', budget_eur: 30, spent_eur: 22.4, revenue_eur: 187, clicks: 412, impressions: 8200, conversions: 14, store: 'YogaMat Store' },
-  { id: 'c2', name: 'Yoga Mat — Remarketing', channel: 'google', status: 'active', budget_eur: 15, spent_eur: 11.8, revenue_eur: 94, clicks: 230, impressions: 12400, conversions: 7, store: 'YogaMat Store' },
-  { id: 'c3', name: 'Collagen Boost — IG Feed', channel: 'meta', status: 'active', budget_eur: 50, spent_eur: 48.1, revenue_eur: 312, clicks: 1840, impressions: 54000, conversions: 24, store: 'Beauty Lab' },
-  { id: 'c4', name: 'Collagen Boost — Reels', channel: 'meta', status: 'active', budget_eur: 40, spent_eur: 39.5, revenue_eur: 276, clicks: 2100, impressions: 89000, conversions: 19, store: 'Beauty Lab' },
-  { id: 'c5', name: 'Drone FPV — Spark', channel: 'tiktok', status: 'active', budget_eur: 60, spent_eur: 54.2, revenue_eur: 410, clicks: 3200, impressions: 210000, conversions: 31, store: 'TechDrone' },
-  { id: 'c6', name: 'Drone FPV — TopView', channel: 'tiktok', status: 'paused', budget_eur: 80, spent_eur: 12.0, revenue_eur: 48, clicks: 520, impressions: 45000, conversions: 4, store: 'TechDrone' },
-  { id: 'c7', name: 'Camping Kit — Sponsored', channel: 'amazon', status: 'active', budget_eur: 25, spent_eur: 24.9, revenue_eur: 318, clicks: 890, impressions: 22000, conversions: 28, store: 'OutdoorKit' },
-  { id: 'c8', name: 'Camping Kit — Display', channel: 'amazon', status: 'active', budget_eur: 20, spent_eur: 18.3, revenue_eur: 198, clicks: 430, impressions: 18000, conversions: 15, store: 'OutdoorKit' },
-];
-
-const CHANNEL_META: Record<Channel, { label: string; Logo: () => React.ReactElement }> = {
-  google:  { label: 'Google Ads',   Logo: GoogleLogo },
-  meta:    { label: 'Meta (FB/IG)', Logo: MetaLogo },
-  tiktok:  { label: 'TikTok Ads',  Logo: TikTokLogo },
-  amazon:  { label: 'Amazon Ads',  Logo: AmazonLogo },
+const CHANNEL_LABEL: Record<string, string> = {
+  google: 'Google Ads',
+  meta: 'Meta (FB/IG)',
+  tiktok: 'TikTok Ads',
+  amazon: 'Amazon Ads',
 };
 
-function buildChannelSummaries(campaigns: Campaign[]): ChannelSummary[] {
-  return (['google', 'meta', 'tiktok', 'amazon'] as Channel[]).map((channel) => {
-    const m = CHANNEL_META[channel];
-    const cc = campaigns.filter((c) => c.channel === channel);
-    return {
-      channel,
-      label: m.label,
-      spent_eur: cc.reduce((s, c) => s + c.spent_eur, 0),
-      revenue_eur: cc.reduce((s, c) => s + c.revenue_eur, 0),
-      clicks: cc.reduce((s, c) => s + c.clicks, 0),
-      impressions: cc.reduce((s, c) => s + c.impressions, 0),
-      conversions: cc.reduce((s, c) => s + c.conversions, 0),
-      campaigns_active: cc.filter((c) => c.status === 'active').length,
-      connected: true,
-    };
-  });
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function fmtEur(n: number) {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
-}
-function fmtNum(n: number) {
-  return new Intl.NumberFormat('fr-FR').format(n);
-}
-function roas(revenue: number, spent: number) {
-  if (spent === 0) return '—';
-  return `×${(revenue / spent).toFixed(2)}`;
-}
-function cpa(spent: number, conversions: number) {
-  if (conversions === 0) return '—';
-  return fmtEur(spent / conversions);
-}
-function ctr(clicks: number, impressions: number) {
-  if (impressions === 0) return '—';
-  return `${((clicks / impressions) * 100).toFixed(2)} %`;
-}
-
-// ─── Components ───────────────────────────────────────────────────────────────
-
-function PeriodTabs({ value, onChange }: { value: Period; onChange: (p: Period) => void }) {
-  const tabs: { value: Period; label: string }[] = [
-    { value: '7d', label: '7 jours' },
-    { value: '30d', label: '30 jours' },
-    { value: 'mtd', label: 'Ce mois' },
-  ];
-  return (
-    <div className="inline-flex items-center gap-1">
-      {tabs.map((t) =>
-        value === t.value ? (
-          <Button key={t.value} color="zinc" onClick={() => onChange(t.value)}>
-            {t.label}
-          </Button>
-        ) : (
-          <Button key={t.value} plain onClick={() => onChange(t.value)}>
-            {t.label}
-          </Button>
-        ),
-      )}
-    </div>
-  );
-}
-
-const CHANNEL_BADGE_COLOR: Record<Channel, 'blue' | 'indigo' | 'pink' | 'amber'> = {
+const CHANNEL_BADGE: Record<string, 'blue' | 'indigo' | 'pink' | 'amber' | 'zinc'> = {
   google: 'blue',
   meta: 'indigo',
   tiktok: 'pink',
   amazon: 'amber',
 };
 
-function ChannelBadge({ channel }: { channel: Channel }) {
-  const { Logo } = CHANNEL_META[channel];
-  return (
-    <Badge color={CHANNEL_BADGE_COLOR[channel]} className="gap-1.5">
-      <Logo />
-      {CHANNEL_META[channel].label.split(' ')[0]}
-    </Badge>
-  );
-}
-
-const STATUS_COLOR: Record<Campaign['status'], 'indigo' | 'zinc'> = {
-  active: 'indigo',
+const STATUS_BADGE: Record<string, 'green' | 'zinc' | 'red'> = {
+  live: 'green',
+  active: 'green',
   paused: 'zinc',
-  ended: 'zinc',
-};
-const STATUS_LABEL: Record<Campaign['status'], string> = {
-  active: 'Active',
-  paused: 'En pause',
-  ended: 'Terminée',
+  draft: 'zinc',
+  error: 'red',
 };
 
-function StatusBadge({ status }: { status: Campaign['status'] }) {
-  return <Badge color={STATUS_COLOR[status]}>{STATUS_LABEL[status]}</Badge>;
+function eur(n: number): string {
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
+}
+function roas(revenue: number, spent: number): string {
+  return spent > 0 ? `×${(revenue / spent).toFixed(2)}` : '—';
 }
 
-function RoasBadge({ value }: { value: number }) {
-  const good = value >= 1.5;
-  const Icon = good ? ArrowTrendingUpIcon : ArrowTrendingDownIcon;
-  return (
-    <span
-      className={`inline-flex items-center gap-1 text-xs font-semibold tabular-nums ${good ? 'text-indigo-600 dark:text-indigo-400' : 'text-zinc-500'}`}
-    >
-      <Icon className="size-3" aria-hidden />
-      &times;{value.toFixed(2)}
-    </span>
-  );
-}
+export default async function ObservabilityPage() {
+  const [campaigns, connections] = await Promise.all([
+    getAllCampaigns(),
+    Promise.resolve(getChannelConnections()),
+  ]);
 
-function ConnectBanner({ channel }: { channel: string }) {
-  return (
-    <Text className="flex items-center gap-2">
-      <ExclamationTriangleIcon className="size-4 shrink-0 text-zinc-500" aria-hidden />
-      <span>
-        <Strong>{channel}</Strong> — compte non connecté. Configure la clé API dans{' '}
-        <TextLink href="/admin/settings">Réglages</TextLink>.
-      </span>
-    </Text>
-  );
-}
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
-export default function MarketingPage() {
-  const [period, setPeriod] = useState<Period>('30d');
-  const [channelFilter, setChannelFilter] = useState<Channel | 'all'>('all');
-
-  const campaigns = MOCK_CAMPAIGNS;
-  const filtered = channelFilter === 'all' ? campaigns : campaigns.filter((c) => c.channel === channelFilter);
-  const summaries = buildChannelSummaries(campaigns);
-
-  const totalSpent = campaigns.reduce((s, c) => s + c.spent_eur, 0);
-  const totalRevenue = campaigns.reduce((s, c) => s + c.revenue_eur, 0);
+  const totalSpent = campaigns.reduce((s, c) => s + c.spentEur, 0);
+  const totalRevenue = campaigns.reduce((s, c) => s + c.revenueEur, 0);
   const totalConversions = campaigns.reduce((s, c) => s + c.conversions, 0);
-  const totalClicks = campaigns.reduce((s, c) => s + c.clicks, 0);
-  const activeCampaigns = campaigns.filter((c) => c.status === 'active').length;
+  const totalViews = campaigns.reduce((s, c) => s + c.views, 0);
+  const activeCount = campaigns.filter((c) => c.status === 'live' || c.status === 'active').length;
+
+  // Per-channel aggregation from REAL campaigns.
+  const channels: AdChannel[] = ['google', 'meta', 'tiktok', 'amazon'];
+  const byChannel = channels.map((ch) => {
+    const cc = campaigns.filter((c) => c.channel === ch);
+    return {
+      channel: ch,
+      spent: cc.reduce((s, c) => s + c.spentEur, 0),
+      revenue: cc.reduce((s, c) => s + c.revenueEur, 0),
+      active: cc.filter((c) => c.status === 'live' || c.status === 'active').length,
+      connected: connections.find((x) => x.channel === ch)?.connected ?? false,
+    };
+  });
 
   return (
     <div className="space-y-8">
-      {/* Mock data warning banner */}
-      <Text className="flex items-center gap-2.5">
-        <ExclamationTriangleIcon className="size-4 shrink-0 text-amber-500" aria-hidden />
-        <span>
-          <Strong>Données mockées</Strong> — connecte Google Ads, Meta Graph API, TikTok Business API et Amazon Ads dans{' '}
-          <TextLink href="/admin/settings">Réglages</TextLink> pour afficher les vraies métriques.
-        </span>
-      </Text>
-
-      {/* En-tête */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <Text>Marketing · Pub payée</Text>
           <Heading>Campagnes & revenus</Heading>
           <Text className="mt-1 max-w-2xl">
-            Vue consolidée de toutes les campagnes actives — Google, Meta, TikTok, Amazon. Dépenses, revenus, ROAS et conversions en temps réel.
+            Campagnes réelles publiées depuis la plateforme (Google, Meta, TikTok, Amazon).
+            Dépenses estimées sur le budget, revenus mesurés sur les events de conversion.
           </Text>
-        </div>
-        <div className="flex items-center gap-3">
-          <PeriodTabs value={period} onChange={setPeriod} />
-          <Button color="indigo">
-            <PlusIcon aria-hidden />
-            Nouvelle campagne
-          </Button>
         </div>
       </div>
 
-      {/* KPIs globaux */}
+      {/* KPIs globaux — réels */}
       <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
         <Subheading>Vue d&apos;ensemble</Subheading>
         <dl className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <div className="min-w-0">
-            <DescriptionTerm>Dépensé</DescriptionTerm>
-            <DescriptionDetails className="tabular-nums">{fmtEur(totalSpent)}</DescriptionDetails>
+            <DescriptionTerm>Dépensé (estimé)</DescriptionTerm>
+            <DescriptionDetails className="tabular-nums">{eur(totalSpent)}</DescriptionDetails>
           </div>
           <div className="min-w-0">
             <DescriptionTerm>Revenus</DescriptionTerm>
-            <DescriptionDetails className="tabular-nums">{fmtEur(totalRevenue)}</DescriptionDetails>
+            <DescriptionDetails className="tabular-nums">{eur(totalRevenue)}</DescriptionDetails>
           </div>
           <div className="min-w-0">
             <DescriptionTerm>ROAS global</DescriptionTerm>
@@ -303,20 +102,20 @@ export default function MarketingPage() {
           </div>
           <div className="min-w-0">
             <DescriptionTerm>Conversions</DescriptionTerm>
-            <DescriptionDetails className="tabular-nums">{fmtNum(totalConversions)}</DescriptionDetails>
+            <DescriptionDetails className="tabular-nums">{totalConversions.toLocaleString('fr-FR')}</DescriptionDetails>
           </div>
           <div className="min-w-0">
-            <DescriptionTerm>Clics</DescriptionTerm>
-            <DescriptionDetails className="tabular-nums">{fmtNum(totalClicks)}</DescriptionDetails>
+            <DescriptionTerm>Vues produit</DescriptionTerm>
+            <DescriptionDetails className="tabular-nums">{totalViews.toLocaleString('fr-FR')}</DescriptionDetails>
           </div>
           <div className="min-w-0">
             <DescriptionTerm>Campagnes actives</DescriptionTerm>
-            <DescriptionDetails className="tabular-nums">{String(activeCampaigns)}</DescriptionDetails>
+            <DescriptionDetails className="tabular-nums">{String(activeCount)}</DescriptionDetails>
           </div>
         </dl>
       </section>
 
-      {/* Par canal */}
+      {/* Par canal — connexion réelle + perfs réelles */}
       <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
         <Subheading>Par canal</Subheading>
         <Table dense className="mt-4 [--gutter:--spacing(4)]">
@@ -331,134 +130,74 @@ export default function MarketingPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {summaries.map((s) => (
-              <TableRow key={s.channel}>
+            {byChannel.map((c) => (
+              <TableRow key={c.channel}>
                 <TableCell>
-                  <ChannelBadge channel={s.channel} />
+                  <Badge color={CHANNEL_BADGE[c.channel]}>{CHANNEL_LABEL[c.channel]}</Badge>
                 </TableCell>
                 <TableCell>
-                  {s.connected ? (
-                    <Badge color="indigo">Connecté</Badge>
-                  ) : (
-                    <Badge color="zinc">Non connecté</Badge>
-                  )}
+                  {c.connected ? <Badge color="green">Connecté</Badge> : <Badge color="zinc">Non connecté</Badge>}
                 </TableCell>
-                <TableCell className="text-right tabular-nums text-zinc-950 dark:text-white">{fmtEur(s.spent_eur)}</TableCell>
-                <TableCell className="text-right tabular-nums text-zinc-950 dark:text-white">{fmtEur(s.revenue_eur)}</TableCell>
-                <TableCell className="text-right">
-                  <RoasBadge value={s.spent_eur > 0 ? s.revenue_eur / s.spent_eur : 0} />
-                </TableCell>
-                <TableCell className="text-right tabular-nums text-zinc-500">{s.campaigns_active} actives</TableCell>
+                <TableCell className="text-right tabular-nums text-zinc-950 dark:text-white">{eur(c.spent)}</TableCell>
+                <TableCell className="text-right tabular-nums text-zinc-950 dark:text-white">{eur(c.revenue)}</TableCell>
+                <TableCell className="text-right tabular-nums">{roas(c.revenue, c.spent)}</TableCell>
+                <TableCell className="text-right tabular-nums text-zinc-500">{c.active} active(s)</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </section>
 
-      {/* Filtre canal */}
+      {/* Campagnes — réelles */}
       <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
         <Subheading>Campagnes</Subheading>
-        <div className="mt-4 flex flex-wrap items-center gap-1">
-          {(['all', 'google', 'meta', 'tiktok', 'amazon'] as const).map((c) =>
-            channelFilter === c ? (
-              <Button key={c} color="indigo" onClick={() => setChannelFilter(c)}>
-                {c === 'all' ? 'Tous' : c === 'google' ? 'Google' : c === 'meta' ? 'Meta' : c === 'tiktok' ? 'TikTok' : 'Amazon'}
-              </Button>
-            ) : (
-              <Button key={c} plain onClick={() => setChannelFilter(c)}>
-                {c === 'all' ? 'Tous' : c === 'google' ? 'Google' : c === 'meta' ? 'Meta' : c === 'tiktok' ? 'TikTok' : 'Amazon'}
-              </Button>
-            ),
-          )}
-          <Text className="ml-2">{filtered.length} campagne{filtered.length > 1 ? 's' : ''}</Text>
-        </div>
-
-        {/* Tableau campagnes */}
-        <Table dense className="mt-4 [--gutter:--spacing(4)]">
-        <TableHead>
-          <TableRow>
-            <TableHeader>Campagne</TableHeader>
-            <TableHeader>Canal</TableHeader>
-            <TableHeader>Store</TableHeader>
-            <TableHeader className="text-right">Budget</TableHeader>
-            <TableHeader className="text-right">Dépensé</TableHeader>
-            <TableHeader className="text-right">Revenus</TableHeader>
-            <TableHeader className="text-right">ROAS</TableHeader>
-            <TableHeader className="text-right">Conv.</TableHeader>
-            <TableHeader className="text-right">CPA</TableHeader>
-            <TableHeader className="text-right">Clics</TableHeader>
-            <TableHeader className="text-right">CTR</TableHeader>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {filtered.map((c) => (
-            <TableRow key={c.id}>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <StatusBadge status={c.status} />
-                  <span className="font-medium text-zinc-950 dark:text-white">{c.name}</span>
-                </div>
-              </TableCell>
-              <TableCell><ChannelBadge channel={c.channel} /></TableCell>
-              <TableCell className="text-zinc-500">{c.store}</TableCell>
-              <TableCell className="text-right tabular-nums text-zinc-500">{fmtEur(c.budget_eur)}/j</TableCell>
-              <TableCell className="text-right font-semibold tabular-nums text-zinc-950 dark:text-white">{fmtEur(c.spent_eur)}</TableCell>
-              <TableCell className="text-right font-semibold tabular-nums text-indigo-600 dark:text-indigo-400">{fmtEur(c.revenue_eur)}</TableCell>
-              <TableCell className="text-right">
-                <RoasBadge value={c.spent_eur > 0 ? c.revenue_eur / c.spent_eur : 0} />
-              </TableCell>
-              <TableCell className="text-right tabular-nums text-zinc-950 dark:text-white">{c.conversions}</TableCell>
-              <TableCell className="text-right tabular-nums text-zinc-500">{cpa(c.spent_eur, c.conversions)}</TableCell>
-              <TableCell className="text-right tabular-nums text-zinc-500">{fmtNum(c.clicks)}</TableCell>
-              <TableCell className="text-right tabular-nums text-zinc-500">{ctr(c.clicks, c.impressions)}</TableCell>
-            </TableRow>
-          ))}
-          <TableRow>
-            <TableCell colSpan={4} className="font-semibold uppercase tracking-widest text-zinc-500">
-              Total &middot; {filtered.length} campagnes
-            </TableCell>
-            <TableCell className="text-right font-semibold tabular-nums text-zinc-950 dark:text-white">
-              {fmtEur(filtered.reduce((s, c) => s + c.spent_eur, 0))}
-            </TableCell>
-            <TableCell className="text-right font-semibold tabular-nums text-indigo-600 dark:text-indigo-400">
-              {fmtEur(filtered.reduce((s, c) => s + c.revenue_eur, 0))}
-            </TableCell>
-            <TableCell className="text-right">
-              {(() => {
-                const s = filtered.reduce((a, c) => a + c.spent_eur, 0);
-                const r = filtered.reduce((a, c) => a + c.revenue_eur, 0);
-                return <RoasBadge value={s > 0 ? r / s : 0} />;
-              })()}
-            </TableCell>
-            <TableCell className="text-right font-semibold tabular-nums text-zinc-950 dark:text-white">
-              {filtered.reduce((s, c) => s + c.conversions, 0)}
-            </TableCell>
-            <TableCell className="text-right tabular-nums text-zinc-500">
-              {cpa(filtered.reduce((s, c) => s + c.spent_eur, 0), filtered.reduce((s, c) => s + c.conversions, 0))}
-            </TableCell>
-            <TableCell className="text-right tabular-nums text-zinc-500">
-              {fmtNum(filtered.reduce((s, c) => s + c.clicks, 0))}
-            </TableCell>
-            <TableCell className="text-right tabular-nums text-zinc-500">
-              {ctr(filtered.reduce((s, c) => s + c.clicks, 0), filtered.reduce((s, c) => s + c.impressions, 0))}
-            </TableCell>
-          </TableRow>
-        </TableBody>
-        </Table>
+        {campaigns.length === 0 ? (
+          <div className="mt-4">
+            <Text>
+              Aucune campagne publiée pour le moment. Lance une campagne depuis un store (ou via le Super Agent)
+              une fois un canal connecté dans <TextLink href="/admin/settings">Réglages</TextLink>.
+            </Text>
+          </div>
+        ) : (
+          <Table dense className="mt-4 [--gutter:--spacing(4)]">
+            <TableHead>
+              <TableRow>
+                <TableHeader>Campagne</TableHeader>
+                <TableHeader>Canal</TableHeader>
+                <TableHeader>Store</TableHeader>
+                <TableHeader className="text-right">Budget/j</TableHeader>
+                <TableHeader className="text-right">Dépensé</TableHeader>
+                <TableHeader className="text-right">Revenus</TableHeader>
+                <TableHeader className="text-right">ROAS</TableHeader>
+                <TableHeader className="text-right">Conv.</TableHeader>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {campaigns.map((c) => (
+                <TableRow key={c.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Badge color={STATUS_BADGE[c.status] ?? 'zinc'}>{c.status}</Badge>
+                      <span className="font-medium text-zinc-950 dark:text-white">{c.hook ?? 'Campagne'}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge color={CHANNEL_BADGE[c.channel] ?? 'zinc'}>{CHANNEL_LABEL[c.channel] ?? c.channel}</Badge>
+                  </TableCell>
+                  <TableCell className="text-zinc-500">{c.storeName ?? '—'}</TableCell>
+                  <TableCell className="text-right tabular-nums text-zinc-500">
+                    {c.dailyBudgetEur != null ? `${eur(c.dailyBudgetEur)}/j` : '—'}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-zinc-950 dark:text-white">{eur(c.spentEur)}</TableCell>
+                  <TableCell className="text-right tabular-nums text-indigo-600 dark:text-indigo-400">{eur(c.revenueEur)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{roas(c.revenueEur, c.spentEur)}</TableCell>
+                  <TableCell className="text-right tabular-nums text-zinc-950 dark:text-white">{c.conversions}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </section>
-
-      {/* Banner non connectés */}
-      {summaries.filter((s) => !s.connected).length > 0 && (
-        <section className="flex flex-col gap-2">
-          {summaries.filter((s) => !s.connected).map((s) => (
-            <ConnectBanner key={s.channel} channel={s.label} />
-          ))}
-        </section>
-      )}
-
-      <Text className="text-center">
-        Données mockées — connecte Google Ads, Meta Graph API, TikTok Business API et Amazon Ads API dans Réglages pour afficher les vraies métriques.
-      </Text>
     </div>
   );
 }
