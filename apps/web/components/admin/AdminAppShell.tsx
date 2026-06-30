@@ -16,6 +16,7 @@ import {
   Cog6ToothIcon,
 } from '@heroicons/react/24/outline';
 import { cn } from '@/lib/utils/cn';
+import { SuperAgentRail } from './SuperAgentRail';
 
 /**
  * AdminAppShell — dark admin chrome from Tailwind Plus application-shells__sidebar.
@@ -147,9 +148,12 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
         <div className="flex-1 text-sm font-semibold text-white">Hearst Merchant</div>
       </div>
 
-      <main className="py-8 lg:pl-72">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">{children}</div>
+      <main className="py-8 lg:pl-72 lg:pr-96">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">{children}</div>
       </main>
+
+      {/* Global assistant — fixed right rail (desktop) + drawer (mobile) */}
+      <SuperAgentRail />
     </div>
   );
 }
