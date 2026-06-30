@@ -1,5 +1,402 @@
-// ⟪RASÉ⟫ — composant front supprimé (reset Tailwind). Logique sauvegardée dans .refonte-backup-20260630/.
-export function AssetRegenerator() {
-  return null;
+'use client';
+
+import { apiFetch } from '@/lib/client-fetch';
+
+/**
+ * Client component rendering one asset section (current preview, regen panel,
+ * history strip). One instance per asset kind on the page. The SSE log lines
+ * read the same `{type, message}` event shape as `/admin/stores/new`.
+ */
+
+import { useEffect, useRef, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import type { AssetKind } from '@/lib/agent/asset-regenerator';
+import { AdminCard, AdminCardHeader } from '@/components/admin/AdminCard';
+
+interface RunLite {
+  id: string;
+  prompt: string | null;
+  resultUrl: string | null;
+  status: 'pending' | 'running' | 'success' | 'error';
+  errorMessage: string | null;
+  isCurrent: boolean;
+  createdAt: string;
 }
-export default AssetRegenerator;
+
+interface AgentEvent {
+  type: 'step' | 'progress' | 'success' | 'error' | 'done';
+  message: string;
+  data?: Record<string, unknown>;
+}
+
+interface LogLine {
+  id: number;
+  type: AgentEvent['type'];
+  message: string;
+  ts: string;
+}
+
+const LABELS: Record<AssetKind, { title: string; hint: string }> = {
+  hero: {
+    title: 'Hero',
+    hint: 'Plein cadre éditorial 16:9 servi en haut du storefront.',
+  },
+  cutout: {
+    title: 'Cutout',
+    hint: 'Produit centré sur fond studio sombre. Sert aussi de source à la vidéo promo.',
+  },
+  'lifestyle-1': {
+    title: 'Lifestyle 1',
+    hint: 'Premier moment de vie — contexte intérieur lumineux.',
+  },
+  'lifestyle-2': {
+    title: 'Lifestyle 2',
+    hint: 'Deuxième moment de vie — contexte extérieur ou alternatif.',
+  },
+  'lifestyle-3': {
+    title: 'Lifestyle 3',
+    hint: 'Troisième moment de vie — usage situé, distinct des deux précédents.',
+  },
+  promo: {
+    title: 'Vidéo promo',
+    hint: '5 secondes 9:16, image-to-video à partir du cutout.',
+  },
+};
+
+function formatRunDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return iso;
+  }
+}
+
+export function AssetRegenerator({
+  storeId,
+  kind,
+  currentUrl,
+  runs,
+  referenceImageUrl,
+}: {
+  storeId: string;
+  kind: AssetKind;
+  currentUrl: string | null;
+  runs: RunLite[];
+  referenceImageUrl: string | null;
+}) {
+  const router = useRouter();
+  const label = LABELS[kind];
+  const isVideo = kind === 'promo';
+
+  // Pre-fill the prompt textarea with the last used prompt, falling back to ''
+  // so the user can write from scratch.
+  const lastPrompt = runs.find((r) => r.prompt)?.prompt ?? '';
+
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [prompt, setPrompt] = useState(lastPrompt);
+  const [running, setRunning] = useState(false);
+  const [logs, setLogs] = useState<LogLine[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [pendingSet, startSetTransition] = useTransition();
+  const counterRef = useRef(0);
+  const logsEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (logs.length > 0) {
+      logsEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  }, [logs.length]);
+
+  const pushLog = (type: AgentEvent['type'], message: string) => {
+    counterRef.current += 1;
+    setLogs((prev) => [
+      ...prev,
+      {
+        id: counterRef.current,
+        type,
+        message,
+        ts: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      },
+    ]);
+  };
+
+  const launch = async () => {
+    if (running) return;
+    if (!referenceImageUrl) {
+      setError('Aucune image produit de référence.');
+      return;
+    }
+    setRunning(true);
+    setError(null);
+    setLogs([]);
+
+    try {
+      const res = await apiFetch(`/api/agent/stores/${storeId}/assets/regenerate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind, customPrompt: prompt.trim() || undefined }),
+      });
+      if (!res.ok || !res.body) {
+        const t = await res.text().catch(() => '');
+        throw new Error(`Erreur serveur (${res.status}). ${t}`.trim());
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop() ?? '';
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith('data:')) continue;
+          try {
+            const event = JSON.parse(line.slice(5).trim()) as AgentEvent;
+            pushLog(event.type, event.message);
+            if (event.type === 'error') setError(event.message);
+            if (event.type === 'done') {
+              router.refresh();
+            }
+          } catch {
+            /* ignore malformed SSE chunk */
+          }
+        }
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur réseau');
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const setAsCurrent = (runId: string) => {
+    setError(null);
+    startSetTransition(async () => {
+      try {
+        const res = await apiFetch(`/api/agent/stores/${storeId}/assets`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ runId, kind }),
+        });
+        const data = (await res.json()) as { ok?: boolean; error?: string };
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Erreur');
+        router.refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Erreur');
+      }
+    });
+  };
+
+  const successRuns = runs.filter((r) => r.status === 'success' && r.resultUrl);
+
+  return (
+    <AdminCard className="overflow-hidden">
+      <AdminCardHeader
+        eyebrow={kind}
+        title={<span>{label.title}</span>}
+        action={
+          <button
+            type="button"
+            onClick={() => setPanelOpen((v) => !v)}
+            disabled={running || !referenceImageUrl}
+            className="shrink-0 rounded-md bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {panelOpen ? 'Fermer' : 'Régénérer'}
+          </button>
+        }
+      />
+      <p className="px-5 pt-3 text-xs text-gray-400">{label.hint}</p>
+
+      <div className="space-y-5 p-5">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-[280px_1fr]">
+          {/* Current preview */}
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+              Version courante
+            </p>
+            {currentUrl ? (
+              <a
+                href={currentUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="block overflow-hidden rounded-lg bg-gray-900 ring-1 ring-white/10 transition-colors hover:ring-white/20"
+              >
+                {isVideo ? (
+                  <video
+                    src={currentUrl}
+                    muted
+                    playsInline
+                    controls
+                    className="aspect-square w-full bg-black object-cover"
+                  />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={currentUrl}
+                    alt={label.title}
+                    className="aspect-square w-full object-cover"
+                  />
+                )}
+              </a>
+            ) : (
+              <div className="flex aspect-square items-center justify-center rounded-lg text-xs text-gray-500 ring-1 ring-dashed ring-white/10">
+                Pas encore généré
+              </div>
+            )}
+          </div>
+
+          {/* Regen panel */}
+          {panelOpen && (
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gray-500">
+                  Prompt FLUX (anglais, sans texte/badges)
+                </label>
+                <textarea
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  disabled={running}
+                  rows={5}
+                  placeholder="Laisse vide pour laisser Claude rédiger un nouveau prompt..."
+                  className="w-full rounded-lg bg-white/5 px-3 py-2 font-mono text-sm text-white ring-1 ring-white/10 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Vide = Claude réécrit le prompt à partir du produit et de la niche.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={launch}
+                  disabled={running || !referenceImageUrl}
+                  className="rounded-md bg-indigo-500 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {running ? 'Génération en cours…' : 'Lancer'}
+                </button>
+                {error && <span className="text-xs text-red-400">{error}</span>}
+              </div>
+
+              {logs.length > 0 && (
+                <div className="max-h-56 space-y-1 overflow-y-auto rounded-lg bg-gray-900 p-3 font-mono text-xs text-gray-400 ring-1 ring-white/10">
+                  {logs.map((l) => (
+                    <div
+                      key={l.id}
+                      className={
+                        l.type === 'error'
+                          ? 'text-red-400'
+                          : l.type === 'success'
+                            ? 'text-indigo-400'
+                            : l.type === 'step'
+                              ? 'text-white'
+                              : 'text-gray-400'
+                      }
+                    >
+                      <span className="text-gray-500">[{l.ts}]</span> {l.message}
+                    </div>
+                  ))}
+                  <div ref={logsEndRef} />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* History strip */}
+        <div>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+            Historique des runs ({runs.length})
+          </p>
+          {runs.length === 0 ? (
+            <p className="text-xs italic text-gray-500">Aucune régénération enregistrée.</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              {runs.slice(0, 5).map((r) => {
+                const usable = r.status === 'success' && r.resultUrl;
+                return (
+                  <div
+                    key={r.id}
+                    className={
+                      r.isCurrent
+                        ? 'overflow-hidden rounded-lg bg-gray-800/50 ring-2 ring-indigo-500'
+                        : 'overflow-hidden rounded-lg bg-gray-800/50 ring-1 ring-white/10'
+                    }
+                  >
+                    <div className="relative aspect-square bg-gray-900">
+                      {usable ? (
+                        isVideo ? (
+                          <video
+                            src={r.resultUrl!}
+                            muted
+                            playsInline
+                            className="h-full w-full bg-black object-cover"
+                          />
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={r.resultUrl!}
+                            alt={`Run du ${formatRunDate(r.createdAt)}`}
+                            className="h-full w-full object-cover"
+                          />
+                        )
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-xs text-gray-500">
+                          {r.status === 'error' ? 'Échec' : r.status === 'running' ? 'En cours…' : '—'}
+                        </div>
+                      )}
+                      {r.isCurrent && (
+                        <span className="absolute left-1.5 top-1.5 rounded bg-indigo-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-indigo-400 ring-1 ring-indigo-500/20">
+                          Courant
+                        </span>
+                      )}
+                    </div>
+                    <div className="space-y-1.5 p-2">
+                      <p className="text-xs leading-snug text-gray-400">
+                        Run du {formatRunDate(r.createdAt)}
+                      </p>
+                      {r.prompt && (
+                        <p
+                          className="line-clamp-2 text-[11px] text-gray-500"
+                          title={r.prompt}
+                        >
+                          {r.prompt}
+                        </p>
+                      )}
+                      {r.errorMessage && (
+                        <p className="line-clamp-2 text-[11px] text-red-400" title={r.errorMessage}>
+                          {r.errorMessage}
+                        </p>
+                      )}
+                      {usable && !r.isCurrent && (
+                        <button
+                          type="button"
+                          onClick={() => setAsCurrent(r.id)}
+                          disabled={pendingSet}
+                          className="w-full rounded-md bg-white/5 px-2 py-1.5 text-xs font-medium text-white ring-1 ring-white/10 transition-colors hover:bg-white/10 disabled:opacity-40"
+                        >
+                          {pendingSet ? '…' : 'Définir comme courant'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {successRuns.length === 0 && runs.length > 0 && (
+            <p className="mt-2 text-xs text-gray-500">Aucun run réussi pour le moment.</p>
+          )}
+        </div>
+      </div>
+    </AdminCard>
+  );
+}

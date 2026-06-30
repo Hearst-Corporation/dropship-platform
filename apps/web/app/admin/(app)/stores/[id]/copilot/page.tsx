@@ -1,10 +1,17 @@
-// ⟪RASÉ⟫ — ancien front supprimé (reset Tailwind). À reconstruire sur blocs Tailwind Plus.
-// Logique/data d'origine sauvegardée dans apps/web/.refonte-backup-20260630/.
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import { AdminCard } from '@/components/admin/AdminCard';
+
 export default function StoreCopilot() {
   return (
-    <div className="p-10 text-sm text-zinc-400">
-      <p className="font-mono">⟪RASÉ⟫ StoreCopilot</p>
-      <p className="mt-1">Écran à reconstruire sur Tailwind Plus.</p>
+    <div className="space-y-6">
+      <AdminPageHeader eyebrow="Store" title="Copilot" description="Assistant produit du store." />
+      <AdminCard className="px-6 py-16 text-center">
+        <p className="text-sm font-semibold text-white">Copilot indisponible</p>
+        <p className="mx-auto mt-1 max-w-md text-sm text-gray-400">
+          Le copilot conversationnel a été retiré lors de la refonte. Il sera reconnecté
+          ultérieurement sur la nouvelle base.
+        </p>
+      </AdminCard>
     </div>
   );
 }

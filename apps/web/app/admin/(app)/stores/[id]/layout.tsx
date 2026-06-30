@@ -1,4 +1,60 @@
-// ⟪RASÉ⟫ store-detail chrome (tabs/breadcrumb). Rebuild on Tailwind Plus.
-export default function StoreDetailLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+import { notFound } from 'next/navigation';
+import { getDbRead } from '@/lib/db';
+import { StoreLogo } from '@/components/ui';
+import { AdminBadge } from '@/components/admin/AdminBadge';
+import { StoreTabsBar } from './_components/StoreTabsBar';
+import { BreadcrumbBackLink } from './_components/BreadcrumbBackLink';
+
+export const dynamic = 'force-dynamic';
+
+/**
+ * Store layout — dark admin:
+ *   - Per-store nav rendered via StoreTabsBar (Tailwind dark tabs).
+ *   - Breadcrumb kept (lightweight, context-useful).
+ *   - Data fetch (store name/slug/status) preserved for breadcrumb + StoreTabsBar.
+ */
+export default async function StoreLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const db = getDbRead();
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  const { rows } = await db.query<{ id: string; slug: string; name: string; logo_emoji: string; status: string }>(
+    isUuid
+      ? `SELECT id, slug, name, logo_emoji, status FROM dropship_stores WHERE id = $1 LIMIT 1`
+      : `SELECT id, slug, name, logo_emoji, status FROM dropship_stores WHERE slug = $1 LIMIT 1`,
+    [id],
+  );
+  const store = rows[0];
+  if (!store) notFound();
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
+      {/* Breadcrumb */}
+      <nav
+        className="flex shrink-0 items-center gap-2 text-sm"
+        aria-label="Fil d'Ariane"
+      >
+        <BreadcrumbBackLink />
+        <span className="text-gray-600" aria-hidden="true">/</span>
+        <span className="inline-flex text-gray-500">
+          <StoreLogo emoji={store.logo_emoji} size={16} />
+        </span>
+        <span className="overflow-hidden text-ellipsis whitespace-nowrap font-medium text-white">
+          {store.name}
+        </span>
+        {store.status !== 'active' && (
+          <AdminBadge color="indigo">{store.status}</AdminBadge>
+        )}
+      </nav>
+
+      <StoreTabsBar storeId={store.id} />
+
+      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+    </div>
+  );
 }

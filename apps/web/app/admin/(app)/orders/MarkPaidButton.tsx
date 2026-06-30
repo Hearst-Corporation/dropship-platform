@@ -1,5 +1,63 @@
-// ⟪RASÉ⟫ — composant front supprimé (reset Tailwind). Logique sauvegardée dans .refonte-backup-20260630/.
-export function MarkPaidButton() {
-  return null;
+'use client';
+
+import { apiFetch } from '@/lib/client-fetch';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+interface Props {
+  orderId: string;
 }
-export default MarkPaidButton;
+
+/**
+ * Manual "I paid this on aliexpress.com" flag. AE has no public API to detect
+ * payment, so the merchant clicks this after going through the AE checkout.
+ */
+export function MarkPaidButton({ orderId }: Props) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  async function run() {
+    setConfirmOpen(false);
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await apiFetch(`/api/agent/orders/${orderId}/mark-paid`, { method: 'POST' });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(data.error || `HTTP ${res.status}`);
+        return;
+      }
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Network error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <button
+        onClick={() => setConfirmOpen(true)}
+        disabled={busy}
+        className="rounded-md bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-400 ring-1 ring-inset ring-indigo-500/20 hover:bg-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {busy ? '…' : 'Marquer payée'}
+      </button>
+      {error && (
+        <span className="max-w-[200px] text-right text-[10px] text-gray-400">{error}</span>
+      )}
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Confirmer le paiement"
+        description={`Confirme que tu as bien payé cette commande sur aliexpress.com.\n\nCette action ne paie rien — elle sert juste à sortir la commande de la liste « à payer ».`}
+        confirmLabel="J'ai payé"
+        onConfirm={run}
+        onCancel={() => setConfirmOpen(false)}
+      />
+    </div>
+  );
+}

@@ -1,23 +1,23 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils/cn';
 
-/** Status badge — Tailwind Plus elements__badges (flat-with-dot). */
+/** Status badge — Tailwind Plus elements__badges (dark, flat-with-dot). */
 export type AdminBadgeColor = 'zinc' | 'green' | 'amber' | 'red' | 'indigo';
 
 const styles: Record<AdminBadgeColor, string> = {
-  zinc: 'bg-zinc-50 text-zinc-600 ring-zinc-500/20',
-  green: 'bg-green-50 text-green-700 ring-green-600/20',
-  amber: 'bg-amber-50 text-amber-800 ring-amber-600/20',
-  red: 'bg-red-50 text-red-700 ring-red-600/20',
-  indigo: 'bg-indigo-50 text-indigo-700 ring-indigo-700/20',
+  zinc: 'bg-gray-400/10 text-gray-400 ring-gray-400/20',
+  green: 'bg-green-500/10 text-green-400 ring-green-500/20',
+  amber: 'bg-amber-400/10 text-amber-400 ring-amber-400/20',
+  red: 'bg-rose-500/10 text-rose-400 ring-rose-500/20',
+  indigo: 'bg-indigo-500/10 text-indigo-400 ring-indigo-500/30',
 };
 
 const dots: Record<AdminBadgeColor, string> = {
-  zinc: 'fill-zinc-400',
-  green: 'fill-green-500',
-  amber: 'fill-amber-500',
-  red: 'fill-red-500',
-  indigo: 'fill-indigo-500',
+  zinc: 'fill-gray-400',
+  green: 'fill-green-400',
+  amber: 'fill-amber-400',
+  red: 'fill-rose-400',
+  indigo: 'fill-indigo-400',
 };
 
 export function AdminBadge({

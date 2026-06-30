@@ -85,7 +85,7 @@ export default async function StoresPage({
         actions={
           <Link
             href="/admin/stores/new"
-            className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            className="inline-flex items-center gap-1.5 rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
           >
             <span aria-hidden className="text-base leading-none">+</span> Nouveau store
           </Link>
@@ -103,25 +103,25 @@ export default async function StoresPage({
         <EmptyState />
       ) : (
         <AdminCard className="overflow-hidden">
-          <table className="min-w-full divide-y divide-zinc-200">
-            <thead className="bg-zinc-50">
+          <table className="min-w-full divide-y divide-white/10">
+            <thead>
               <tr>
-                <th scope="col" className="py-3 pl-6 pr-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">Store</th>
-                <th scope="col" className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">Niche</th>
-                <th scope="col" className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">Statut</th>
-                <th scope="col" className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-zinc-500">Produits</th>
-                <th scope="col" className="py-3 pl-3 pr-6 text-right text-xs font-semibold uppercase tracking-wide text-zinc-500">Actions</th>
+                <th scope="col" className="py-3 pl-6 pr-3 text-left text-xs font-semibold uppercase tracking-wide text-white">Store</th>
+                <th scope="col" className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-white">Niche</th>
+                <th scope="col" className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-white">Statut</th>
+                <th scope="col" className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-white">Produits</th>
+                <th scope="col" className="py-3 pl-3 pr-6 text-right text-xs font-semibold uppercase tracking-wide text-white">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100 bg-white">
+            <tbody className="divide-y divide-white/5">
               {rows.map((store) => {
                 const s = statusOf(store);
                 const cover = pickStoreCover(store);
                 return (
-                  <tr key={store.id} className="hover:bg-zinc-50">
+                  <tr key={store.id} className="hover:bg-white/5">
                     <td className="py-3 pl-6 pr-3">
                       <div className="flex items-center gap-3">
-                        <div className="relative size-9 shrink-0 overflow-hidden rounded-lg bg-zinc-100">
+                        <div className="relative size-9 shrink-0 overflow-hidden rounded-lg bg-white/5 ring-1 ring-white/10">
                           {cover ? (
                             <Image src={cover} alt="" fill sizes="36px" className="object-cover" />
                           ) : (
@@ -129,19 +129,19 @@ export default async function StoresPage({
                           )}
                         </div>
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-medium text-zinc-900">{store.name}</div>
-                          <div className="truncate text-xs tabular-nums text-zinc-400">/shop/{store.slug}</div>
+                          <div className="truncate text-sm font-medium text-white">{store.name}</div>
+                          <div className="truncate text-xs tabular-nums text-gray-500">/shop/{store.slug}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-3 py-3 text-sm text-zinc-500">{store.niche}</td>
+                    <td className="px-3 py-3 text-sm text-gray-400">{store.niche}</td>
                     <td className="px-3 py-3"><AdminBadge color={s.color}>{s.label}</AdminBadge></td>
-                    <td className="px-3 py-3 text-right text-sm tabular-nums text-zinc-600">{store.product_count}</td>
+                    <td className="px-3 py-3 text-right text-sm tabular-nums text-gray-400">{store.product_count}</td>
                     <td className="py-3 pl-3 pr-6">
                       <div className="flex items-center justify-end gap-2">
                         <Link
                           href={`/admin/stores/${store.id}`}
-                          className="rounded-md bg-white px-2.5 py-1.5 text-xs font-semibold text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 hover:bg-zinc-50"
+                          className="rounded-md bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm ring-1 ring-inset ring-white/10 hover:bg-white/20"
                         >
                           Gérer
                         </Link>
@@ -152,7 +152,7 @@ export default async function StoresPage({
                             rel="noreferrer"
                             aria-label="Ouvrir la boutique"
                             title="Ouvrir la boutique"
-                            className="inline-flex size-7 items-center justify-center rounded-md border border-zinc-200 text-zinc-500 hover:bg-zinc-50 hover:text-zinc-700"
+                            className="inline-flex size-7 items-center justify-center rounded-md ring-1 ring-inset ring-white/10 text-gray-400 hover:bg-white/5 hover:text-white"
                           >
                             <ArrowTopRightOnSquareIcon className="size-3.5" aria-hidden />
                           </Link>
@@ -171,7 +171,7 @@ export default async function StoresPage({
       {totalPages > 1 && (
         <nav className="flex items-center justify-center gap-2 pt-2">
           <PaginationLink page={page - 1} disabled={page <= 1} label="← Précédent" />
-          <span className="px-3 text-sm tabular-nums text-zinc-400">Page {page} / {totalPages}</span>
+          <span className="px-3 text-sm tabular-nums text-gray-500">Page {page} / {totalPages}</span>
           <PaginationLink page={page + 1} disabled={page >= totalPages} label="Suivant →" />
         </nav>
       )}
@@ -181,12 +181,12 @@ export default async function StoresPage({
 
 function PaginationLink({ page, disabled, label }: { page: number; disabled: boolean; label: string }) {
   if (disabled) {
-    return <span className="cursor-not-allowed rounded-md px-3 py-1.5 text-sm text-zinc-300">{label}</span>;
+    return <span className="cursor-not-allowed rounded-md px-3 py-1.5 text-sm text-gray-600">{label}</span>;
   }
   return (
     <Link
       href={`/admin/stores?page=${page}`}
-      className="rounded-md border border-zinc-200 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
+      className="rounded-md ring-1 ring-inset ring-white/10 px-3 py-1.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
     >
       {label}
     </Link>
@@ -195,16 +195,16 @@ function PaginationLink({ page, disabled, label }: { page: number; disabled: boo
 
 function EmptyState() {
   return (
-    <div className="rounded-xl border border-dashed border-zinc-300 bg-white px-6 py-20 text-center">
-      <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Premier pas</p>
-      <h3 className="mt-2 text-lg font-semibold text-zinc-900">Lance ton premier store.</h3>
-      <p className="mx-auto mt-2 max-w-md text-sm text-zinc-500">
+    <div className="rounded-xl border border-dashed border-white/15 bg-gray-800/50 px-6 py-20 text-center ring-1 ring-white/10">
+      <p className="text-xs font-semibold uppercase tracking-wide text-indigo-400">Premier pas</p>
+      <h3 className="mt-2 text-lg font-semibold text-white">Lance ton premier store.</h3>
+      <p className="mx-auto mt-2 max-w-md text-sm text-gray-400">
         L&apos;agent IA recherche les produits, génère les visuels, écrit les fiches et publie le store. Une niche suffit.
       </p>
       <div className="mt-6">
         <Link
           href="/admin/stores/new"
-          className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+          className="inline-flex items-center gap-1.5 rounded-md bg-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-400"
         >
           Créer un store
         </Link>

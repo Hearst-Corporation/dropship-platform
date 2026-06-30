@@ -1,5 +1,261 @@
-// ⟪RASÉ⟫ — composant front supprimé (reset Tailwind). Logique sauvegardée dans .refonte-backup-20260630/.
-export function StoreAnalyticsForm() {
-  return null;
+'use client';
+
+import { apiFetch } from '@/lib/client-fetch';
+
+import { useMemo, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { useUnsavedChanges } from '@/lib/use-unsaved-changes';
+interface InitialValues {
+  ga4MeasurementId: string;
+  ga4ApiSecret: string;
+  metaPixelId: string;
+  metaCapiToken: string;
+  tiktokPixelId: string;
+  tiktokEventsToken: string;
+  clarityId: string;
+  googleAdsConversionAction: string;
+  googleAdsMerchantId: string;
 }
-export default StoreAnalyticsForm;
+
+interface Props {
+  storeId: string;
+  initial: InitialValues;
+}
+
+/**
+ * Admin form to manage per-store analytics IDs. Three groups:
+ *   - Acquisition (UA): GA4 + Meta Pixel + TikTok Pixel — public IDs that
+ *     get injected into the storefront on every visit.
+ *   - Server-side dedup: Meta CAPI + TikTok Events tokens — sensitive,
+ *     used by the server to forward purchase events bypassing ad blockers.
+ *   - UX: Microsoft Clarity ID for session replays + heatmaps.
+ *
+ * Empty string clears a previously-set value, undefined leaves it untouched.
+ */
+export function StoreAnalyticsForm({ storeId, initial }: Props) {
+  const [values, setValues] = useState<InitialValues>(initial);
+  const [pending, startTransition] = useTransition();
+  const [feedback, setFeedback] = useState<{ type: 'ok' | 'err'; msg: string } | null>(null);
+  const router = useRouter();
+  const dirty = useMemo(
+    () => (Object.keys(values) as (keyof InitialValues)[]).some((k) => values[k] !== initial[k]),
+    [values, initial],
+  );
+  useUnsavedChanges(dirty && !pending);
+
+  const set = (k: keyof InitialValues) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setValues((v) => ({ ...v, [k]: e.target.value }));
+
+  function submit() {
+    setFeedback(null);
+    startTransition(async () => {
+      try {
+        const res = await apiFetch(`/api/agent/stores/${storeId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ analytics: values }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || 'Erreur');
+        setFeedback({ type: 'ok', msg: 'Mis à jour.' });
+        router.refresh();
+      } catch (e) {
+        setFeedback({ type: 'err', msg: e instanceof Error ? e.message : 'Erreur' });
+      }
+    });
+  }
+
+  return (
+    <div className="overflow-hidden rounded-xl bg-gray-800/50 ring-1 ring-white/10">
+      <div className="flex items-baseline justify-between border-b border-white/10 px-5 py-4">
+        <div>
+          <h3 className="text-base font-semibold tracking-tight text-white">
+            Analytics &amp; <em className="italic text-gray-400">attribution</em>
+          </h3>
+          <p className="mt-0.5 text-xs text-gray-500">
+            Les pixels et tags injectés sur la boutique. Tous facultatifs, tous propres à ce store.
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-6 p-5">
+        <Group title="Acquisition (UA)" hint="Pixels client-side. Indispensables pour les ads.">
+          <Field
+            label="Google Analytics 4"
+            id="ga4"
+            placeholder="G-XXXXXXXXXX"
+            value={values.ga4MeasurementId}
+            onChange={set('ga4MeasurementId')}
+            help="Measurement ID. Trouvé dans Admin → Streams → Web."
+          />
+          <Field
+            label="Meta Pixel ID"
+            id="meta"
+            placeholder="123456789012345"
+            value={values.metaPixelId}
+            onChange={set('metaPixelId')}
+            help="Numérique, 15-16 chiffres. Events Manager → Data Sources."
+          />
+          <Field
+            label="TikTok Pixel ID"
+            id="tiktok"
+            placeholder="C..."
+            value={values.tiktokPixelId}
+            onChange={set('tiktokPixelId')}
+            help="Préfixe C. Ads Manager → Assets → Events."
+          />
+        </Group>
+
+        <Group
+          title="Server-side dedup (CAPI / Events API)"
+          hint="Tokens secrets. Stockés en clair en DB — n'utilise que ceux de cette boutique."
+          tone="warn"
+        >
+          <Field
+            label="Meta Conversions API token"
+            id="meta-capi"
+            type="password"
+            placeholder="EAA..."
+            value={values.metaCapiToken}
+            onChange={set('metaCapiToken')}
+            help="Events Manager → ton pixel → Settings → Generate access token."
+          />
+          <Field
+            label="TikTok Events API access token"
+            id="tiktok-events"
+            type="password"
+            placeholder="..."
+            value={values.tiktokEventsToken}
+            onChange={set('tiktokEventsToken')}
+            help="Ads Manager → Events → Web Events → Settings → Manage Events API."
+          />
+          <Field
+            label="GA4 Measurement Protocol API secret"
+            id="ga4-api-secret"
+            type="password"
+            placeholder="abcDEF123..."
+            value={values.ga4ApiSecret}
+            onChange={set('ga4ApiSecret')}
+            help="GA4 Admin → Data Streams → ton stream Web → Measurement Protocol API secrets → Create."
+          />
+        </Group>
+
+        <Group title="Comportement (UX)" hint="Replays de session, heatmaps. Gratuit, RGPD-friendly.">
+          <Field
+            label="Microsoft Clarity Project ID"
+            id="clarity"
+            placeholder="abcd1234ef"
+            value={values.clarityId}
+            onChange={set('clarityId')}
+            help="clarity.microsoft.com → projet → Settings → Setup."
+          />
+        </Group>
+
+        <Group title="Google Ads" hint="Remontée des conversions offline — contourne les bloqueurs côté client.">
+          <Field
+            label="Conversion Action"
+            id="google-ads-conversion-action"
+            placeholder="customers/2877134493/conversionActions/…"
+            value={values.googleAdsConversionAction}
+            onChange={set('googleAdsConversionAction')}
+            help="Google Ads → Objectifs → Conversions → sélectionne l'action → champ Nom de ressource."
+          />
+          <Field
+            label="Merchant Center ID"
+            id="google-merchant-id"
+            placeholder="5784865611"
+            value={values.googleAdsMerchantId}
+            onChange={set('googleAdsMerchantId')}
+            help="Merchant Center → Paramètres du compte → Numéro d'ID."
+          />
+        </Group>
+      </div>
+
+      <div className="flex items-center justify-between gap-4 border-t border-white/10 bg-gray-900/40 px-5 py-4">
+        {feedback ? (
+          <span className={`text-sm ${feedback.type === 'ok' ? 'text-indigo-400' : 'text-gray-500'}`}>
+            {feedback.msg}
+          </span>
+        ) : dirty ? (
+          <span className="inline-flex items-center gap-1.5 text-xs text-amber-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+            Non sauvegardé
+          </span>
+        ) : (
+          <span className="text-xs text-gray-500">
+            Champ vide → la valeur est effacée. Champ inchangé → conservé.
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={submit}
+          disabled={pending || !dirty}
+          className="rounded-md bg-indigo-500 px-6 py-2.5 text-sm font-medium text-white hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {pending ? 'Enregistrement…' : 'Enregistrer'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Group({
+  title,
+  hint,
+  children,
+  tone = 'default',
+}: {
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+  tone?: 'default' | 'warn';
+}) {
+  return (
+    <section>
+      <div className="mb-4">
+        <h4 className={`text-xs font-medium uppercase tracking-wide ${tone === 'warn' ? 'text-indigo-400' : 'text-gray-500'}`}>
+          {title}
+        </h4>
+        {hint && <p className="mt-1 text-xs text-gray-500">{hint}</p>}
+      </div>
+      <div className="space-y-4">{children}</div>
+    </section>
+  );
+}
+
+function Field({
+  label,
+  id,
+  value,
+  onChange,
+  placeholder,
+  help,
+  type = 'text',
+}: {
+  label: string;
+  id: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  placeholder?: string;
+  help?: string;
+  type?: 'text' | 'password';
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-white">
+        {label}
+      </label>
+      <input
+        id={id}
+        type={type}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        className="block w-full rounded-md bg-white/5 px-3 py-2 font-mono text-sm text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500"
+        autoComplete="off"
+        spellCheck={false}
+      />
+      {help && <p className="mt-1 text-[11px] text-gray-500">{help}</p>}
+    </div>
+  );
+}

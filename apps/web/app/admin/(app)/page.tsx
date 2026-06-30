@@ -176,28 +176,28 @@ export default async function PortfolioDashboard() {
             eyebrow="Performance 7j"
             title="Top stores"
             action={
-              <Link href="/admin/stores" className="inline-flex items-center gap-0.5 text-xs font-medium text-indigo-600 hover:text-indigo-500">
+              <Link href="/admin/stores" className="inline-flex items-center gap-0.5 text-xs font-medium text-indigo-400 hover:text-indigo-300">
                 Tous <ArrowUpRightIcon className="size-3.5" aria-hidden />
               </Link>
             }
           />
           <div className="px-5 py-4">
             {topStores.length === 0 ? (
-              <p className="py-2 text-sm text-zinc-400">Aucun store actif avec des ventes 7j.</p>
+              <p className="py-2 text-sm text-gray-500">Aucun store actif avec des ventes 7j.</p>
             ) : (
-              <ul role="list" className="divide-y divide-zinc-100">
+              <ul role="list" className="divide-y divide-white/10">
                 {topStores.map((s, idx) => (
                   <li key={s.slug}>
-                    <Link href={`/admin/stores/${s.slug}`} className="flex items-center gap-3 py-2.5 hover:bg-zinc-50">
-                      <span className="w-4 text-right text-xs tabular-nums text-zinc-400">{idx + 1}</span>
+                    <Link href={`/admin/stores/${s.slug}`} className="flex items-center gap-3 py-2.5 hover:bg-white/5">
+                      <span className="w-4 text-right text-xs tabular-nums text-gray-500">{idx + 1}</span>
                       <StoreAvatar slug={s.slug} name={s.name} size={28} />
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium text-zinc-900">{s.name}</div>
-                        <div className="truncate text-xs tabular-nums text-zinc-400">/shop/{s.slug}</div>
+                        <div className="truncate text-sm font-medium text-white">{s.name}</div>
+                        <div className="truncate text-xs tabular-nums text-gray-500">/shop/{s.slug}</div>
                       </div>
                       <div className="shrink-0 text-right">
                         <div className={revenueClass(Number(s.revenue_cents))}>{eur(Number(s.revenue_cents))}</div>
-                        <div className="text-xs tabular-nums text-zinc-400">{s.orders} cmd</div>
+                        <div className="text-xs tabular-nums text-gray-500">{s.orders} cmd</div>
                       </div>
                     </Link>
                   </li>
@@ -212,7 +212,7 @@ export default async function PortfolioDashboard() {
           <AdminCardHeader
             eyebrow="Funnel 30j"
             title="Conversion globale"
-            action={<span className="text-xs font-semibold tabular-nums text-zinc-900">{globalConv.toFixed(1)}%</span>}
+            action={<span className="text-xs font-semibold tabular-nums text-white">{globalConv.toFixed(1)}%</span>}
           />
           <div className="space-y-4 px-5 py-4">
             <FunnelBar label="View content" value={funnel.view_content} reference={funnel.view_content} />
@@ -227,10 +227,10 @@ export default async function PortfolioDashboard() {
           <AdminCardHeader eyebrow="Coût Claude 30j" title="Observabilité agent" />
           <div className="space-y-4 px-5 py-4">
             <div>
-              <div className="text-2xl font-semibold tracking-tight tabular-nums text-zinc-900">
+              <div className="text-2xl font-semibold tracking-tight tabular-nums text-white">
                 {totalCost.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
               </div>
-              <div className="mt-1 text-xs text-zinc-500">Total des appels agent</div>
+              <div className="mt-1 text-xs text-gray-500">Total des appels agent</div>
             </div>
             <dl className="space-y-2 text-sm">
               <StatRow label="Runs" value={cost.runs.toLocaleString('fr-FR')} />
@@ -239,7 +239,7 @@ export default async function PortfolioDashboard() {
             </dl>
             <Link
               href="/admin/observability"
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-white px-3 py-2 text-sm font-semibold text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 hover:bg-zinc-50"
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-white/5 px-3 py-2 text-sm font-semibold text-white shadow-sm ring-1 ring-inset ring-white/10 hover:bg-white/10"
             >
               Détail par step <ArrowUpRightIcon className="size-3.5" aria-hidden />
             </Link>
@@ -252,15 +252,15 @@ export default async function PortfolioDashboard() {
 
 function revenueClass(cents: number): string {
   return cents > 0
-    ? 'text-sm font-semibold tabular-nums text-zinc-900'
-    : 'text-sm font-semibold tabular-nums text-zinc-400';
+    ? 'text-sm font-semibold tabular-nums text-white'
+    : 'text-sm font-semibold tabular-nums text-gray-500';
 }
 
 function StatRow({ label, value, warning = false }: { label: string; value: string; warning?: boolean }) {
   return (
     <div className="flex items-baseline justify-between gap-2">
-      <dt className="text-zinc-500">{label}</dt>
-      <dd className={warning ? 'font-semibold tabular-nums text-amber-600' : 'font-semibold tabular-nums text-zinc-900'}>
+      <dt className="text-gray-400">{label}</dt>
+      <dd className={warning ? 'font-semibold tabular-nums text-amber-400' : 'font-semibold tabular-nums text-white'}>
         {value}
       </dd>
     </div>
@@ -283,17 +283,17 @@ function FunnelBar({
   return (
     <div>
       <div className="mb-1 flex justify-between text-xs">
-        <span className={highlight ? 'font-medium text-zinc-900' : 'text-zinc-600'}>{label}</span>
+        <span className={highlight ? 'font-medium text-white' : 'text-gray-400'}>{label}</span>
         <span className="tabular-nums">
-          <span className={highlight ? 'font-semibold text-zinc-900' : 'font-medium text-zinc-700'}>
+          <span className={highlight ? 'font-semibold text-white' : 'font-medium text-gray-300'}>
             {value.toLocaleString('fr-FR')}
           </span>
-          <span className="ml-1.5 text-zinc-400">{pct}%</span>
+          <span className="ml-1.5 text-gray-500">{pct}%</span>
         </span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100">
+      <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
         <div
-          className={highlight ? 'h-full rounded-full bg-indigo-600' : 'h-full rounded-full bg-zinc-400'}
+          className={highlight ? 'h-full rounded-full bg-indigo-500' : 'h-full rounded-full bg-gray-400'}
           style={{ width: `${ratio * 100}%` }}
         />
       </div>

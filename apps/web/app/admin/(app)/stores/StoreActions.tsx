@@ -49,8 +49,8 @@ export function StoreActions({
         disabled={deleting}
         aria-label={`Supprimer ${storeName}`}
         title={error || `Supprimer ${storeName}`}
-        className={`inline-flex items-center justify-center rounded-lg border bg-white transition-colors hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-40 ${sizeCls} ${
-          error ? 'border-red-300 text-red-600' : 'border-zinc-200 text-zinc-500 hover:text-zinc-700'
+        className={`inline-flex items-center justify-center rounded-lg ring-1 ring-inset transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-40 ${sizeCls} ${
+          error ? 'ring-rose-500/40 text-rose-400' : 'ring-white/10 text-gray-400 hover:text-white'
         }`}
       >
         <TrashIcon className={iconCls} aria-hidden />

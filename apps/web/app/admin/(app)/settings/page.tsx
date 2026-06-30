@@ -57,22 +57,22 @@ export default async function SettingsPage() {
               {expiresAt && (
                 <DLRow
                   label="Expire le"
-                  value={<span className={isExpired ? 'text-zinc-400' : 'text-zinc-900'}>{fmtDate(expiresAt)}</span>}
+                  value={<span className={isExpired ? 'text-gray-500' : 'text-white'}>{fmtDate(expiresAt)}</span>}
                 />
               )}
               {aliToken?.updatedAt && <DLRow label="Dernière auth" value={fmtDate(aliToken.updatedAt)} />}
             </dl>
           ) : (
-            <p className="text-sm leading-6 text-zinc-500">
-              L&apos;agent a besoin d&apos;un <code className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-700">access_token</code> OAuth
-              pour appeler <code className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-700">aliexpress.solution.product.list.get</code>.
+            <p className="text-sm leading-6 text-gray-400">
+              L&apos;agent a besoin d&apos;un <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-xs text-gray-300">access_token</code> OAuth
+              pour appeler <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-xs text-gray-300">aliexpress.solution.product.list.get</code>.
               Autorise l&apos;accès avec ton compte AliExpress.
             </p>
           )}
           <div className="pt-2">
             <a
               href="/api/aliexpress/oauth/start"
-              className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+              className="inline-flex items-center gap-1.5 rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-400"
             >
               {isConnected && !isExpired ? 'Re-autoriser AliExpress' : 'Connecter AliExpress'}
               <span aria-hidden>↗</span>
@@ -85,14 +85,14 @@ export default async function SettingsPage() {
           meta="Email: adriennejkovic@gmail.com"
           badge={<AdminBadge color="zinc">API Key manquante</AdminBadge>}
         >
-          <p className="text-sm leading-6 text-zinc-500">
-            L&apos;authentification CJ nécessite une <strong className="font-semibold text-zinc-900">API Key dédiée</strong> (pas le mot de passe du compte).
+          <p className="text-sm leading-6 text-gray-400">
+            L&apos;authentification CJ nécessite une <strong className="font-semibold text-white">API Key dédiée</strong> (pas le mot de passe du compte).
             Va sur{' '}
-            <a href="https://cjdropshipping.com" target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline underline-offset-2 hover:text-indigo-500">
+            <a href="https://cjdropshipping.com" target="_blank" rel="noreferrer" className="font-medium text-indigo-400 underline underline-offset-2 hover:text-indigo-300">
               cjdropshipping.com
             </a>{' '}
             &#8594; Account Settings &#8594; Developer &#8594; copie l&apos;API Key et mets-la dans{' '}
-            <code className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-700">CJ_DROPSHIPPING_API_KEY</code>.
+            <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-xs text-gray-300">CJ_DROPSHIPPING_API_KEY</code>.
           </p>
         </ProviderCard>
       </div>
@@ -103,8 +103,8 @@ export default async function SettingsPage() {
 function DLRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div>
-      <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-400">{label}</dt>
-      <dd className="mt-0.5 text-sm text-zinc-900">{value}</dd>
+      <dt className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</dt>
+      <dd className="mt-0.5 text-sm text-white">{value}</dd>
     </div>
   );
 }
@@ -121,12 +121,12 @@ function ProviderCard({
   children: ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-zinc-200">
-      <div className="flex items-center gap-3 border-b border-zinc-100 px-5 py-4">
-        <span className="h-9 w-1 shrink-0 rounded-full bg-indigo-600" aria-hidden />
+    <section className="overflow-hidden rounded-xl bg-gray-800/50 shadow-sm ring-1 ring-white/10">
+      <div className="flex items-center gap-3 border-b border-white/10 px-5 py-4">
+        <span className="h-9 w-1 shrink-0 rounded-full bg-indigo-500" aria-hidden />
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-sm font-semibold text-zinc-900">{name}</h3>
-          <p className="truncate text-xs text-zinc-400">{meta}</p>
+          <h3 className="truncate text-sm font-semibold text-white">{name}</h3>
+          <p className="truncate text-xs text-gray-500">{meta}</p>
         </div>
         <div className="shrink-0">{badge}</div>
       </div>
