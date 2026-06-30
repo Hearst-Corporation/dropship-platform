@@ -13,30 +13,210 @@ import { runContext } from './run-context';
  * accounting matters, swap for a live FX feed).
  *
  * Public surface:
- *   - `trackedMessage(meta, params)` is a drop-in replacement for
- *     `anthropic.messages.create(params)`.
- *   - `getAnthropicClient()` returns the shared SDK instance (legacy
- *     escape hatch — prefer `trackedMessage` so the run lands in the
- *     ledger).
+ *   - `trackedMessage(meta, params)` accepts the Anthropic SDK request shape
+ *     and returns the Anthropic SDK response shape, but is backed by the
+ *     OpenAI API (provider migration, June 2026). Call sites are unchanged.
  */
 
-// USD per 1M tokens for each model we may call. Source: Anthropic
-// pricing page snapshot 2026. Add new model IDs as we adopt them.
+// USD per 1M tokens for each model we may call. Source: OpenAI pricing
+// page snapshot June 2026. Add new model IDs as we adopt them.
 const PRICING: Record<string, { input: number; output: number }> = {
+  'gpt-4o': { input: 2.5, output: 10.0 },
+  'gpt-4o-mini': { input: 0.15, output: 0.6 },
+  'gpt-4.1': { input: 2.0, output: 8.0 },
+  'gpt-4.1-mini': { input: 0.4, output: 1.6 },
+  // Legacy Claude ids kept so historical ledger rows still price.
   'claude-haiku-4-5-20251001': { input: 0.8, output: 4.0 },
   'claude-sonnet-4-6': { input: 3.0, output: 15.0 },
-  'claude-opus-4-7': { input: 15.0, output: 75.0 },
 };
 
 // Conservative USD→EUR. Override at runtime via env if needed.
 const USD_TO_EUR = Number(process.env.USD_TO_EUR ?? '0.92');
 
-let cachedClient: Anthropic | null = null;
-function getAnthropicClient(): Anthropic {
-  if (!cachedClient) {
-    cachedClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// ── Provider: OpenAI official API (migrated off Anthropic/Moonshot, June 2026) ──
+// trackedMessage keeps the Anthropic SDK request/response SHAPE so the 14 call
+// sites are unchanged, but the actual call goes to OpenAI /chat/completions.
+// We translate params (messages/system/tools) → OpenAI and rebuild a synthetic
+// Anthropic.Messages.Message (text + tool_use blocks) from the OpenAI response.
+const OPENAI_BASE = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
+const OPENAI_MODEL = process.env.OPENAI_CHAT_MODEL || 'gpt-4o';
+
+function getOpenAIKey(): string {
+  const key = process.env.OPENAI_API_KEY?.trim();
+  if (!key) throw new Error('OPENAI_API_KEY is not set');
+  return key;
+}
+
+type AnthropicBlock =
+  | { type: 'text'; text: string }
+  | { type: 'image'; source: { type: string; url?: string; media_type?: string; data?: string } }
+  | { type: 'tool_use'; id: string; name: string; input: unknown }
+  | { type: 'tool_result'; tool_use_id: string; content: unknown };
+
+function textFromContent(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .filter((b): b is { type: 'text'; text: string } => (b as { type?: string })?.type === 'text')
+      .map((b) => b.text)
+      .join('\n');
   }
-  return cachedClient;
+  return '';
+}
+
+/** Translate Anthropic-shape params into an OpenAI chat/completions body. */
+function toOpenAIBody(
+  params: Anthropic.Messages.MessageCreateParamsNonStreaming,
+): Record<string, unknown> {
+  const messages: Array<Record<string, unknown>> = [];
+
+  if (params.system) {
+    messages.push({ role: 'system', content: textFromContent(params.system) });
+  }
+
+  for (const m of params.messages) {
+    const blocks = Array.isArray(m.content) ? (m.content as AnthropicBlock[]) : null;
+    if (!blocks) {
+      messages.push({ role: m.role, content: String(m.content) });
+      continue;
+    }
+    if (m.role === 'assistant') {
+      const text = blocks
+        .filter((b): b is Extract<AnthropicBlock, { type: 'text' }> => b.type === 'text')
+        .map((b) => b.text)
+        .join('\n');
+      const toolCalls = blocks
+        .filter((b): b is Extract<AnthropicBlock, { type: 'tool_use' }> => b.type === 'tool_use')
+        .map((b) => ({
+          id: b.id,
+          type: 'function' as const,
+          function: { name: b.name, arguments: JSON.stringify(b.input ?? {}) },
+        }));
+      const msg: Record<string, unknown> = { role: 'assistant', content: text || null };
+      if (toolCalls.length > 0) msg.tool_calls = toolCalls;
+      messages.push(msg);
+    } else {
+      // user role — split out tool_result blocks into OpenAI 'tool' messages,
+      // and translate text + image blocks into OpenAI user content.
+      const toolResults = blocks.filter(
+        (b): b is Extract<AnthropicBlock, { type: 'tool_result' }> => b.type === 'tool_result',
+      );
+      const textParts = blocks
+        .filter((b): b is Extract<AnthropicBlock, { type: 'text' }> => b.type === 'text')
+        .map((b) => b.text)
+        .join('\n');
+      const imageBlocks = blocks.filter(
+        (b): b is Extract<AnthropicBlock, { type: 'image' }> => b.type === 'image',
+      );
+      if (imageBlocks.length > 0) {
+        const parts: Array<Record<string, unknown>> = [];
+        if (textParts) parts.push({ type: 'text', text: textParts });
+        for (const img of imageBlocks) {
+          const url =
+            img.source.url ??
+            (img.source.data
+              ? `data:${img.source.media_type ?? 'image/jpeg'};base64,${img.source.data}`
+              : '');
+          if (url) parts.push({ type: 'image_url', image_url: { url } });
+        }
+        messages.push({ role: 'user', content: parts });
+      } else if (textParts) {
+        messages.push({ role: 'user', content: textParts });
+      }
+      for (const tr of toolResults) {
+        messages.push({
+          role: 'tool',
+          tool_call_id: tr.tool_use_id,
+          content: typeof tr.content === 'string' ? tr.content : JSON.stringify(tr.content),
+        });
+      }
+    }
+  }
+
+  const body: Record<string, unknown> = {
+    model: OPENAI_MODEL,
+    messages,
+    max_tokens: params.max_tokens,
+  };
+  if (typeof params.temperature === 'number') body.temperature = params.temperature;
+
+  if (params.tools && params.tools.length > 0) {
+    body.tools = params.tools.map((t) => {
+      const tool = t as { name: string; description?: string; input_schema?: unknown };
+      return {
+        type: 'function',
+        function: {
+          name: tool.name,
+          description: tool.description ?? '',
+          parameters: tool.input_schema ?? { type: 'object', properties: {} },
+        },
+      };
+    });
+    const tc = params.tool_choice as { type?: string; name?: string } | undefined;
+    if (tc?.type === 'tool' && tc.name) {
+      body.tool_choice = { type: 'function', function: { name: tc.name } };
+    } else if (tc?.type === 'any') {
+      body.tool_choice = 'required';
+    } else {
+      body.tool_choice = 'auto';
+    }
+  }
+
+  return body;
+}
+
+interface OpenAIChatResponse {
+  choices?: Array<{
+    message?: {
+      content?: string | null;
+      tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }>;
+    };
+    finish_reason?: string | null;
+  }>;
+  usage?: { prompt_tokens?: number; completion_tokens?: number };
+  error?: { message?: string; type?: string };
+}
+
+/** Rebuild a synthetic Anthropic.Messages.Message from an OpenAI response. */
+function toAnthropicMessage(
+  data: OpenAIChatResponse,
+  model: string,
+): Anthropic.Messages.Message {
+  const choice = data.choices?.[0];
+  const msg = choice?.message;
+  const content: AnthropicBlock[] = [];
+  if (msg?.content) content.push({ type: 'text', text: msg.content });
+  for (const tc of msg?.tool_calls ?? []) {
+    let input: unknown = {};
+    try {
+      input = tc.function.arguments ? JSON.parse(tc.function.arguments) : {};
+    } catch {
+      input = {};
+    }
+    content.push({ type: 'tool_use', id: tc.id, name: tc.function.name, input });
+  }
+  if (content.length === 0) content.push({ type: 'text', text: '' });
+
+  const hasToolUse = (msg?.tool_calls?.length ?? 0) > 0;
+  const stopReason = hasToolUse
+    ? 'tool_use'
+    : choice?.finish_reason === 'length'
+      ? 'max_tokens'
+      : 'end_turn';
+
+  return {
+    id: `openai_${Date.now()}`,
+    type: 'message',
+    role: 'assistant',
+    model,
+    content: content as unknown as Anthropic.Messages.ContentBlock[],
+    stop_reason: stopReason as Anthropic.Messages.Message['stop_reason'],
+    stop_sequence: null,
+    usage: {
+      input_tokens: data.usage?.prompt_tokens ?? 0,
+      output_tokens: data.usage?.completion_tokens ?? 0,
+    } as Anthropic.Messages.Usage,
+  } as Anthropic.Messages.Message;
 }
 
 export interface RunMeta {
@@ -101,47 +281,62 @@ async function insertRun(args: InsertArgs): Promise<void> {
 const MAX_RETRIES = 3;
 const TIMEOUT_MS = 60_000;
 
-function isRetryableError(e: unknown): boolean {
-  if (e instanceof Anthropic.APIError) {
-    const status = e.status;
-    if (status === 429) return true;
-    if (status != null && status >= 500) return true;
-    return false;
-  }
-  if (e instanceof Error && /network|timeout|abort|fetch/i.test(e.message)) return true;
+function isRetryableStatus(status: number, message: string): boolean {
+  if (status === 429) return true;
+  if (status >= 500) return true;
+  if (/network|timeout|abort|fetch/i.test(message)) return true;
   return false;
 }
 
 async function callWithRetry(
   params: Anthropic.Messages.MessageCreateParamsNonStreaming,
 ): Promise<Anthropic.Messages.Message> {
+  const body = toOpenAIBody(params);
   let lastError: unknown;
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      return await getAnthropicClient().messages.create(params, {
+      const res = await fetch(`${OPENAI_BASE}/chat/completions`, {
+        method: 'POST',
         signal: AbortSignal.timeout(TIMEOUT_MS),
+        headers: {
+          Authorization: `Bearer ${getOpenAIKey()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
       });
+      const data = (await res.json()) as OpenAIChatResponse;
+      if (!res.ok || data.error) {
+        const msg = data.error?.message || `OpenAI HTTP ${res.status}`;
+        if (!isRetryableStatus(res.status, msg) || attempt === MAX_RETRIES - 1) {
+          throw new Error(msg);
+        }
+        lastError = new Error(msg);
+        await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
+        continue;
+      }
+      return toAnthropicMessage(data, OPENAI_MODEL);
     } catch (e) {
       lastError = e;
-      if (!isRetryableError(e) || attempt === MAX_RETRIES - 1) throw e;
-      const delay = 1000 * 2 ** attempt;
-      await new Promise((r) => setTimeout(r, delay));
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!isRetryableStatus(0, msg) || attempt === MAX_RETRIES - 1) throw e;
+      await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
     }
   }
   throw lastError;
 }
 
 /**
- * Wrap `anthropic.messages.create()` and log usage on completion. The
- * wrapped call returns the same shape as the SDK. Errors are re-thrown
- * unchanged after being recorded.
+ * trackedMessage — drop-in for `anthropic.messages.create()`, now backed by
+ * the OpenAI API. Returns the Anthropic SDK response shape so call sites are
+ * unchanged. Errors are re-thrown unchanged after being recorded.
  */
 export async function trackedMessage(
   meta: RunMeta,
   params: Anthropic.Messages.MessageCreateParamsNonStreaming,
 ): Promise<Anthropic.Messages.Message> {
   const startedAt = Date.now();
-  const model = typeof params.model === 'string' ? params.model : 'unknown';
+  // Ledger records the OpenAI model actually used, not the requested Claude id.
+  const model = OPENAI_MODEL;
   let response: Anthropic.Messages.Message | null = null;
   let errorJson: string | null = null;
   try {

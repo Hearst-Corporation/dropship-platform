@@ -30,7 +30,7 @@ interface AnthropicRequestBody {
     role: string;
     content:
       | string
-      | Array<{ type: string; text?: string; source?: { url?: string } }>;
+      | Array<{ type: string; text?: string; image_url?: { url?: string } }>;
   }>;
 }
 
@@ -47,23 +47,27 @@ function getUserText(body: AnthropicRequestBody): string {
 function hasImageBlock(body: AnthropicRequestBody): boolean {
   const userMsg = body.messages?.find((m) => m.role === 'user');
   if (!userMsg || typeof userMsg.content === 'string') return false;
-  return userMsg.content.some((c) => c.type === 'image');
+  return userMsg.content.some((c) => c.type === 'image_url');
 }
 
 /**
- * Build the `messages.create` envelope around a text body. The agent only
- * reads `response.content[0].text` when type==='text', so we keep it minimal.
+ * Build an OpenAI chat/completions envelope around a text body. The provider
+ * is now OpenAI; `lib/agent/anthropic.ts` translates this back into the
+ * Anthropic response shape the call sites expect.
  */
 function reply(text: string) {
   return HttpResponse.json({
-    id: 'msg_test_' + Math.random().toString(36).slice(2, 10),
-    type: 'message',
-    role: 'assistant',
-    model: 'claude-haiku-4-5-20251001',
-    content: [{ type: 'text', text }],
-    stop_reason: 'end_turn',
-    stop_sequence: null,
-    usage: { input_tokens: 500, output_tokens: 800 },
+    id: 'chatcmpl_test_' + Math.random().toString(36).slice(2, 10),
+    object: 'chat.completion',
+    model: 'gpt-4o',
+    choices: [
+      {
+        index: 0,
+        message: { role: 'assistant', content: text },
+        finish_reason: 'stop',
+      },
+    ],
+    usage: { prompt_tokens: 500, completion_tokens: 800, total_tokens: 1300 },
   });
 }
 
@@ -152,7 +156,7 @@ function generationJSON(text: string): string {
 }
 
 export const anthropicHandlers = [
-  http.post('https://api.anthropic.com/v1/messages', async ({ request }) => {
+  http.post('https://api.openai.com/v1/chat/completions', async ({ request }) => {
     const body = (await request.json()) as AnthropicRequestBody;
     const text = getUserText(body);
 

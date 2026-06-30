@@ -1,10 +1,11 @@
 /**
- * Kimi K2.5 (Moonshot AI) wrapper for the store-creator pipeline.
+ * OpenAI agent wrapper for the store-creator + super-agent pipelines.
  *
- * Why Kimi: the user explicitly asked to replace Claude Haiku 4.5 with
- * Kimi K2.5 for product generation / enrichment. The API is OpenAI-compatible
- * (https://api.moonshot.cn/v1) so we call it with raw fetch.
+ * Provider migrated from Kimi/Hyper to the official OpenAI API (June 2026).
+ * Uses GPT-4.1 by default (long-context agent reasoning). The API is
+ * OpenAI-compatible (it IS OpenAI), so we call /chat/completions with fetch.
  *
+ * The exported symbols keep the `Kimi` naming so call sites are unchanged.
  * Every call is logged to `dropship_ai_runs` with the same shape as
  * `trackedMessage` so the cost dashboard stays consistent.
  */
@@ -12,14 +13,14 @@
 import { getDb } from '@/lib/db';
 import { runContext } from './run-context';
 
-const API_BASE = process.env.HYPER_API_BASE || 'https://api.hypercli.com/v1';
-const MODEL = process.env.KIMI_MODEL || 'kimi-k2.5';
+const API_BASE = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
+const MODEL = process.env.OPENAI_AGENT_MODEL || 'gpt-4.1';
 const TIMEOUT_MS = 60_000;
 const MAX_RETRIES = 3;
 
 function getApiKey(): string {
-  const key = process.env.HYPER_API_KEY?.trim() || process.env.MOONSHOT_API_KEY?.trim();
-  if (!key) throw new Error('HYPER_API_KEY (or MOONSHOT_API_KEY) is not set');
+  const key = process.env.OPENAI_API_KEY?.trim();
+  if (!key) throw new Error('OPENAI_API_KEY is not set');
   return key;
 }
 
@@ -85,16 +86,15 @@ async function insertRun(args: InsertArgs): Promise<void> {
 }
 
 /**
- * Rough EUR cost for Kimi K2.5 (May 2026 pricing snapshot).
- * Source: Moonshot AI pricing page.
+ * EUR cost for GPT-4.1 (June 2026 pricing snapshot).
+ * Source: OpenAI pricing page — GPT-4.1: $2.00 / 1M input, $8.00 / 1M output.
  * If pricing changes, backfill via UPDATE on dropship_ai_runs.
  */
 function computeCostEur(inputTokens: number, outputTokens: number): number {
-  // Kimi K2.5 : ~2 CNY / 1M input tokens, ~8 CNY / 1M output tokens
-  // Rough EUR conversion: 1 CNY ≈ 0.128 EUR
-  const inputCny = (inputTokens / 1_000_000) * 2;
-  const outputCny = (outputTokens / 1_000_000) * 8;
-  return Number(((inputCny + outputCny) * 0.128).toFixed(6));
+  const USD_TO_EUR = Number(process.env.USD_TO_EUR ?? '0.92');
+  const inputUsd = (inputTokens / 1_000_000) * 2.0;
+  const outputUsd = (outputTokens / 1_000_000) * 8.0;
+  return Number(((inputUsd + outputUsd) * USD_TO_EUR).toFixed(6));
 }
 
 export interface KimiMessage {
