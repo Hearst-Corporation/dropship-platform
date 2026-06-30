@@ -16,49 +16,31 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
 
   return (
     <html lang="fr">
+      {/* global-error remplace <html> : si la feuille Tailwind n'est pas chargée
+          à ce niveau, ce fallback inline minimal garantit un rendu centré lisible. */}
       <body
-        style={{
-          margin: 0,
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontFamily: 'system-ui, -apple-system, sans-serif',
-          background: '#1A050B',
-          color: '#ffffff',
-          padding: '24px',
-        }}
+        className="m-0 min-h-screen flex items-center justify-center bg-zinc-950 text-zinc-100 p-6"
+        style={{ margin: 0, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       >
-        <div style={{ maxWidth: '420px', textAlign: 'center' }}>
-          <p style={{ fontSize: '10px', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'rgba(245,245,245,0.72)', margin: '0 0 20px' }}>
+        <div className="max-w-md text-center">
+          <p className="text-[10px] tracking-[0.3em] uppercase text-zinc-400 mb-5">
             Erreur
           </p>
-          <h1 style={{ fontSize: '32px', lineHeight: 1.1, margin: '0 0 20px', fontWeight: 600 }}>
+          <h1 className="text-3xl leading-tight font-semibold mb-5">
             Quelque chose s&apos;est mal pass&eacute;.
           </h1>
-          <p style={{ fontSize: '15px', color: 'rgba(245,245,245,0.72)', margin: '0 0 32px', lineHeight: 1.6 }}>
+          <p className="text-[15px] text-zinc-400 leading-relaxed mb-8">
             Rechargez la page pour réessayer. Votre panier reste intact.
           </p>
           <button
             type="button"
             onClick={reset}
-            style={{
-              background: '#be123c',
-              color: '#ffffff',
-              border: 'none',
-              padding: '14px 28px',
-              borderRadius: '999px',
-              fontSize: '12px',
-              letterSpacing: '0.18em',
-              textTransform: 'uppercase',
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
+            className="inline-flex items-center justify-center rounded-full bg-zinc-100 px-7 py-3.5 text-xs font-medium uppercase tracking-[0.18em] text-zinc-900 hover:bg-white"
           >
             Réessayer
           </button>
           {error.digest && (
-            <p style={{ marginTop: '32px', fontSize: '10px', letterSpacing: '0.22em', color: 'rgba(245,245,245,0.72)', textTransform: 'uppercase' }}>
+            <p className="mt-8 text-[10px] tracking-[0.22em] uppercase text-zinc-500">
               Référence · {error.digest}
             </p>
           )}

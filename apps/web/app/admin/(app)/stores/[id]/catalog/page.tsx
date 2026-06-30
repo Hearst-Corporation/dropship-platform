@@ -51,7 +51,8 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
             image_quality_score, created_at
        FROM dropship_store_products
       WHERE store_id = $1
-      ORDER BY created_at ASC`,
+      ORDER BY created_at ASC
+      LIMIT 500`,
     [storeId],
   );
 
@@ -108,17 +109,16 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
         />
 
         {products.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center px-6 py-10 text-center">
-            <p className="text-sm text-gray-500">
-              Aucun produit dans ce store. Utilise le{' '}
-              <Link
-                href={`/admin/stores/${id}/copilot`}
-                className="text-indigo-400 underline hover:text-indigo-300"
-              >
-                copilote de curation
-              </Link>{' '}
-              pour en ajouter.
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-10 text-center">
+            <p className="max-w-sm text-sm text-gray-500">
+              Aucun produit dans ce store. Lance le copilote de curation pour en importer.
             </p>
+            <Link
+              href={`/admin/stores/${id}/copilot`}
+              className="inline-flex items-center rounded-md bg-indigo-500 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+            >
+              Ajouter des produits
+            </Link>
           </div>
         ) : (
           <div className="flex-1 overflow-x-auto">

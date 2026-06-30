@@ -75,14 +75,19 @@ export async function DELETE(
     'SELECT medusa_product_id FROM dropship_store_products WHERE store_id = $1 AND medusa_product_id IS NOT NULL',
     [storeId],
   );
-  for (const { medusa_product_id } of products) {
-    try {
-      await medusa.deleteProduct(medusa_product_id);
+  const deleteResults = await Promise.allSettled(
+    products.map(({ medusa_product_id }) => medusa.deleteProduct(medusa_product_id)),
+  );
+  deleteResults.forEach((result, idx) => {
+    if (result.status === 'fulfilled') {
       report.medusa_products += 1;
-    } catch (err) {
-      console.error(`[delete-store] medusa.deleteProduct(${medusa_product_id}) failed:`, err);
+    } else {
+      console.error(
+        `[delete-store] medusa.deleteProduct(${products[idx].medusa_product_id}) failed:`,
+        result.reason,
+      );
     }
-  }
+  });
 
   // 2. Medusa sales channel
   if (medusa_sales_channel_id) {
@@ -125,7 +130,6 @@ export async function DELETE(
   // copilot_sessions, curation_sessions).
   await db.query('DELETE FROM dropship_stores WHERE id = $1', [storeId]);
 
-  console.log('[delete-store] cleanup report', report);
   return NextResponse.json({ success: true, report });
 }
 

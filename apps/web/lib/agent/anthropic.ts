@@ -185,8 +185,13 @@ function toAnthropicMessage(
 ): Anthropic.Messages.Message {
   const choice = data.choices?.[0];
   const msg = choice?.message;
-  const content: AnthropicBlock[] = [];
-  if (msg?.content) content.push({ type: 'text', text: msg.content });
+  const content: Anthropic.Messages.ContentBlock[] = [];
+  const makeText = (text: string): Anthropic.Messages.TextBlock => ({
+    type: 'text',
+    text,
+    citations: null,
+  });
+  if (msg?.content) content.push(makeText(msg.content));
   for (const tc of msg?.tool_calls ?? []) {
     let input: unknown = {};
     try {
@@ -194,9 +199,16 @@ function toAnthropicMessage(
     } catch {
       input = {};
     }
-    content.push({ type: 'tool_use', id: tc.id, name: tc.function.name, input });
+    const toolUse: Anthropic.Messages.ToolUseBlock = {
+      type: 'tool_use',
+      id: tc.id,
+      name: tc.function.name,
+      input,
+      caller: { type: 'direct' },
+    };
+    content.push(toolUse);
   }
-  if (content.length === 0) content.push({ type: 'text', text: '' });
+  if (content.length === 0) content.push(makeText(''));
 
   const hasToolUse = (msg?.tool_calls?.length ?? 0) > 0;
   const stopReason = hasToolUse
@@ -210,7 +222,7 @@ function toAnthropicMessage(
     type: 'message',
     role: 'assistant',
     model,
-    content: content as unknown as Anthropic.Messages.ContentBlock[],
+    content,
     stop_reason: stopReason as Anthropic.Messages.Message['stop_reason'],
     stop_sequence: null,
     usage: {

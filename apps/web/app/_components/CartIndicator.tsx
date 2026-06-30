@@ -7,7 +7,7 @@ export async function CartIndicator() {
   return (
     <Link href="/cart" className="relative inline-flex items-center gap-1 hover:underline">
       <span>Panier</span>
-      <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1 text-xs bg-black text-white rounded-full">
+      <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1 text-xs bg-zinc-900 text-white rounded-full">
         {count}
       </span>
     </Link>

@@ -8,11 +8,15 @@ import { withSentryConfig } from '@sentry/nextjs';
  *  - Permissions-Policy: lock down browser APIs we don't use. `payment=(self
  *    "https://js.stripe.com")` is mandatory for Apple Pay / Google Pay via
  *    Stripe Payment Elements, do NOT remove.
- *  - CSP intentionally NOT enforced yet: Next.js runtime needs unsafe-inline
- *    on script-src/style-src and we haven't done a full smoke test of Stripe
- *    Elements with a strict CSP. Adding it blind would risk a white-screen
- *    on paid traffic. Wire it in via a Report-Only header first when we
- *    have time to monitor reports.
+ *  - CSP: defensive but pragmatic. `script-src 'self' 'unsafe-inline'` is
+ *    required by Next.js (inline bootstrap + hydration scripts); `'unsafe-eval'`
+ *    is added only in dev (React Refresh / Turbopack need it). `object-src
+ *    'none'` and `base-uri 'self'` close off plugin and base-tag injection.
+ *    `style-src` keeps 'unsafe-inline' (Next inline styles + the storefront
+ *    design-token <style> block). We deliberately do NOT lock down
+ *    connect-src/img-src yet (Stripe Elements, supplier CDNs, fal.ai/R2,
+ *    Sentry tunnel) — adding those blind would risk a white-screen on paid
+ *    traffic. Tighten those via a Report-Only header first.
  */
 
 // In Vercel production, restrict frame-ancestors to 'self' only.
@@ -22,6 +26,22 @@ const frameAncestors = isVercelProd
   ? "'self'"
   : "'self' http://localhost:4200 http://localhost:4201";
 
+// Next.js needs 'unsafe-eval' on script-src in dev (React Refresh / Turbopack).
+// In prod we drop it: only 'self' + 'unsafe-inline' (Next bootstrap scripts).
+const isProd = process.env.NODE_ENV === 'production';
+const scriptSrc = isProd
+  ? "script-src 'self' 'unsafe-inline'"
+  : "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
+
+const CSP_DIRECTIVES = [
+  scriptSrc,
+  // Next.js inline styles + the storefront design-token <style> block.
+  "style-src 'self' 'unsafe-inline'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  `frame-ancestors ${frameAncestors}`,
+];
+
 const SECURITY_HEADERS = [
   // X-Frame-Options replaced by CSP frame-ancestors below so the Hearst Hub
   // (Electron webview on localhost:4200/4201) can embed Merchant while all
@@ -29,7 +49,7 @@ const SECURITY_HEADERS = [
   // { key: 'X-Frame-Options', value: 'DENY' },
   {
     key: 'Content-Security-Policy',
-    value: `frame-ancestors ${frameAncestors}`,
+    value: CSP_DIRECTIVES.join('; '),
   },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },

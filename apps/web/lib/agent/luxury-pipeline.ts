@@ -66,7 +66,11 @@ export interface LuxuryUpgradeResult {
 }
 
 export async function runLuxuryUpgrade(storeId: string): Promise<LuxuryUpgradeResult> {
-  const log = (msg: string) => console.log(`[luxury-upgrade ${storeId}] ${msg}`);
+  const log = (msg: string) => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[luxury-upgrade ${storeId}] ${msg}`);
+    }
+  };
   log('start');
   // Image/video backend is resolved per-call by runImage/runVideo:
   // 1. COMFY_DEPLOYMENT_* + COMFY_DEPLOY_API_KEY → user's own GPUs (preferred)

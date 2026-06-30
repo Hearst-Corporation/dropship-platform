@@ -99,7 +99,8 @@ export async function runAnomalyWatch(): Promise<AnomalyWatchResult> {
         AND dry_run = false
         AND ae_order_id IS NOT NULL
         AND created_at < now() - interval '15 days'
-      ORDER BY created_at ASC`,
+      ORDER BY created_at ASC
+      LIMIT 500`,
   );
   const stranded: StrandedForward[] = strandedRows.map((r) => ({
     medusa_order_id: r.medusa_order_id,
@@ -120,7 +121,8 @@ export async function runAnomalyWatch(): Promise<AnomalyWatchResult> {
        FROM dropship_order_forwards
       WHERE status = 'error'
         AND created_at < now() - interval '48 hours'
-      ORDER BY created_at ASC`,
+      ORDER BY created_at ASC
+      LIMIT 500`,
   );
   const errored: ErroredForward[] = errorRows.map((r) => ({
     medusa_order_id: r.medusa_order_id,

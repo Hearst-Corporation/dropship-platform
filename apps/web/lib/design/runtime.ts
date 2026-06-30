@@ -90,27 +90,50 @@ function buildGoogleFontsUrl(preset: DesignPreset): string | null {
   return `https://fonts.googleapis.com/css2?${params.join('&')}&display=swap`;
 }
 
+// Palette colors and font names come from per-store DB rows, so any value
+// interpolated into the inline `<style>` block must be sanitized first: a
+// malicious value containing `</style>` (or `<`/`>`/`{`/`}`/`;`) could break
+// out of the style context and inject markup. We strip the characters that
+// have structural meaning inside a CSS declaration block and the `<`/`>` that
+// could terminate the `<style>` element, while keeping the alphanumerics that
+// make up hex colors, units and named values.
+function cssSafe(value: string): string {
+  return String(value).replace(/[<>{}();@"'\\]/g, '').trim();
+}
+
+// Font family stacks need to keep commas, spaces and quotes (e.g.
+// `'Instrument Serif', Georgia, serif`) but must still never carry `<`/`>`
+// or a declaration/element terminator.
+function cssSafeFontStack(value: string): string {
+  return String(value).replace(/[<>{};@()\\]/g, '').trim();
+}
+
 function buildCssVars(preset: DesignPreset, palette: StorePalette): string {
-  const displayStack = `'${preset.fonts.display.family}', Georgia, serif`;
-  const bodyStack = `'${preset.fonts.body.family}', system-ui, -apple-system, 'Inter', sans-serif`;
+  const displayFamily = cssSafe(preset.fonts.display.family);
+  const bodyFamily = cssSafe(preset.fonts.body.family);
+  const displayStack = cssSafeFontStack(`'${displayFamily}', Georgia, serif`);
+  const bodyStack = cssSafeFontStack(
+    `'${bodyFamily}', system-ui, -apple-system, 'Inter', sans-serif`,
+  );
   const radius =
     preset.ui.radius === 'sharp' ? '4px' : preset.ui.radius === 'pill' ? '999px' : '12px';
+  const headingTracking = cssSafe(String(preset.ui.headingTracking));
 
   return `
 :root {
-  --ds-primary: ${palette.primary};
-  --ds-accent: ${palette.accent};
-  --ds-bg: ${palette.bg};
-  --ds-surface: ${palette.surface};
-  --ds-text: ${palette.text};
-  --ds-text-muted: ${palette.textMuted};
-  --ds-border: ${palette.border};
-  --ds-success: ${palette.success};
-  --ds-danger: ${palette.danger};
+  --ds-primary: ${cssSafe(palette.primary)};
+  --ds-accent: ${cssSafe(palette.accent)};
+  --ds-bg: ${cssSafe(palette.bg)};
+  --ds-surface: ${cssSafe(palette.surface)};
+  --ds-text: ${cssSafe(palette.text)};
+  --ds-text-muted: ${cssSafe(palette.textMuted)};
+  --ds-border: ${cssSafe(palette.border)};
+  --ds-success: ${cssSafe(palette.success)};
+  --ds-danger: ${cssSafe(palette.danger)};
   --ds-font-display: ${displayStack};
   --ds-font-body: ${bodyStack};
   --ds-radius: ${radius};
-  --ds-heading-tracking: ${preset.ui.headingTracking}em;
+  --ds-heading-tracking: ${headingTracking}em;
 }
 `.trim();
 }

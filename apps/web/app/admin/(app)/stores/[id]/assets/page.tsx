@@ -65,7 +65,8 @@ export default async function StoreAssetsPage({ params }: { params: Promise<{ id
             error_message, is_current, created_at, completed_at
        FROM dropship_asset_runs
       WHERE store_id = $1
-      ORDER BY created_at DESC`,
+      ORDER BY created_at DESC
+      LIMIT 200`,
     [storeId],
   );
 

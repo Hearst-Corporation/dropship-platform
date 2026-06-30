@@ -11,9 +11,9 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     return (
       <StoreShell>
         <div className="max-w-3xl mx-auto p-12">
-          <h1 className="ct-title">
+          <p className="ct-title">
             Boutique indisponible
-          </h1>
+          </p>
         </div>
       </StoreShell>
     );

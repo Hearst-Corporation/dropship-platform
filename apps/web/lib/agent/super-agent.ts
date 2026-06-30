@@ -103,9 +103,14 @@ async function loadSuperHistory(sessionId: string): Promise<StoredSuperMessage[]
   const db = getDb();
   const { rows } = await db.query<StoredSuperMessage>(
     `SELECT id, role, content, tool_name, tool_input, tool_output, created_at
-       FROM dropship_copilot_messages
-       WHERE session_id = $1
-       ORDER BY created_at ASC, id ASC`,
+       FROM (
+         SELECT id, role, content, tool_name, tool_input, tool_output, created_at
+           FROM dropship_copilot_messages
+          WHERE session_id = $1
+          ORDER BY created_at DESC, id DESC
+          LIMIT 100
+       ) recent
+      ORDER BY created_at ASC, id ASC`,
     [sessionId],
   );
   return rows;
@@ -478,7 +483,7 @@ export async function execRunSql(
         confirm_key: confirmKey,
       };
     }
-    console.info('[super-agent SQL write]', JSON.stringify({ query, params: params ?? [], timestamp: new Date().toISOString() }));
+    console.info('[super-agent SQL write]', JSON.stringify({ query, paramCount: (params ?? []).length, timestamp: new Date().toISOString() }));
   }
 
   const db = getDb();

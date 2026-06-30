@@ -5,7 +5,6 @@ import {
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon,
   ExclamationTriangleIcon,
-  ArrowTopRightOnSquareIcon,
   PlusIcon,
 } from '@heroicons/react/20/solid';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
@@ -380,15 +379,7 @@ export default function MarketingPage() {
                   <td className="px-3 py-2.5 text-right tabular-nums text-gray-400">{cpa(c.spent_eur, c.conversions)}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-gray-400">{fmtNum(c.clicks)}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-gray-500">{ctr(c.clicks, c.impressions)}</td>
-                  <td className="px-3 py-2.5 text-right">
-                    <button
-                      type="button"
-                      className="rounded p-1 text-gray-500 hover:text-white"
-                      title="Ouvrir dans la plateforme"
-                    >
-                      <ArrowTopRightOnSquareIcon className="size-3.5" aria-hidden />
-                    </button>
-                  </td>
+                  <td className="px-3 py-2.5 text-right"></td>
                 </tr>
               ))}
             </tbody>

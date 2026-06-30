@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 async function getSettings() {
   const db = getDbRead();
   const { rows } = await db.query<{ key: string; value: string; updated_at: Date }>(
-    `SELECT key, value, updated_at FROM platform_settings ORDER BY key`,
+    `SELECT key, value, updated_at FROM platform_settings ORDER BY key LIMIT 200`,
   );
   return Object.fromEntries(rows.map((r) => [r.key, { value: r.value, updatedAt: r.updated_at }]));
 }

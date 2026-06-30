@@ -217,9 +217,12 @@ async function deployRun(deploymentId: string, inputs: WorkflowInputs): Promise<
   const start = Date.now();
   const TIMEOUT_MS = 5 * 60_000;
   const POLL_MS = 3_000;
+  const POLL_MAX_MS = 30_000;
+  let pollMs = POLL_MS;
 
   while (Date.now() - start < TIMEOUT_MS) {
-    await new Promise((r) => setTimeout(r, POLL_MS));
+    await new Promise((r) => setTimeout(r, pollMs));
+    pollMs = Math.min(Math.round(pollMs * 1.5), POLL_MAX_MS);
     const statusRes = await fetch(`${DEPLOY_BASE}/v2/run/${runId}`, {
       signal: AbortSignal.timeout(15_000),
       headers: { Authorization: `Bearer ${apiKey}` },

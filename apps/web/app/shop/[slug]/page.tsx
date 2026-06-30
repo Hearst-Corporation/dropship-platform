@@ -6,31 +6,6 @@ import { formatMoney, listProducts } from '@/lib/medusa-store';
 import { breadcrumbList, organizationSchema, storeUrl, withCanonical } from '@/lib/seo';
 import { TrackPageView } from '@/components/analytics/TrackPageView';
 import { StoreLogo } from '@/components/ui';
-import type { StoreTemplate } from '@/lib/store-config';
-import { MonoProductLanding } from './MonoProductLanding';
-import { CollectionEditorialLanding } from './CollectionEditorialLanding';
-import { LuxuryMinimalLanding } from './LuxuryMinimalLanding';
-import { GenZBoldLanding } from './GenZBoldLanding';
-import { EditorialFashionLanding } from './EditorialFashionLanding';
-import { WellnessSoftLanding } from './WellnessSoftLanding';
-import { LuxuryMonoLanding } from './LuxuryMonoLanding';
-import { WellnessSerenityLanding } from './WellnessSerenityLanding';
-import { WellnessPulseLanding } from './WellnessPulseLanding';
-import { WellnessDanceLanding } from './WellnessDanceLanding';
-import { WellnessStudioLanding } from './WellnessStudioLanding';
-import { WellnessRetreatLanding } from './WellnessRetreatLanding';
-import { WellnessFitnessBlogLanding } from './WellnessFitnessBlogLanding';
-import { WellnessMassageQuietLanding } from './WellnessMassageQuietLanding';
-import { WellnessOnyxGymLanding } from './WellnessOnyxGymLanding';
-import { EventsMusicartLanding } from './EventsMusicartLanding';
-import { EventsBouquetLanding } from './EventsBouquetLanding';
-import { EventsArcadiumLanding } from './EventsArcadiumLanding';
-import { EventsSummitLanding } from './EventsSummitLanding';
-import { EventsConvergeLanding } from './EventsConvergeLanding';
-import { FashionBoutique1622Landing } from './FashionBoutique1622Landing';
-import { BeautySalon2851Landing } from './BeautySalon2851Landing';
-import { FioraLocksLanding } from './FioraLocksLanding';
-import { AdventureTravel2787Landing } from './AdventureTravel2787Landing';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,13 +45,7 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
   const store = await getStoreBySlug(slug);
   if (!store) notFound();
 
-  // Only show the "preparing" splash while asset generation is genuinely in
-  // flight (`pending` / `generating`). If asset generation failed (`error`)
-  // or was never triggered, we still render the storefront — templates fall
-  // back to the supplier image and the operator can re-trigger generation
-  // later from the admin asset regenerator. Holding the splash on `error`
-  // would make the storefront unreachable forever for stores that don't
-  // have a working asset backend (fal locked / Comfy not configured).
+  // Splash only while asset generation is genuinely in flight.
   const assetsReady = store.assetsStatus === 'ready' || store.heroImageUrl;
   const assetsInFlight =
     store.assetsStatus === 'pending' || store.assetsStatus === 'generating';
@@ -100,9 +69,7 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
     breadcrumbList([{ name: store.name, url: storeUrl(slug) }]),
   );
 
-  // Storefront error tone — read from the locked palette when available, fall
-  // back to a neutral zinc on legacy rows so we never impose a brand color
-  // (or worse, a hard red) that contradicts the store's design system.
+  // Storefront error tone — read from the locked palette when available.
   const paletteDanger =
     (store.palette && typeof store.palette === 'object' && 'danger' in store.palette
       ? (store.palette as { danger?: string }).danger
@@ -111,149 +78,36 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
     ? { bg: 'transparent', text: paletteDanger, border: paletteDanger }
     : { bg: '#fafafa', text: '#3f3f46', border: '#e4e4e7' };
 
-  // P1.4 — resolve the storefront template. `auto` (default) keeps the
-  // legacy logic (1 product → mono, else grid). Operators can flip a
-  // store to mono / collection-grid / collection-editorial from the
-  // admin to overrule the heuristic.
-  const resolved: StoreTemplate = resolveTemplate(store.template, products.length);
-
-  const jsonLdHead = (
-    <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: orgJsonLd }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbJsonLd }} />
-    </>
-  );
-
-  if (!error && resolved === 'mono' && products.length >= 1) {
-    return (
-      <>
-        {jsonLdHead}
-        <TrackPageView
-          slug={slug}
-          eventName="view_content"
-          productId={products[0].id}
-          variantId={products[0].variants?.[0]?.id}
-        />
-        <MonoProductLanding store={store} product={products[0]} />
-      </>
-    );
-  }
-
-  if (!error && resolved === 'collection-editorial' && products.length >= 1) {
-    return (
-      <>
-        {jsonLdHead}
-        <TrackPageView slug={slug} eventName="page_view" />
-        <CollectionEditorialLanding store={store} products={products} />
-      </>
-    );
-  }
-
-  if (!error && resolved === 'luxury-minimal' && products.length >= 1) {
-    return (
-      <>
-        {jsonLdHead}
-        <TrackPageView slug={slug} eventName="page_view" />
-        <LuxuryMinimalLanding store={store} products={products} />
-      </>
-    );
-  }
-
-  if (!error && resolved === 'gen-z-bold' && products.length >= 1) {
-    return (
-      <>
-        {jsonLdHead}
-        <TrackPageView slug={slug} eventName="page_view" />
-        <GenZBoldLanding store={store} products={products} />
-      </>
-    );
-  }
-
-  if (!error && resolved === 'editorial-fashion' && products.length >= 1) {
-    return (
-      <>
-        {jsonLdHead}
-        <TrackPageView slug={slug} eventName="page_view" />
-        <EditorialFashionLanding store={store} products={products} />
-      </>
-    );
-  }
-
-  if (!error && resolved === 'wellness-soft' && products.length >= 1) {
-    return (
-      <>
-        {jsonLdHead}
-        <TrackPageView slug={slug} eventName="page_view" />
-        <WellnessSoftLanding store={store} products={products} />
-      </>
-    );
-  }
-
-  if (!error && resolved === 'luxury-mono' && products.length >= 1) {
-    return (
-      <>
-        {jsonLdHead}
-        <TrackPageView
-          slug={slug}
-          eventName="view_content"
-          productId={products[0].id}
-          variantId={products[0].variants?.[0]?.id}
-        />
-        <LuxuryMonoLanding store={store} products={products} />
-      </>
-    );
-  }
-
-  // ============== Wix ingest batch — May 2026 ==============
-  const ingested: Record<string, React.ComponentType<{ store: typeof store; products: typeof products }>> = {
-    'wellness-serenity': WellnessSerenityLanding,
-    'wellness-pulse': WellnessPulseLanding,
-    'wellness-dance': WellnessDanceLanding,
-    'wellness-studio': WellnessStudioLanding,
-    'wellness-retreat': WellnessRetreatLanding,
-    'wellness-fitness-blog': WellnessFitnessBlogLanding,
-    'wellness-massage-quiet': WellnessMassageQuietLanding,
-    'wellness-onyx-gym': WellnessOnyxGymLanding,
-    'events-musicart': EventsMusicartLanding,
-    'events-bouquet': EventsBouquetLanding,
-    'events-arcadium': EventsArcadiumLanding,
-    'events-summit': EventsSummitLanding,
-    'events-converge': EventsConvergeLanding,
-    'fashion-boutique-1622': FashionBoutique1622Landing,
-    'beauty-salon-2851': BeautySalon2851Landing,
-    'fiora-locks-wh1270': FioraLocksLanding,
-    'adventure-travel-2787': AdventureTravel2787Landing,
-  };
-
-  const IngestedComponent = ingested[resolved];
-  if (!error && IngestedComponent && products.length >= 1) {
-    return (
-      <>
-        {jsonLdHead}
-        <TrackPageView slug={slug} eventName="page_view" />
-        <IngestedComponent store={store} products={products} />
-      </>
-    );
-  }
+  // The 24 bespoke landing templates were removed (audit cleanup). Every store
+  // now renders the generic storefront: hero + product grid, driven by the
+  // store's locked palette. The single/grid distinction is kept for UX.
+  const isMono = products.length === 1;
 
   return (
     <div>
-      {jsonLdHead}
-      <TrackPageView slug={slug} eventName="page_view" />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: orgJsonLd }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbJsonLd }} />
+      <TrackPageView
+        slug={slug}
+        eventName={isMono && products[0] ? 'view_content' : 'page_view'}
+        productId={isMono ? products[0]?.id : undefined}
+        variantId={isMono ? products[0]?.variants?.[0]?.id : undefined}
+      />
+
       {/* Hero */}
       <section
-        className="text-white py-20 text-center"
+        className="py-20 text-center text-white"
         style={{ backgroundColor: store.primaryColor }}
       >
-        <div className="max-w-3xl mx-auto px-4">
-          <div className="inline-flex mb-5"><StoreLogo emoji={store.logoEmoji} size={56} strokeWidth={1.25} /></div>
-          <h1 className="text-4xl font-bold mb-3">{store.name}</h1>
-          {store.tagline && <p className="text-xl opacity-90 mb-2">{store.tagline}</p>}
+        <div className="mx-auto max-w-3xl px-4">
+          <div className="mb-5 inline-flex"><StoreLogo emoji={store.logoEmoji} size={56} strokeWidth={1.25} /></div>
+          <h1 className="mb-3 text-4xl font-bold">{store.name}</h1>
+          {store.tagline && <p className="mb-2 text-xl opacity-90">{store.tagline}</p>}
           {store.description && (
-            <p className="text-sm opacity-70 max-w-lg mx-auto">{store.description}</p>
+            <p className="mx-auto max-w-lg text-sm opacity-70">{store.description}</p>
           )}
           <div
-            className="inline-block mt-6 px-6 py-2 rounded-full text-sm font-medium"
+            className="mt-6 inline-block rounded-full px-6 py-2 text-sm font-medium"
             style={{ backgroundColor: store.accentColor }}
           >
             {store.productCount} produits disponibles
@@ -262,27 +116,23 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
       </section>
 
       {/* Products grid */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <h2 className="text-2xl font-bold mb-8 text-zinc-900">Nos produits</h2>
+      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <h2 className="mb-8 text-2xl font-bold text-zinc-900">Nos produits</h2>
 
         {error && (
           <div
-            className="border p-4 rounded mb-6"
-            style={{
-              backgroundColor: errorTone.bg,
-              color: errorTone.text,
-              borderColor: errorTone.border,
-            }}
+            className="mb-6 rounded border p-4"
+            style={{ backgroundColor: errorTone.bg, color: errorTone.text, borderColor: errorTone.border }}
           >
             {error}
           </div>
         )}
 
         {!error && products.length === 0 && (
-          <p className="text-zinc-500 text-center py-20">Aucun produit disponible pour le moment.</p>
+          <p className="py-20 text-center text-zinc-500">Aucun produit disponible pour le moment.</p>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {products.map((product) => {
             const variant = product.variants?.[0];
             const price = variant?.calculated_price?.calculated_amount;
@@ -292,7 +142,7 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
               <Link
                 key={product.id}
                 href={`/shop/${slug}/products/${product.handle}`}
-                className="group bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden border border-zinc-100"
+                className="group overflow-hidden rounded-xl border border-zinc-100 bg-white shadow-sm transition-shadow hover:shadow-md"
               >
                 <div className="aspect-square overflow-hidden bg-zinc-100">
                   {imageUrl ? (
@@ -300,25 +150,25 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
                     <img
                       src={imageUrl}
                       alt={product.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-zinc-400">
+                    <div className="flex h-full w-full items-center justify-center text-zinc-400">
                       <StoreLogo emoji={store.logoEmoji} size={40} strokeWidth={1.25} />
                     </div>
                   )}
                 </div>
                 <div className="p-4">
-                  <h3 className="font-semibold text-zinc-900 text-sm line-clamp-2 mb-2">
+                  <h3 className="mb-2 line-clamp-2 text-sm font-semibold text-zinc-900">
                     {product.title}
                   </h3>
                   {price !== undefined && (
-                    <div className="font-bold text-lg" style={{ color: store.accentColor }}>
+                    <div className="text-lg font-bold" style={{ color: store.accentColor }}>
                       {formatMoney(price, variant?.calculated_price?.currency_code || 'eur')}
                     </div>
                   )}
                   <div
-                    className="mt-3 w-full text-center text-sm py-2 rounded-lg text-white font-medium transition-opacity group-hover:opacity-90"
+                    className="mt-3 w-full rounded-lg py-2 text-center text-sm font-medium text-white transition-opacity group-hover:opacity-90"
                     style={{ backgroundColor: store.primaryColor }}
                   >
                     Voir le produit
@@ -333,32 +183,22 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
   );
 }
 
-function resolveTemplate(template: StoreTemplate, productCount: number): StoreTemplate {
-  if (template !== 'auto') return template;
-  if (productCount === 1) return 'mono';
-  return 'collection-grid';
-}
-
 function StorePreparing({ store }: { store: import('@/lib/store-config').StoreConfig }) {
-  // A waiting spinner should never impose a brand color that fights the
-  // store's locked palette. Use palette.accent when present, otherwise a
-  // neutral zinc tone — never the legacy amber default.
   const accent =
     store.palette && typeof store.palette === 'object' && 'accent' in store.palette
       ? (store.palette as { accent?: string }).accent ?? null
       : null;
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-white px-6">
-      <div className="max-w-md text-center space-y-6">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 px-6 text-white">
+      <div className="max-w-md space-y-6 text-center">
         <div className="text-5xl">{store.logoEmoji || '🛍️'}</div>
         <h2 className="text-3xl font-bold tracking-tight">{store.name}</h2>
-        <p className="text-zinc-400 text-lg">
-          Votre boutique est en cours de préparation.
-          Revenez dans quelques minutes.
+        <p className="text-lg text-zinc-400">
+          Votre boutique est en cours de préparation. Revenez dans quelques minutes.
         </p>
-        <div className="inline-flex items-center gap-2 text-zinc-500 text-sm">
+        <div className="inline-flex items-center gap-2 text-sm text-zinc-500">
           <span
-            className={`h-1.5 w-1.5 rounded-full animate-pulse${accent ? '' : ' bg-zinc-400'}`}
+            className={`h-1.5 w-1.5 animate-pulse rounded-full${accent ? '' : ' bg-zinc-400'}`}
             style={accent ? { backgroundColor: accent } : undefined}
           />
           Génération des visuels en cours…

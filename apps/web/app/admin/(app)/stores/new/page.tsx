@@ -185,6 +185,13 @@ function NewStoreForm() {
   const canSubmit = niche.trim().length > 0 && storeName.trim().length > 0 && !running;
   const isActive = running || !!result || !!error;
 
+  const missingNiche = niche.trim().length === 0;
+  const missingName = storeName.trim().length === 0;
+  let disabledHint = '';
+  if (missingNiche && missingName) disabledHint = 'Renseigne une niche et un nom pour lancer la création.';
+  else if (missingNiche) disabledHint = 'Renseigne une niche pour lancer la création.';
+  else if (missingName) disabledHint = 'Renseigne un nom de store pour lancer la création.';
+
   return (
     <div className="space-y-8">
       <AdminPageHeader
@@ -291,20 +298,25 @@ function NewStoreForm() {
                 </label>
               </div>
 
-              <div className="flex items-center justify-end gap-3 border-t border-white/10 pt-6">
-                <Link
-                  href="/admin/stores"
-                  className="rounded-md px-3 py-2 text-sm font-semibold text-gray-400 hover:text-white"
-                >
-                  Annuler
-                </Link>
-                <button
-                  type="submit"
-                  disabled={!canSubmit}
-                  className="rounded-md bg-indigo-500 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Créer le store
-                </button>
+              <div className="flex items-center justify-between gap-3 border-t border-white/10 pt-6">
+                <p className="min-h-[1.25rem] text-xs text-gray-500" aria-live="polite">
+                  {disabledHint}
+                </p>
+                <div className="flex items-center gap-3">
+                  <Link
+                    href="/admin/stores"
+                    className="rounded-md px-3 py-2 text-sm font-semibold text-gray-400 hover:text-white"
+                  >
+                    Annuler
+                  </Link>
+                  <button
+                    type="submit"
+                    disabled={!canSubmit}
+                    className="rounded-md bg-indigo-500 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Créer le store
+                  </button>
+                </div>
               </div>
             </form>
           </AdminCard>

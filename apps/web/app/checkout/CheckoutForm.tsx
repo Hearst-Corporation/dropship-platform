@@ -119,21 +119,21 @@ export function CheckoutForm({ cart, shippingOptions, shippingError, stripeEnabl
 
       {step === 'address' && (
         <div className="space-y-3">
-          <Input label="Email" value={form.email} onChange={(v) => setField('email', v)} type="email" />
+          <Input label="Email" value={form.email} onChange={(v) => setField('email', v)} type="email" autoComplete="email" />
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Prénom" value={form.first_name} onChange={(v) => setField('first_name', v)} />
-            <Input label="Nom" value={form.last_name} onChange={(v) => setField('last_name', v)} />
+            <Input label="Prénom" value={form.first_name} onChange={(v) => setField('first_name', v)} autoComplete="given-name" />
+            <Input label="Nom" value={form.last_name} onChange={(v) => setField('last_name', v)} autoComplete="family-name" />
           </div>
-          <Input label="Adresse" value={form.address_1} onChange={(v) => setField('address_1', v)} />
+          <Input label="Adresse" value={form.address_1} onChange={(v) => setField('address_1', v)} autoComplete="address-line1" />
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Code postal" value={form.postal_code} onChange={(v) => setField('postal_code', v)} />
-            <Input label="Ville" value={form.city} onChange={(v) => setField('city', v)} />
+            <Input label="Code postal" value={form.postal_code} onChange={(v) => setField('postal_code', v)} autoComplete="postal-code" />
+            <Input label="Ville" value={form.city} onChange={(v) => setField('city', v)} autoComplete="address-level2" />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Région / Département" value={form.province} onChange={(v) => setField('province', v)} />
+            <Input label="Région / Département" value={form.province} onChange={(v) => setField('province', v)} autoComplete="address-level1" />
             <Select label="Pays" value={form.country_code} onChange={(v) => setField('country_code', v)} options={COUNTRIES.map((c) => ({ value: c.code, label: c.name }))} />
           </div>
-          <Input label="Téléphone" value={form.phone} onChange={(v) => setField('phone', v)} type="tel" />
+          <Input label="Téléphone" value={form.phone} onChange={(v) => setField('phone', v)} type="tel" autoComplete="tel" />
           <button
             onClick={submitAddress}
             disabled={
@@ -295,7 +295,7 @@ function Step({ n, active, done, children }: { n: number; active: boolean; done:
   );
 }
 
-function Input({ label, value, onChange, type = 'text' }: { label: string; value: string; onChange: (v: string) => void; type?: string }) {
+function Input({ label, value, onChange, type = 'text', autoComplete }: { label: string; value: string; onChange: (v: string) => void; type?: string; autoComplete?: string }) {
   return (
     <label className="block text-sm">
       <span
@@ -308,12 +308,12 @@ function Input({ label, value, onChange, type = 'text' }: { label: string; value
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded px-3 py-2"
+        autoComplete={autoComplete}
+        className="w-full rounded px-3 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
         style={{
           backgroundColor: 'var(--ct-surface-1, rgba(255,255,255,0.04))',
           border: '1px solid var(--ct-border, rgba(255,255,255,0.10))',
           color: 'var(--ct-text-primary, rgba(245,245,245,0.92))',
-          outline: 'none',
         }}
       />
     </label>

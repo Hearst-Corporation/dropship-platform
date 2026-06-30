@@ -60,8 +60,9 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
   if (!storeId) notFound();
   const db = getDbRead();
 
-  const storeRes = await db.query<StoreDetailRow>(
-    `SELECT id, slug, name, niche, tagline, description, logo_emoji, primary_color, accent_color,
+  const [storeRes, productsRes] = await Promise.all([
+    db.query<StoreDetailRow>(
+      `SELECT id, slug, name, niche, tagline, description, logo_emoji, primary_color, accent_color,
             status, product_count, medusa_sales_channel_id, medusa_publishable_key,
             error_message, created_at, updated_at,
             ga4_measurement_id, ga4_api_secret,
@@ -70,18 +71,19 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
             google_ads_conversion_action, google_merchant_id,
             template, custom_domain
      FROM dropship_stores WHERE id = $1 LIMIT 1`,
-    [storeId],
-  );
+      [storeId],
+    ),
+    db.query<ProductRow>(
+      `SELECT id, supplier, enriched_title, enriched_description, price_cents, cost_cents,
+            image_url, supplier_url, medusa_product_id, created_at
+     FROM dropship_store_products WHERE store_id = $1 ORDER BY created_at ASC LIMIT 500`,
+      [storeId],
+    ),
+  ]);
 
   const store = storeRes.rows[0];
   if (!store) notFound();
 
-  const productsRes = await db.query<ProductRow>(
-    `SELECT id, supplier, enriched_title, enriched_description, price_cents, cost_cents,
-            image_url, supplier_url, medusa_product_id, created_at
-     FROM dropship_store_products WHERE store_id = $1 ORDER BY created_at ASC`,
-    [storeId],
-  );
   const products = productsRes.rows;
 
   const margin = products.length > 0

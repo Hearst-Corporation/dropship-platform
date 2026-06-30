@@ -70,43 +70,55 @@ export default async function StoreAnalyticsPage({ params, searchParams }: Props
   const cfg = RANGE_TO_INTERVAL[range] ?? RANGE_TO_INTERVAL['30d']!;
   const intervalSql = cfg.sql;
 
-  // ============ UA — Acquisition ============
-  const acquisitionRes = await db.query<AcquisitionRow>(
-    `SELECT
-       COALESCE(NULLIF(utm_source, ''), '(direct)') AS source,
-       COALESCE(NULLIF(utm_campaign, ''), '(none)') AS campaign,
-       COUNT(DISTINCT session_id) FILTER (WHERE event_name = 'add_to_cart')::int AS visits,
-       COUNT(*) FILTER (WHERE event_name = 'add_to_cart')::int AS adds_to_cart,
-       COUNT(*) FILTER (WHERE event_name = 'initiate_checkout')::int AS initiate_checkouts,
-       COUNT(*) FILTER (WHERE event_name = 'purchase')::int AS purchases,
-       COALESCE(SUM(value_minor) FILTER (WHERE event_name = 'purchase'), 0)::int AS revenue_minor
-     FROM dropship_funnel_events
-     WHERE store_slug = $1 AND created_at >= now() - ${intervalSql}
-     GROUP BY source, campaign
-     ORDER BY revenue_minor DESC, purchases DESC, adds_to_cart DESC
-     LIMIT 50`,
-    [store.slug],
-  );
-
-  // ============ UX — Funnel ============
-  const funnelRes = await db.query<FunnelRow>(
-    `SELECT
-       event_name,
-       COUNT(DISTINCT session_id)::int AS sessions,
-       COUNT(*)::int AS events,
-       COALESCE(SUM(value_minor), 0)::int AS revenue_minor
-     FROM dropship_funnel_events
-     WHERE store_slug = $1 AND created_at >= now() - ${intervalSql}
-       AND event_name = ANY($2::text[])
-     GROUP BY event_name`,
-    [store.slug, [...FUNNEL_ORDER]],
-  );
-  const funnelByName = new Map(funnelRes.rows.map((r) => [r.event_name, r]));
+  // UA (acquisition) et UX (funnel) ne dépendent que de store.slug — on les
+  // lance en parallèle. Fail-soft : une erreur DB ne doit pas afficher l'UI
+  // d'erreur dans l'admin, on retombe sur des résultats vides.
+  let acquisitionRows: AcquisitionRow[] = [];
+  let funnelRows: FunnelRow[] = [];
+  try {
+    const [acquisitionRes, funnelRes] = await Promise.all([
+      // ============ UA — Acquisition ============
+      db.query<AcquisitionRow>(
+        `SELECT
+           COALESCE(NULLIF(utm_source, ''), '(direct)') AS source,
+           COALESCE(NULLIF(utm_campaign, ''), '(none)') AS campaign,
+           COUNT(DISTINCT session_id) FILTER (WHERE event_name = 'add_to_cart')::int AS visits,
+           COUNT(*) FILTER (WHERE event_name = 'add_to_cart')::int AS adds_to_cart,
+           COUNT(*) FILTER (WHERE event_name = 'initiate_checkout')::int AS initiate_checkouts,
+           COUNT(*) FILTER (WHERE event_name = 'purchase')::int AS purchases,
+           COALESCE(SUM(value_minor) FILTER (WHERE event_name = 'purchase'), 0)::int AS revenue_minor
+         FROM dropship_funnel_events
+         WHERE store_slug = $1 AND created_at >= now() - ${intervalSql}
+         GROUP BY source, campaign
+         ORDER BY revenue_minor DESC, purchases DESC, adds_to_cart DESC
+         LIMIT 50`,
+        [store.slug],
+      ),
+      // ============ UX — Funnel ============
+      db.query<FunnelRow>(
+        `SELECT
+           event_name,
+           COUNT(DISTINCT session_id)::int AS sessions,
+           COUNT(*)::int AS events,
+           COALESCE(SUM(value_minor), 0)::int AS revenue_minor
+         FROM dropship_funnel_events
+         WHERE store_slug = $1 AND created_at >= now() - ${intervalSql}
+           AND event_name = ANY($2::text[])
+         GROUP BY event_name`,
+        [store.slug, [...FUNNEL_ORDER]],
+      ),
+    ]);
+    acquisitionRows = acquisitionRes.rows;
+    funnelRows = funnelRes.rows;
+  } catch (err) {
+    console.error('[store-analytics] requêtes funnel/acquisition échouées:', err);
+  }
+  const funnelByName = new Map(funnelRows.map((r) => [r.event_name, r]));
 
   // ============ Aggregates ============
-  const totalRevenue = acquisitionRes.rows.reduce((acc, r) => acc + (r.revenue_minor || 0), 0);
-  const totalPurchases = acquisitionRes.rows.reduce((acc, r) => acc + (r.purchases || 0), 0);
-  const totalAdds = acquisitionRes.rows.reduce((acc, r) => acc + (r.adds_to_cart || 0), 0);
+  const totalRevenue = acquisitionRows.reduce((acc, r) => acc + (r.revenue_minor || 0), 0);
+  const totalPurchases = acquisitionRows.reduce((acc, r) => acc + (r.purchases || 0), 0);
+  const totalAdds = acquisitionRows.reduce((acc, r) => acc + (r.adds_to_cart || 0), 0);
   const aov = totalPurchases > 0 ? totalRevenue / totalPurchases : 0;
   const cartToPurchase = totalAdds > 0 ? (totalPurchases / totalAdds) * 100 : 0;
 
@@ -213,7 +225,7 @@ export default async function StoreAnalyticsPage({ params, searchParams }: Props
             .
           </p>
         </div>
-        {acquisitionRes.rows.length === 0 ? (
+        {acquisitionRows.length === 0 ? (
           <div className="px-6 py-12 text-center text-sm text-gray-500">
             Aucun évènement enregistré sur cette période.
           </div>
@@ -232,7 +244,7 @@ export default async function StoreAnalyticsPage({ params, searchParams }: Props
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/10">
-                {acquisitionRes.rows.map((r, i) => {
+                {acquisitionRows.map((r, i) => {
                   const conv = r.adds_to_cart > 0 ? (r.purchases / r.adds_to_cart) * 100 : 0;
                   return (
                     <tr key={i}>
