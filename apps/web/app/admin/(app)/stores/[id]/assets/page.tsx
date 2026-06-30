@@ -2,8 +2,9 @@ import { notFound } from 'next/navigation';
 import { getDbRead } from '@/lib/db';
 import { resolveStoreId } from '@/lib/resolve-store';
 import { ASSET_KINDS, type AssetKind } from '@/lib/agent/asset-regenerator';
-import { Heading } from '@/components/catalyst/heading';
-import { Text, Code, Strong } from '@/components/catalyst/text';
+import { Heading, Subheading } from '@/components/catalyst/heading';
+import { Text, Code } from '@/components/catalyst/text';
+import { Badge } from '@/components/catalyst/badge';
 import { AssetRegenerator } from './AssetRegenerator';
 
 export const dynamic = 'force-dynamic';
@@ -100,7 +101,7 @@ export default async function StoreAssetsPage({ params }: { params: Promise<{ id
   };
 
   return (
-    <div className="flex flex-1 flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-8">
       <div className="flex flex-col gap-1">
         <Text className="text-xs uppercase tracking-wide">{`Production · Assets · ${store.niche}`}</Text>
         <Heading>Assets de {store.name}</Heading>
@@ -112,10 +113,16 @@ export default async function StoreAssetsPage({ params }: { params: Promise<{ id
       </div>
 
       {!product?.image_url && (
-        <div className="rounded-lg bg-amber-50 p-4 text-sm text-amber-700 ring-1 ring-amber-600/20 dark:bg-amber-500/10 dark:text-amber-400 dark:ring-amber-500/20">
-          <Strong>Aucun produit de référence.</Strong> Aucune image produit n&apos;est associée à ce
-          store, la régénération ne peut pas s&apos;appuyer sur un visuel source. Importe un produit
-          avec une image avant d&apos;utiliser cette page.
+        <div>
+          <div className="flex items-center gap-2">
+            <Badge color="amber">Attention</Badge>
+            <Subheading>Aucun produit de référence</Subheading>
+          </div>
+          <Text className="mt-2">
+            Aucune image produit n&apos;est associée à ce store, la régénération ne peut pas
+            s&apos;appuyer sur un visuel source. Importe un produit avec une image avant
+            d&apos;utiliser cette page.
+          </Text>
         </div>
       )}
 

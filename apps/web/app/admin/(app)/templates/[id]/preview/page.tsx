@@ -1,6 +1,6 @@
 import { ChevronLeftIcon } from '@heroicons/react/20/solid';
-import { Heading } from '@/components/catalyst/heading';
-import { Text, Strong } from '@/components/catalyst/text';
+import { Heading, Subheading } from '@/components/catalyst/heading';
+import { Text } from '@/components/catalyst/text';
 import { Button } from '@/components/catalyst/button';
 
 export const dynamic = 'force-dynamic';
@@ -18,7 +18,7 @@ export default async function TemplatePreviewPage({
 }) {
   const { id } = await params;
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <Heading>Aperçu indisponible</Heading>
@@ -29,11 +29,9 @@ export default async function TemplatePreviewPage({
           Templates
         </Button>
       </div>
-      <div className="rounded-lg bg-white px-6 py-16 text-center ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
-        <Text>
-          <Strong>Storefront générique</Strong>
-        </Text>
-        <Text className="mx-auto mt-1 max-w-md">
+      <div>
+        <Subheading>Storefront générique</Subheading>
+        <Text className="mt-2 max-w-md">
           Toutes les boutiques rendent désormais le storefront standard (hero + grille produits)
           piloté par la palette du store. Il n&apos;y a plus de templates sur mesure à prévisualiser.
         </Text>

@@ -15,6 +15,11 @@ import {
   TableHeader,
   TableCell,
 } from '@/components/catalyst/table';
+import {
+  DescriptionList,
+  DescriptionTerm,
+  DescriptionDetails,
+} from '@/components/catalyst/description-list';
 import { StoreActions } from './StoreActions';
 
 export const dynamic = 'force-dynamic';
@@ -87,7 +92,7 @@ export default async function StoresPage({
   const totalProducts = active.reduce((acc, s) => acc + (s.product_count || 0), 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <Text className="text-xs/5 font-semibold uppercase tracking-wide text-indigo-500 dark:text-indigo-400">
@@ -104,19 +109,22 @@ export default async function StoresPage({
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatSurface label="En ligne" value={String(active.length)} />
-        <StatSurface label="En création" value={String(creating.length)} />
-        <StatSurface label="En erreur" value={String(failed.length)} />
-        <StatSurface label="Produits publiés" value={String(totalProducts)} />
-      </div>
+      <DescriptionList>
+        <DescriptionTerm>En ligne</DescriptionTerm>
+        <DescriptionDetails className="tabular-nums">{active.length}</DescriptionDetails>
+        <DescriptionTerm>En création</DescriptionTerm>
+        <DescriptionDetails className="tabular-nums">{creating.length}</DescriptionDetails>
+        <DescriptionTerm>En erreur</DescriptionTerm>
+        <DescriptionDetails className="tabular-nums">{failed.length}</DescriptionDetails>
+        <DescriptionTerm>Produits publiés</DescriptionTerm>
+        <DescriptionDetails className="tabular-nums">{totalProducts}</DescriptionDetails>
+      </DescriptionList>
 
       {rows.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="rounded-lg bg-white p-2 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
-          <Table dense>
-            <TableHead>
+        <Table dense>
+          <TableHead>
               <TableRow>
                 <TableHeader>Store</TableHeader>
                 <TableHeader>Niche</TableHeader>
@@ -186,8 +194,7 @@ export default async function StoresPage({
                 );
               })}
             </TableBody>
-          </Table>
-        </div>
+        </Table>
       )}
 
       {totalPages > 1 && (
@@ -199,17 +206,6 @@ export default async function StoresPage({
           <PaginationLink page={page + 1} disabled={page >= totalPages} label="Suivant →" />
         </nav>
       )}
-    </div>
-  );
-}
-
-function StatSurface({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
-      <Text>{label}</Text>
-      <Heading level={2} className="mt-1 text-2xl/8 tabular-nums">
-        {value}
-      </Heading>
     </div>
   );
 }
@@ -239,7 +235,7 @@ function PaginationLink({
 
 function EmptyState() {
   return (
-    <div className="rounded-lg border border-dashed border-zinc-950/10 bg-white px-6 py-20 text-center ring-1 ring-zinc-950/5 dark:border-white/15 dark:bg-zinc-900 dark:ring-white/10">
+    <div className="py-20 text-center">
       <Text className="text-xs/5 font-semibold uppercase tracking-wide text-indigo-500 dark:text-indigo-400">
         Premier pas
       </Text>

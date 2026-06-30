@@ -43,7 +43,7 @@ export default async function SettingsPage() {
   const aliLabel = isConnected && !isExpired ? 'Connecté' : isConnected ? 'Token expiré' : 'Non connecté';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
         <Text className="text-xs/5 font-semibold uppercase tracking-wide text-zinc-500">
           Production · Intégrations
@@ -55,66 +55,66 @@ export default async function SettingsPage() {
         </Text>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <ProviderCard
-          name="AliExpress DS API"
-          meta="AppKey 531346 · App Category: Drop Shipping"
-          badge={<Badge color={aliColor}>{aliLabel}</Badge>}
-        >
-          {isConnected ? (
-            <DescriptionList>
-              {aliNick?.value && (
-                <>
-                  <DescriptionTerm>Compte</DescriptionTerm>
-                  <DescriptionDetails>{aliNick.value}</DescriptionDetails>
-                </>
-              )}
-              {expiresAt && (
-                <>
-                  <DescriptionTerm>Expire le</DescriptionTerm>
-                  <DescriptionDetails>
-                    <span className={isExpired ? 'text-zinc-500' : undefined}>{fmtDate(expiresAt)}</span>
-                  </DescriptionDetails>
-                </>
-              )}
-              {aliToken?.updatedAt && (
-                <>
-                  <DescriptionTerm>Dernière auth</DescriptionTerm>
-                  <DescriptionDetails>{fmtDate(aliToken.updatedAt)}</DescriptionDetails>
-                </>
-              )}
-            </DescriptionList>
-          ) : (
-            <Text>
-              L&apos;agent a besoin d&apos;un <Code>access_token</Code> OAuth pour appeler{' '}
-              <Code>aliexpress.solution.product.list.get</Code>. Autorise l&apos;accès avec ton compte AliExpress.
-            </Text>
-          )}
-          <div className="pt-2">
-            <Button href="/api/aliexpress/oauth/start" color="indigo">
-              {isConnected && !isExpired ? 'Re-autoriser AliExpress' : 'Connecter AliExpress'}
-            </Button>
-          </div>
-        </ProviderCard>
-
-        <ProviderCard
-          name="CJ Dropshipping API"
-          meta="Email: adriennejkovic@gmail.com"
-          badge={<Badge color="zinc">API Key manquante</Badge>}
-        >
+      <ProviderSection
+        name="AliExpress DS API"
+        meta="AppKey 531346 · App Category: Drop Shipping"
+        badge={<Badge color={aliColor}>{aliLabel}</Badge>}
+      >
+        {isConnected ? (
+          <DescriptionList>
+            {aliNick?.value && (
+              <>
+                <DescriptionTerm>Compte</DescriptionTerm>
+                <DescriptionDetails>{aliNick.value}</DescriptionDetails>
+              </>
+            )}
+            {expiresAt && (
+              <>
+                <DescriptionTerm>Expire le</DescriptionTerm>
+                <DescriptionDetails>
+                  <span className={isExpired ? 'text-zinc-500' : undefined}>{fmtDate(expiresAt)}</span>
+                </DescriptionDetails>
+              </>
+            )}
+            {aliToken?.updatedAt && (
+              <>
+                <DescriptionTerm>Dernière auth</DescriptionTerm>
+                <DescriptionDetails>{fmtDate(aliToken.updatedAt)}</DescriptionDetails>
+              </>
+            )}
+          </DescriptionList>
+        ) : (
           <Text>
-            L&apos;authentification CJ nécessite une <Strong>API Key dédiée</Strong> (pas le mot de passe du compte). Va
-            sur <TextLink href="https://cjdropshipping.com" target="_blank" rel="noreferrer">cjdropshipping.com</TextLink>{' '}
-            &#8594; Account Settings &#8594; Developer &#8594; copie l&apos;API Key et mets-la dans{' '}
-            <Code>CJ_DROPSHIPPING_API_KEY</Code>.
+            L&apos;agent a besoin d&apos;un <Code>access_token</Code> OAuth pour appeler{' '}
+            <Code>aliexpress.solution.product.list.get</Code>. Autorise l&apos;accès avec ton compte AliExpress.
           </Text>
-        </ProviderCard>
-      </div>
+        )}
+        <div className="pt-2">
+          <Button href="/api/aliexpress/oauth/start" color="indigo">
+            {isConnected && !isExpired ? 'Re-autoriser AliExpress' : 'Connecter AliExpress'}
+          </Button>
+        </div>
+      </ProviderSection>
+
+      <hr className="my-10 border-zinc-950/10 dark:border-white/10" />
+
+      <ProviderSection
+        name="CJ Dropshipping API"
+        meta="Email: adriennejkovic@gmail.com"
+        badge={<Badge color="zinc">API Key manquante</Badge>}
+      >
+        <Text>
+          L&apos;authentification CJ nécessite une <Strong>API Key dédiée</Strong> (pas le mot de passe du compte). Va
+          sur <TextLink href="https://cjdropshipping.com" target="_blank" rel="noreferrer">cjdropshipping.com</TextLink>{' '}
+          &#8594; Account Settings &#8594; Developer &#8594; copie l&apos;API Key et mets-la dans{' '}
+          <Code>CJ_DROPSHIPPING_API_KEY</Code>.
+        </Text>
+      </ProviderSection>
     </div>
   );
 }
 
-function ProviderCard({
+function ProviderSection({
   name,
   meta,
   badge,
@@ -126,16 +126,15 @@ function ProviderCard({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-lg bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
-      <div className="flex items-center gap-3 border-b border-zinc-950/5 px-5 py-4 dark:border-white/10">
-        <span className="h-9 w-1 shrink-0 rounded-full bg-indigo-500" aria-hidden />
+    <section className="space-y-4">
+      <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
-          <Subheading className="truncate">{name}</Subheading>
-          <Text className="truncate text-xs/5">{meta}</Text>
+          <Subheading>{name}</Subheading>
+          <Text className="text-xs/5">{meta}</Text>
         </div>
         <div className="shrink-0">{badge}</div>
       </div>
-      <div className="space-y-3 px-5 py-4">{children}</div>
-    </div>
+      {children}
+    </section>
   );
 }

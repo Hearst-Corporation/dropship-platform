@@ -152,7 +152,7 @@ export default async function StoreAnalyticsPage({ params, searchParams }: Props
   ];
 
   return (
-    <div className="flex flex-1 flex-col space-y-6">
+    <div className="flex flex-1 flex-col space-y-12">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <Text className="text-xs/5 font-medium uppercase tracking-wider">
@@ -177,40 +177,32 @@ export default async function StoreAnalyticsPage({ params, searchParams }: Props
       </div>
 
       {/* Aggregate KPIs */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((s) => (
-          <div
-            key={s.label}
-            className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10"
-          >
-            <Text className="text-xs/5 font-medium uppercase tracking-wider">{s.label}</Text>
-            <Heading level={2} className="mt-2 text-2xl/8">
-              {s.value}
-            </Heading>
-            {s.hint && (
-              <Text className="mt-1 text-xs/5">{s.hint}</Text>
-            )}
-          </div>
-        ))}
-      </div>
+      <section>
+        <Subheading>Indicateurs clés</Subheading>
+        <DescriptionList className="mt-4">
+          {stats.map((s) => (
+            <DescriptionListKpi key={s.label} term={s.label} value={s.value} hint={s.hint} />
+          ))}
+        </DescriptionList>
+      </section>
+
+      <hr className="my-2 border-zinc-950/10 dark:border-white/10" />
 
       {/* UX — Funnel */}
-      <div className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+      <section>
         <Subheading>Comportement (UX)</Subheading>
         <Text className="mt-1">
           Funnel des sessions uniques sur les events serveur. Les session_id se persistent 30 jours.
         </Text>
-        <div className="mt-4">
-          <DescriptionList>
-            {FUNNEL_ORDER.map((name) => (
-              <DescriptionListPair
-                key={name}
-                term={FUNNEL_LABEL[name] ?? name}
-                detail={funnelByName.get(name)?.sessions ?? 0}
-              />
-            ))}
-          </DescriptionList>
-        </div>
+        <DescriptionList className="mt-4">
+          {FUNNEL_ORDER.map((name) => (
+            <DescriptionListPair
+              key={name}
+              term={FUNNEL_LABEL[name] ?? name}
+              detail={funnelByName.get(name)?.sessions ?? 0}
+            />
+          ))}
+        </DescriptionList>
         {store.clarity_id && (
           <Text className="mt-4 text-xs/5">
             Pour les replays vidéo et les heatmaps, ouvre le projet sur{' '}
@@ -224,10 +216,12 @@ export default async function StoreAnalyticsPage({ params, searchParams }: Props
             .
           </Text>
         )}
-      </div>
+      </section>
+
+      <hr className="my-2 border-zinc-950/10 dark:border-white/10" />
 
       {/* UA — Acquisition by source/campaign */}
-      <div className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+      <section>
         <Subheading>Acquisition (UA)</Subheading>
         <Text className="mt-1">
           Décomposition par utm_source / utm_campaign. Les visiteurs sans UTM sont regroupés sous{' '}
@@ -277,10 +271,12 @@ export default async function StoreAnalyticsPage({ params, searchParams }: Props
             </TableBody>
           </Table>
         )}
-      </div>
+      </section>
+
+      <hr className="my-2 border-zinc-950/10 dark:border-white/10" />
 
       {/* Pixel/CAPI status */}
-      <div className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+      <section>
         <Subheading>Plomberie connectée</Subheading>
         <div className="mt-4 flex flex-wrap gap-3">
           <ConnState label="GA4" set={!!store.ga4_measurement_id} />
@@ -292,7 +288,7 @@ export default async function StoreAnalyticsPage({ params, searchParams }: Props
           IDs vides ?{' '}
           <TextLink href={`/admin/stores/${id}/settings`}>Configure-les dans les Réglages</TextLink>
         </Text>
-      </div>
+      </section>
     </div>
   );
 }
@@ -302,6 +298,26 @@ function DescriptionListPair({ term, detail }: { term: string; detail: number })
     <>
       <DescriptionTerm>{term}</DescriptionTerm>
       <DescriptionDetails className="tabular-nums">{detail}</DescriptionDetails>
+    </>
+  );
+}
+
+function DescriptionListKpi({
+  term,
+  value,
+  hint,
+}: {
+  term: string;
+  value: string;
+  hint?: string;
+}) {
+  return (
+    <>
+      <DescriptionTerm>{term}</DescriptionTerm>
+      <DescriptionDetails className="tabular-nums">
+        <Strong>{value}</Strong>
+        {hint && <Text className="text-xs/5">{hint}</Text>}
+      </DescriptionDetails>
     </>
   );
 }

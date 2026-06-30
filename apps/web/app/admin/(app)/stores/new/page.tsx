@@ -18,9 +18,6 @@ import { Select } from '@/components/catalyst/select';
 import { CheckboxField, Checkbox } from '@/components/catalyst/checkbox';
 import { Button } from '@/components/catalyst/button';
 
-const surfaceClass =
-  'rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10';
-
 interface AgentEvent {
   type: 'step' | 'progress' | 'success' | 'error' | 'done';
   message: string;
@@ -225,88 +222,86 @@ function NewStoreForm() {
           onReset={reset}
         />
       ) : (
-        <div className="mx-auto w-full max-w-2xl">
-          <div className={surfaceClass}>
-            <Subheading>Configurer le store</Subheading>
-            <form onSubmit={handleSubmit} className="mt-6">
-              <Fieldset>
-                <FieldGroup>
+        <div className="mx-auto w-full max-w-2xl space-y-6">
+          <Subheading>Configurer le store</Subheading>
+          <form onSubmit={handleSubmit}>
+            <Fieldset>
+              <FieldGroup>
+                <Field>
+                  <Label>Niche</Label>
+                  <Description>
+                    Le mot-clé produit ou thème autour duquel l’agent construit le store.
+                  </Description>
+                  <Input
+                    name="niche"
+                    value={niche}
+                    onChange={(e) => setNiche(e.target.value)}
+                    placeholder="ex. lampes de bureau design"
+                    autoFocus
+                  />
+                </Field>
+
+                <Field>
+                  <Label>Nom du store</Label>
+                  <Input
+                    name="storeName"
+                    value={storeName}
+                    onChange={(e) => setStoreName(e.target.value)}
+                    placeholder="ex. Lueur Studio"
+                  />
+                </Field>
+
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                   <Field>
-                    <Label>Niche</Label>
-                    <Description>
-                      Le mot-clé produit ou thème autour duquel l’agent construit le store.
-                    </Description>
-                    <Input
-                      name="niche"
-                      value={niche}
-                      onChange={(e) => setNiche(e.target.value)}
-                      placeholder="ex. lampes de bureau design"
-                      autoFocus
-                    />
+                    <Label>Mode</Label>
+                    <Select
+                      name="mode"
+                      value={mode}
+                      onChange={(e) => setMode(e.target.value as 'mono' | 'collection')}
+                    >
+                      <option value="mono">Mono-produit</option>
+                      <option value="collection">Collection</option>
+                    </Select>
                   </Field>
 
                   <Field>
-                    <Label>Nom du store</Label>
-                    <Input
-                      name="storeName"
-                      value={storeName}
-                      onChange={(e) => setStoreName(e.target.value)}
-                      placeholder="ex. Lueur Studio"
-                    />
+                    <Label>Langue</Label>
+                    <Select
+                      name="language"
+                      value={language}
+                      onChange={(e) => setLanguage(e.target.value as 'fr' | 'en')}
+                    >
+                      <option value="fr">Français</option>
+                      <option value="en">English</option>
+                    </Select>
                   </Field>
-
-                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                    <Field>
-                      <Label>Mode</Label>
-                      <Select
-                        name="mode"
-                        value={mode}
-                        onChange={(e) => setMode(e.target.value as 'mono' | 'collection')}
-                      >
-                        <option value="mono">Mono-produit</option>
-                        <option value="collection">Collection</option>
-                      </Select>
-                    </Field>
-
-                    <Field>
-                      <Label>Langue</Label>
-                      <Select
-                        name="language"
-                        value={language}
-                        onChange={(e) => setLanguage(e.target.value as 'fr' | 'en')}
-                      >
-                        <option value="fr">Français</option>
-                        <option value="en">English</option>
-                      </Select>
-                    </Field>
-                  </div>
-
-                  <CheckboxField>
-                    <Checkbox
-                      name="skipVideo"
-                      checked={skipVideo}
-                      onChange={(checked) => setSkipVideo(checked)}
-                    />
-                    <Label>Ignorer la génération vidéo (création plus rapide)</Label>
-                  </CheckboxField>
-                </FieldGroup>
-              </Fieldset>
-
-              <div className="mt-8 flex items-center justify-between gap-3 border-t border-zinc-950/10 pt-6 dark:border-white/10">
-                <Text className="min-h-5 text-xs" aria-live="polite">
-                  {disabledHint}
-                </Text>
-                <div className="flex items-center gap-3">
-                  <Button plain href="/admin/stores">
-                    Annuler
-                  </Button>
-                  <Button type="submit" color="indigo" disabled={!canSubmit}>
-                    Créer le store
-                  </Button>
                 </div>
+
+                <CheckboxField>
+                  <Checkbox
+                    name="skipVideo"
+                    checked={skipVideo}
+                    onChange={(checked) => setSkipVideo(checked)}
+                  />
+                  <Label>Ignorer la génération vidéo (création plus rapide)</Label>
+                </CheckboxField>
+              </FieldGroup>
+            </Fieldset>
+
+            <div className="mt-8 flex items-center justify-between gap-3 border-t border-zinc-950/10 pt-6 dark:border-white/10">
+              <Text className="min-h-5 text-xs" aria-live="polite">
+                {disabledHint}
+              </Text>
+              <div className="flex items-center gap-3">
+                <Button plain href="/admin/stores">
+                  Annuler
+                </Button>
+                <Button type="submit" color="indigo" disabled={!canSubmit}>
+                  Créer le store
+                </Button>
               </div>
-            </form>
-          </div>
+            </div>
+          </form>
         </div>
       )}
     </div>
@@ -341,52 +336,50 @@ function CreationScreen({
 
   if (result) {
     return (
-      <div className="mx-auto w-full max-w-2xl">
-        <div className={`${surfaceClass} text-center`}>
-          <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-green-500/10 ring-1 ring-green-500/20">
-            <CheckCircleIcon className="size-7 text-green-500 dark:text-green-400" aria-hidden="true" />
-          </div>
-          <Subheading className="mt-4 text-xl!">{result.storeName}</Subheading>
-          <div className="mt-2 flex items-center justify-center gap-2">
-            <Badge color="green">Prêt à vendre</Badge>
-            <Text className="text-sm!">
-              {result.productCount} produit{result.productCount > 1 ? 's' : ''} importé
-              {result.productCount > 1 ? 's' : ''}
-            </Text>
-          </div>
-          <div className="mt-6 flex items-center justify-center gap-3">
-            <Button color="indigo" href={`/shop/${result.slug}`} target="_blank" rel="noreferrer">
-              Ouvrir le store
-              <ArrowTopRightOnSquareIcon data-slot="icon" className="size-4" aria-hidden="true" />
-            </Button>
-            <Button plain href="/admin/stores">
-              Voir tous les stores
-            </Button>
-            <Button plain type="button" onClick={onReset}>
-              Créer un autre
-            </Button>
-          </div>
+      <div className="mx-auto w-full max-w-2xl rounded-lg p-8 text-center ring-1 ring-zinc-950/10 dark:ring-white/10">
+        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-green-500/10 ring-1 ring-green-500/20">
+          <CheckCircleIcon className="size-7 text-green-500 dark:text-green-400" aria-hidden="true" />
+        </div>
+        <Heading className="mt-4">{result.storeName}</Heading>
+        <div className="mt-2 flex items-center justify-center gap-2">
+          <Badge color="green">Prêt à vendre</Badge>
+          <Text>
+            {result.productCount} produit{result.productCount > 1 ? 's' : ''} importé
+            {result.productCount > 1 ? 's' : ''}
+          </Text>
+        </div>
+        <div className="mt-6 flex items-center justify-center gap-3">
+          <Button color="indigo" href={`/shop/${result.slug}`} target="_blank" rel="noreferrer">
+            Ouvrir le store
+            <ArrowTopRightOnSquareIcon data-slot="icon" className="size-4" aria-hidden="true" />
+          </Button>
+          <Button plain href="/admin/stores">
+            Voir tous les stores
+          </Button>
+          <Button plain type="button" onClick={onReset}>
+            Créer un autre
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
-      <div className="overflow-hidden rounded-lg bg-white p-0 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+    <div className="mx-auto w-full max-w-3xl overflow-hidden rounded-lg ring-1 ring-zinc-950/10 dark:ring-white/10">
+      <div>
         {/* Header */}
         <div className="flex items-center justify-between gap-4 border-b border-zinc-950/10 px-5 py-3 dark:border-white/10">
           <div className="flex min-w-0 items-center gap-3">
             <Badge color={running ? 'indigo' : 'red'}>{running ? 'En cours' : 'Erreur'}</Badge>
-            <span className="truncate text-sm font-semibold text-zinc-950 dark:text-white">
+            <Subheading className="truncate">
               {running ? `Construction de « ${storeName} »` : `Erreur — « ${storeName} »`}
-            </span>
+            </Subheading>
           </div>
           <div className="flex shrink-0 items-center gap-3">
             {running && (
-              <span className="text-xs font-medium tabular-nums text-zinc-500 dark:text-zinc-400">
+              <Text className="tabular-nums">
                 {percent}% &middot; {elapsed}s
-              </span>
+              </Text>
             )}
             {error && (
               <Button plain type="button" onClick={onReset}>
@@ -407,18 +400,18 @@ function CreationScreen({
         {/* Étape courante */}
         {currentStep && (
           <div className="border-b border-zinc-950/10 bg-zinc-950/[0.025] px-5 py-2 dark:border-white/10 dark:bg-white/5">
-            <p className="truncate text-xs italic text-zinc-500 dark:text-zinc-400">{currentStep}</p>
+            <Text className="truncate italic">{currentStep}</Text>
           </div>
         )}
 
         {/* Error banner */}
         {error && (
           <div className="border-b border-red-500/20 bg-red-500/10 px-5 py-3">
-            <p className="flex items-center gap-1.5 text-sm font-medium text-red-600 dark:text-red-400">
+            <Text className="flex items-center gap-1.5 font-medium text-red-600! dark:text-red-400!">
               <ExclamationTriangleIcon className="size-4" aria-hidden="true" />
               Erreur de création
-            </p>
-            <p className="mt-1 whitespace-pre-wrap text-xs text-red-600/80 dark:text-red-400/80">{error}</p>
+            </Text>
+            <Text className="mt-1 whitespace-pre-wrap text-red-600/80! dark:text-red-400/80!">{error}</Text>
           </div>
         )}
 

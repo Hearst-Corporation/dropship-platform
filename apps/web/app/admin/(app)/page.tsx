@@ -195,166 +195,155 @@ export default async function PortfolioDashboard() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Heading>Vue d&apos;ensemble</Heading>
-          <Text>KPIs agrégés sur tous les stores actifs. Cliquez sur un bloc pour drill down.</Text>
-        </div>
+    <div className="space-y-12">
+      <div>
+        <Heading>Vue d&apos;ensemble</Heading>
+        <Text>KPIs agrégés sur tous les stores actifs. Cliquez sur un bloc pour drill down.</Text>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <StatSurface label="Stores actifs" value={stores.active.toLocaleString('fr-FR')} hint={`+${stores.created_7d} sur 7j`} href="/admin/stores" />
-        <StatSurface label="Produits" value={stores.total_products.toLocaleString('fr-FR')} hint={`+${stores.products_7d} sur 7j`} href="/admin/catalog" />
-        <StatSurface label="CA 30j" value={eur(revenue30dCents)} hint={`${revenue.orders_30d} commandes`} />
-        <StatSurface label="CA 7j" value={eur(revenue7dCents)} hint={`${revenue.orders_7d} commandes`} />
+      {/* KPIs — grille de blocs label + valeur (pas de carte ad-hoc) */}
+      <div className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat label="Stores actifs" value={stores.active.toLocaleString('fr-FR')} hint={`+${stores.created_7d} sur 7j`} href="/admin/stores" />
+        <Stat label="Produits" value={stores.total_products.toLocaleString('fr-FR')} hint={`+${stores.products_7d} sur 7j`} href="/admin/catalog" />
+        <Stat label="CA 30j" value={eur(revenue30dCents)} hint={`${revenue.orders_30d} commandes`} />
+        <Stat label="CA 7j" value={eur(revenue7dCents)} hint={`${revenue.orders_7d} commandes`} />
       </div>
+
+      <hr className="my-2 border-zinc-950/10 dark:border-white/10" />
 
       {/* Trend — revenue + orders over 14 days */}
-      <Surface>
+      <section>
         <Subheading>Tendance 14j — CA et commandes par jour</Subheading>
-        <div className="mt-4">
-          {trend.length === 0 ? (
-            <Text>Pas encore de ventes sur les 14 derniers jours.</Text>
-          ) : (
-            <Table dense>
-              <TableHead>
-                <TableRow>
-                  <TableHeader>Jour</TableHeader>
-                  <TableHeader className="text-right">CA</TableHeader>
-                  <TableHeader className="text-right">Commandes</TableHeader>
+        {trend.length === 0 ? (
+          <Text className="mt-4">Pas encore de ventes sur les 14 derniers jours.</Text>
+        ) : (
+          <Table dense className="mt-4">
+            <TableHead>
+              <TableRow>
+                <TableHeader>Jour</TableHeader>
+                <TableHeader className="text-right">CA</TableHeader>
+                <TableHeader className="text-right">Commandes</TableHeader>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {trend.map((t) => (
+                <TableRow key={t.label}>
+                  <TableCell className="tabular-nums">{t.label}</TableCell>
+                  <TableCell className="text-right tabular-nums">{eur(Number(t.revenue_cents))}</TableCell>
+                  <TableCell className="text-right tabular-nums">{Number(t.orders)}</TableCell>
                 </TableRow>
-              </TableHead>
-              <TableBody>
-                {trend.map((t) => (
-                  <TableRow key={t.label}>
-                    <TableCell className="tabular-nums">{t.label}</TableCell>
-                    <TableCell className="text-right tabular-nums">{eur(Number(t.revenue_cents))}</TableCell>
-                    <TableCell className="text-right tabular-nums">{Number(t.orders)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </section>
+
+      <hr className="my-2 border-zinc-950/10 dark:border-white/10" />
+
+      {/* Top stores */}
+      <section>
+        <div className="flex items-center justify-between gap-2">
+          <Subheading>Top stores — 7j</Subheading>
+          <TextLink href="/admin/stores">Tous</TextLink>
         </div>
-      </Surface>
+        {topStores.length === 0 ? (
+          <Text className="mt-4">Aucun store actif avec des ventes 7j.</Text>
+        ) : (
+          <Table dense className="mt-4">
+            <TableHead>
+              <TableRow>
+                <TableHeader>Store</TableHeader>
+                <TableHeader className="text-right">CA</TableHeader>
+                <TableHeader className="text-right">Cmd</TableHeader>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {topStores.map((s, idx) => (
+                <TableRow key={s.slug} href={`/admin/stores/${s.slug}`}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <span className="w-4 text-right text-xs tabular-nums text-zinc-500">{idx + 1}</span>
+                      <StoreAvatar slug={s.slug} name={s.name} size={28} />
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">{s.name}</div>
+                        <div className="truncate text-xs tabular-nums text-zinc-500">/shop/{s.slug}</div>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{eur(Number(s.revenue_cents))}</TableCell>
+                  <TableCell className="text-right tabular-nums">{s.orders}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </section>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Top stores */}
-        <Surface>
-          <div className="flex items-center justify-between gap-2">
-            <Subheading>Top stores — 7j</Subheading>
-            <TextLink href="/admin/stores">Tous</TextLink>
-          </div>
-          <div className="mt-4">
-            {topStores.length === 0 ? (
-              <Text>Aucun store actif avec des ventes 7j.</Text>
-            ) : (
-              <Table dense>
-                <TableHead>
-                  <TableRow>
-                    <TableHeader>Store</TableHeader>
-                    <TableHeader className="text-right">CA</TableHeader>
-                    <TableHeader className="text-right">Cmd</TableHeader>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {topStores.map((s, idx) => (
-                    <TableRow key={s.slug} href={`/admin/stores/${s.slug}`}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <span className="w-4 text-right text-xs tabular-nums text-zinc-500">{idx + 1}</span>
-                          <StoreAvatar slug={s.slug} name={s.name} size={28} />
-                          <div className="min-w-0">
-                            <div className="truncate font-medium">{s.name}</div>
-                            <div className="truncate text-xs tabular-nums text-zinc-500">/shop/{s.slug}</div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">{eur(Number(s.revenue_cents))}</TableCell>
-                      <TableCell className="text-right tabular-nums">{s.orders}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </div>
-        </Surface>
+      <hr className="my-2 border-zinc-950/10 dark:border-white/10" />
 
-        {/* Funnel */}
-        <Surface>
-          <div className="flex items-center justify-between gap-2">
-            <Subheading>Funnel 30j — Conversion globale</Subheading>
-            <Badge color="indigo">{globalConv.toFixed(1)}%</Badge>
-          </div>
-          <DescriptionList className="mt-4">
-            {funnelStages.map((s) => (
-              <div key={s.stage} className="contents">
-                <DescriptionTerm>{s.stage}</DescriptionTerm>
-                <DescriptionDetails className="tabular-nums">{s.value.toLocaleString('fr-FR')}</DescriptionDetails>
-              </div>
-            ))}
-          </DescriptionList>
-        </Surface>
-
-        {/* Coût agent */}
-        <Surface>
-          <Subheading>Coût Claude 30j — Observabilité agent</Subheading>
-          <div className="mt-4 space-y-4">
-            <div>
-              <div className="text-2xl font-semibold tracking-tight tabular-nums">
-                {totalCost.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-              </div>
-              <Text>Total des appels agent</Text>
+      {/* Funnel */}
+      <section>
+        <div className="flex items-center justify-between gap-2">
+          <Subheading>Funnel 30j — Conversion globale</Subheading>
+          <Badge color="indigo">{globalConv.toFixed(1)}%</Badge>
+        </div>
+        <DescriptionList className="mt-4">
+          {funnelStages.map((s) => (
+            <div key={s.stage} className="contents">
+              <DescriptionTerm>{s.stage}</DescriptionTerm>
+              <DescriptionDetails className="tabular-nums">{s.value.toLocaleString('fr-FR')}</DescriptionDetails>
             </div>
-            <DescriptionList>
-              <DescriptionTerm>Runs</DescriptionTerm>
-              <DescriptionDetails className="tabular-nums">{cost.runs.toLocaleString('fr-FR')}</DescriptionDetails>
-              <DescriptionTerm>Coût moyen / run</DescriptionTerm>
-              <DescriptionDetails className="tabular-nums">{(avgPerRun * 1000).toFixed(3)} m€</DescriptionDetails>
-              <DescriptionTerm>Taux d&apos;erreur</DescriptionTerm>
-              <DescriptionDetails className="tabular-nums">
-                {errorRate > 5 ? (
-                  <Badge color="amber">{errorRate.toFixed(1)}%</Badge>
-                ) : (
-                  <span>{errorRate.toFixed(1)}%</span>
-                )}
-              </DescriptionDetails>
-            </DescriptionList>
-            <Button href="/admin/observability" outline className="w-full">
-              Détail par step
-            </Button>
-          </div>
-        </Surface>
-      </div>
+          ))}
+        </DescriptionList>
+      </section>
+
+      <hr className="my-2 border-zinc-950/10 dark:border-white/10" />
+
+      {/* Coût agent */}
+      <section>
+        <Subheading>Coût Claude 30j — Observabilité agent</Subheading>
+        <DescriptionList className="mt-4">
+          <DescriptionTerm>Total des appels agent</DescriptionTerm>
+          <DescriptionDetails className="tabular-nums">
+            {totalCost.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+          </DescriptionDetails>
+          <DescriptionTerm>Runs</DescriptionTerm>
+          <DescriptionDetails className="tabular-nums">{cost.runs.toLocaleString('fr-FR')}</DescriptionDetails>
+          <DescriptionTerm>Coût moyen / run</DescriptionTerm>
+          <DescriptionDetails className="tabular-nums">{(avgPerRun * 1000).toFixed(3)} m€</DescriptionDetails>
+          <DescriptionTerm>Taux d&apos;erreur</DescriptionTerm>
+          <DescriptionDetails className="tabular-nums">
+            {errorRate > 5 ? (
+              <Badge color="amber">{errorRate.toFixed(1)}%</Badge>
+            ) : (
+              <span>{errorRate.toFixed(1)}%</span>
+            )}
+          </DescriptionDetails>
+        </DescriptionList>
+        <div className="mt-6">
+          <Button href="/admin/observability" outline>
+            Détail par step
+          </Button>
+        </div>
+      </section>
     </div>
   );
 }
 
-function Surface({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
-      {children}
-    </div>
-  );
-}
-
-function StatSurface({ label, value, hint, href }: { label: string; value: string; hint: string; href?: string }) {
+function Stat({ label, value, hint, href }: { label: string; value: string; hint: string; href?: string }) {
   const body = (
     <>
       <Text>{label}</Text>
-      <div className="mt-1 text-2xl font-semibold tracking-tight tabular-nums text-zinc-950 dark:text-white">
-        {value}
-      </div>
-      <div className="mt-1 text-xs tabular-nums text-zinc-500">{hint}</div>
+      <Subheading className="mt-1 tabular-nums">{value}</Subheading>
+      <Text className="mt-1 text-xs tabular-nums text-zinc-500">{hint}</Text>
     </>
   );
   if (href) {
     return (
-      <TextLink href={href} className="block rounded-lg bg-white p-6 no-underline ring-1 ring-zinc-950/5 hover:ring-zinc-950/10 dark:bg-zinc-900 dark:ring-white/10 dark:hover:ring-white/20">
+      <TextLink href={href} className="block no-underline">
         {body}
       </TextLink>
     );
   }
-  return <Surface>{body}</Surface>;
+  return <div>{body}</div>;
 }

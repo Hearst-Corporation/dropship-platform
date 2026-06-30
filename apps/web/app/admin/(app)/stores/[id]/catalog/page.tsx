@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { notFound } from 'next/navigation';
 import { getDbRead } from '@/lib/db';
 import { resolveStoreId } from '@/lib/resolve-store';
@@ -5,6 +6,11 @@ import { Heading, Subheading } from '@/components/catalyst/heading';
 import { Text } from '@/components/catalyst/text';
 import { Badge } from '@/components/catalyst/badge';
 import { Button } from '@/components/catalyst/button';
+import {
+  DescriptionList,
+  DescriptionTerm,
+  DescriptionDetails,
+} from '@/components/catalyst/description-list';
 import {
   Table,
   TableHead,
@@ -82,7 +88,7 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
   ];
 
   return (
-    <div className="flex flex-1 flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <Text className="text-xs font-medium uppercase tracking-wide">Catalogue</Text>
@@ -96,21 +102,19 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {stats.map((stat) => (
-          <div
-            key={stat.label}
-            className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10"
-          >
-            <Text>{stat.label}</Text>
-            <Heading level={2} className="mt-1">
-              {stat.value}
-            </Heading>
-          </div>
-        ))}
+      <div>
+        <Subheading>Aperçu</Subheading>
+        <DescriptionList className="mt-4">
+          {stats.map((stat) => (
+            <Fragment key={stat.label}>
+              <DescriptionTerm>{stat.label}</DescriptionTerm>
+              <DescriptionDetails>{stat.value}</DescriptionDetails>
+            </Fragment>
+          ))}
+        </DescriptionList>
       </div>
 
-      <div className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+      <div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Subheading>
             {products.length} produit{products.length > 1 ? 's' : ''}
@@ -125,7 +129,7 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
         </div>
 
         {products.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-4 py-10 text-center">
+          <div className="mt-4 flex flex-col items-center justify-center gap-4 py-10 text-center">
             <Text className="max-w-sm">
               Aucun produit dans ce store. Lance le copilote de curation pour en importer.
             </Text>

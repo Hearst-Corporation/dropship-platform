@@ -12,10 +12,11 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { AssetKind } from '@/lib/agent/asset-regenerator';
 import { Subheading } from '@/components/catalyst/heading';
-import { Text } from '@/components/catalyst/text';
+import { Text, TextLink } from '@/components/catalyst/text';
 import { Badge } from '@/components/catalyst/badge';
 import { Button } from '@/components/catalyst/button';
 import { Textarea } from '@/components/catalyst/textarea';
+import { Fieldset, Field, Label, Description } from '@/components/catalyst/fieldset';
 
 interface RunLite {
   id: string;
@@ -204,11 +205,12 @@ export function AssetRegenerator({
   const successRuns = runs.filter((r) => r.status === 'success' && r.resultUrl);
 
   return (
-    <div className="overflow-hidden rounded-lg bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
-      <div className="flex items-start justify-between gap-4 px-5 pt-5">
+    <div className="space-y-5">
+      <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
           <Badge color="zinc">{kind}</Badge>
           <Subheading>{label.title}</Subheading>
+          <Text className="text-xs">{label.hint}</Text>
         </div>
         <Button
           type="button"
@@ -220,21 +222,20 @@ export function AssetRegenerator({
           {panelOpen ? 'Fermer' : 'Régénérer'}
         </Button>
       </div>
-      <Text className="px-5 pt-3 text-xs">{label.hint}</Text>
 
-      <div className="space-y-5 p-5">
+      <div className="space-y-5">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-[280px_1fr]">
           {/* Current preview */}
           <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+            <Text className="mb-2 text-xs font-medium uppercase tracking-wide">
               Version courante
-            </p>
+            </Text>
             {currentUrl ? (
-              <a
+              <TextLink
                 href={currentUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="block overflow-hidden rounded-lg bg-gray-900 ring-1 ring-white/10 transition-colors hover:ring-white/20"
+                className="block overflow-hidden rounded-lg bg-gray-900 ring-1 ring-white/10 no-underline transition-colors hover:ring-white/20"
               >
                 {isVideo ? (
                   <video
@@ -252,7 +253,7 @@ export function AssetRegenerator({
                     className="aspect-square w-full object-cover"
                   />
                 )}
-              </a>
+              </TextLink>
             ) : (
               <div className="flex aspect-square items-center justify-center rounded-lg text-xs text-gray-500 ring-1 ring-dashed ring-white/10">
                 Pas encore généré
@@ -263,22 +264,24 @@ export function AssetRegenerator({
           {/* Regen panel */}
           {panelOpen && (
             <div className="space-y-3">
-              <div>
-                <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gray-500">
-                  Prompt FLUX (anglais, sans texte/badges)
-                </label>
-                <Textarea
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  disabled={running}
-                  rows={5}
-                  placeholder="Laisse vide pour laisser Claude rédiger un nouveau prompt..."
-                  className="font-mono"
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Vide = Claude réécrit le prompt à partir du produit et de la niche.
-                </p>
-              </div>
+              <Fieldset>
+                <Field>
+                  <Label className="text-xs font-medium uppercase tracking-wide">
+                    Prompt FLUX (anglais, sans texte/badges)
+                  </Label>
+                  <Textarea
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    disabled={running}
+                    rows={5}
+                    placeholder="Laisse vide pour laisser Claude rédiger un nouveau prompt..."
+                    className="font-mono"
+                  />
+                  <Description className="text-xs">
+                    Vide = Claude réécrit le prompt à partir du produit et de la niche.
+                  </Description>
+                </Field>
+              </Fieldset>
               <div className="flex items-center gap-3">
                 <Button
                   type="button"
@@ -288,7 +291,9 @@ export function AssetRegenerator({
                 >
                   {running ? 'Génération en cours…' : 'Lancer'}
                 </Button>
-                {error && <span className="text-xs text-red-400">{error}</span>}
+                {error && (
+                  <Text className="text-xs text-red-400">{error}</Text>
+                )}
               </div>
 
               {logs.length > 0 && (
@@ -318,11 +323,11 @@ export function AssetRegenerator({
 
         {/* History strip */}
         <div>
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+          <Text className="mb-2 text-xs font-medium uppercase tracking-wide">
             Historique des runs ({runs.length})
-          </p>
+          </Text>
           {runs.length === 0 ? (
-            <p className="text-xs italic text-gray-500">Aucune régénération enregistrée.</p>
+            <Text className="text-xs italic">Aucune régénération enregistrée.</Text>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               {runs.slice(0, 5).map((r) => {
@@ -359,27 +364,27 @@ export function AssetRegenerator({
                         </div>
                       )}
                       {r.isCurrent && (
-                        <span className="absolute left-1.5 top-1.5 rounded-sm bg-indigo-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-indigo-400 ring-1 ring-indigo-500/20">
-                          Courant
+                        <span className="absolute left-1.5 top-1.5">
+                          <Badge color="indigo">Courant</Badge>
                         </span>
                       )}
                     </div>
                     <div className="space-y-1.5 p-2">
-                      <p className="text-xs leading-snug text-gray-400">
+                      <Text className="text-xs leading-snug">
                         Run du {formatRunDate(r.createdAt)}
-                      </p>
+                      </Text>
                       {r.prompt && (
-                        <p
-                          className="line-clamp-2 text-[11px] text-gray-500"
+                        <Text
+                          className="line-clamp-2 text-[11px]"
                           title={r.prompt}
                         >
                           {r.prompt}
-                        </p>
+                        </Text>
                       )}
                       {r.errorMessage && (
-                        <p className="line-clamp-2 text-[11px] text-red-400" title={r.errorMessage}>
+                        <Text className="line-clamp-2 text-[11px] text-red-400" title={r.errorMessage}>
                           {r.errorMessage}
-                        </p>
+                        </Text>
                       )}
                       {usable && !r.isCurrent && (
                         <Button
@@ -399,7 +404,7 @@ export function AssetRegenerator({
             </div>
           )}
           {successRuns.length === 0 && runs.length > 0 && (
-            <p className="mt-2 text-xs text-gray-500">Aucun run réussi pour le moment.</p>
+            <Text className="mt-2 text-xs">Aucun run réussi pour le moment.</Text>
           )}
         </div>
       </div>

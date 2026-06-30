@@ -6,9 +6,10 @@ import { MarkPaidButton } from './MarkPaidButton';
 import { formatMoney } from '@/lib/medusa-store';
 import { aliExpressOrderUrl } from '@/lib/suppliers/aliexpress';
 import { Heading, Subheading } from '@/components/catalyst/heading';
-import { Text, Strong } from '@/components/catalyst/text';
+import { Text, TextLink, Strong } from '@/components/catalyst/text';
 import { Badge } from '@/components/catalyst/badge';
 import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from '@/components/catalyst/table';
+import { DescriptionList, DescriptionTerm, DescriptionDetails } from '@/components/catalyst/description-list';
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid';
 
 export const dynamic = 'force-dynamic';
@@ -109,12 +110,9 @@ export default async function OrdersPage() {
   ];
 
   return (
-    <div className="flex flex-1 flex-col space-y-6">
+    <div className="flex flex-1 flex-col space-y-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <Text className="text-xs font-medium uppercase tracking-wider text-zinc-500">
-            Production · Dropship
-          </Text>
           <Heading>Carnet de commandes</Heading>
           <Text>
             Forward chaque commande payée vers AliExpress. Le dry-run sauve le payload sans rien envoyer.
@@ -123,33 +121,27 @@ export default async function OrdersPage() {
         <DryRunPendingButton />
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <DescriptionList>
         {kpis.map((kpi) => (
-          <div
-            key={kpi.label}
-            className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10"
-          >
-            <Text>{kpi.label}</Text>
-            <p className="mt-2 text-2xl font-semibold tabular-nums text-zinc-950 dark:text-white">
-              {kpi.value}
-            </p>
+          <div key={kpi.label} className="contents">
+            <DescriptionTerm>{kpi.label}</DescriptionTerm>
+            <DescriptionDetails>
+              <Strong className="tabular-nums">{kpi.value}</Strong>
+            </DescriptionDetails>
           </div>
         ))}
-      </div>
+      </DescriptionList>
 
-      {fetchError && (
-        <div className="rounded-lg bg-red-500/10 px-4 py-3 ring-1 ring-red-500/20">
-          <Text className="text-red-600 dark:text-red-400">Erreur Medusa : {fetchError}</Text>
-        </div>
-      )}
+      {fetchError && <Text className="text-red-600 dark:text-red-400">Erreur Medusa : {fetchError}</Text>}
 
       {awaitingPayment.length > 0 && (
-        <div className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+        <div>
+          <hr className="my-10 border-zinc-950/10 dark:border-white/10" />
           <div className="flex items-baseline gap-2">
             <Subheading>À payer chez AliExpress</Subheading>
-            <Text className="text-xs uppercase tracking-wider text-zinc-500">
-              · {awaitingPayment.length} commande{awaitingPayment.length > 1 ? 's' : ''}
-            </Text>
+            <Badge color="zinc">
+              {awaitingPayment.length} commande{awaitingPayment.length > 1 ? 's' : ''}
+            </Badge>
           </div>
           <Text className="mt-1">
             AE n&apos;a pas d&apos;API de paiement. Ouvre le lien, paie sur aliexpress.com, puis clique{' '}
@@ -192,22 +184,20 @@ export default async function OrdersPage() {
                         : '—'}
                     </TableCell>
                     <TableCell>
-                      <a
+                      <TextLink
                         href={aliExpressOrderUrl(row.ae_order_id)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 font-mono text-xs text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
+                        className="inline-flex items-center gap-1 font-mono text-xs"
                       >
                         {row.ae_order_id}
                         <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                      </a>
+                      </TextLink>
                     </TableCell>
                     <TableCell>
                       <Badge color={stale ? 'amber' : 'zinc'}>il y a {ageLabel}</Badge>
                       {stale && (
-                        <div className="mt-1 text-xs font-medium text-indigo-600 dark:text-indigo-400">
-                          proche annulation
-                        </div>
+                        <Text className="mt-1 text-xs">proche annulation</Text>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
@@ -222,10 +212,9 @@ export default async function OrdersPage() {
       )}
 
       {!fetchError && orders.length === 0 && (
-        <div className="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-zinc-950/10 bg-white px-6 py-12 text-center dark:border-white/10 dark:bg-zinc-900">
-          <Text className="font-semibold text-zinc-950 dark:text-white">
-            Aucune commande pour le moment.
-          </Text>
+        <div>
+          <hr className="my-10 border-zinc-950/10 dark:border-white/10" />
+          <Subheading>Aucune commande pour le moment.</Subheading>
           <Text className="mt-1">
             Les commandes Medusa payées apparaîtront ici dès qu&apos;un client passera commande.
           </Text>
@@ -233,12 +222,13 @@ export default async function OrdersPage() {
       )}
 
       {orders.length > 0 && (
-        <div className="flex flex-1 flex-col rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+        <div>
+          <hr className="my-10 border-zinc-950/10 dark:border-white/10" />
           <div className="flex items-baseline gap-2">
             <Subheading>Toutes les commandes</Subheading>
-            <Text className="text-xs uppercase tracking-wider text-zinc-500">
-              · {orders.length} affichée{orders.length > 1 ? 's' : ''}
-            </Text>
+            <Badge color="zinc">
+              {orders.length} affichée{orders.length > 1 ? 's' : ''}
+            </Badge>
           </div>
           <Table className="mt-4">
             <TableHead>
@@ -292,14 +282,14 @@ export default async function OrdersPage() {
                             <Badge color={forward.paid_at ? 'green' : 'zinc'}>
                               {forward.paid_at ? 'payée' : 'à payer'}
                             </Badge>
-                            <a
+                            <TextLink
                               href={aliExpressOrderUrl(forward.ae_order_id)}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="font-mono text-xs text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
+                              className="font-mono text-xs"
                             >
                               {forward.ae_order_id}
-                            </a>
+                            </TextLink>
                           </div>
                         ) : forward.status === 'dry_run' ? (
                           <Badge color="green">dry-run prêt</Badge>
@@ -307,17 +297,14 @@ export default async function OrdersPage() {
                           <div className="flex max-w-[200px] flex-col items-start gap-1">
                             <Badge color="red">erreur</Badge>
                             {forward.error_message && (
-                              <span
-                                className="line-clamp-2 text-xs text-zinc-500"
-                                title={forward.error_message}
-                              >
+                              <Text className="line-clamp-2 text-xs" title={forward.error_message}>
                                 {forward.error_message}
-                              </span>
+                              </Text>
                             )}
                           </div>
                         )
                       ) : (
-                        <span className="text-sm text-zinc-500">—</span>
+                        <Text>—</Text>
                       )}
                     </TableCell>
                     <TableCell className="text-right">

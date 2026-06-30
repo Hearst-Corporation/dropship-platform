@@ -1,7 +1,7 @@
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid';
 import { medusa, type MedusaProduct } from '@/lib/medusa';
-import { Heading } from '@/components/catalyst/heading';
-import { Text, Code } from '@/components/catalyst/text';
+import { Heading, Subheading } from '@/components/catalyst/heading';
+import { Text, Strong, Code } from '@/components/catalyst/text';
 import { Badge } from '@/components/catalyst/badge';
 import { Button } from '@/components/catalyst/button';
 import {
@@ -46,72 +46,68 @@ export default async function CatalogPage() {
       </div>
 
       {error && (
-        <div className="rounded-lg bg-red-500/5 p-6 ring-1 ring-inset ring-red-500/20">
-          <Text className="text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">
-            Erreur Medusa
-          </Text>
-          <Text className="mt-1.5">{error}</Text>
+        <div>
+          <Subheading level={2}>
+            <Badge color="red">Erreur Medusa</Badge>
+          </Subheading>
+          <Text className="mt-2">{error}</Text>
         </div>
       )}
 
       {!error && products.length === 0 && (
-        <div className="flex flex-1 items-center justify-center rounded-lg p-6 ring-1 ring-inset ring-zinc-950/5 dark:ring-white/10">
-          <div className="text-center">
-            <Text>
-              <strong>Aucun produit publié pour le moment.</strong>
-            </Text>
-            <Text className="mt-1">Lance l&apos;agent pour publier les premiers SKU.</Text>
-          </div>
+        <div className="flex flex-1 flex-col items-center justify-center gap-1 text-center">
+          <Text>
+            <Strong>Aucun produit publié pour le moment.</Strong>
+          </Text>
+          <Text>Lance l&apos;agent pour publier les premiers SKU.</Text>
         </div>
       )}
 
       {products.length > 0 && (
-        <div className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
-          <Table dense>
-            <TableHead>
-              <TableRow>
-                <TableHeader className="w-16" />
-                <TableHeader>Produit</TableHeader>
-                <TableHeader>Handle</TableHeader>
-                <TableHeader>Statut</TableHeader>
-                <TableHeader>Variantes</TableHeader>
-                <TableHeader className="text-right">Action</TableHeader>
+        <Table dense>
+          <TableHead>
+            <TableRow>
+              <TableHeader className="w-16" />
+              <TableHeader>Produit</TableHeader>
+              <TableHeader>Handle</TableHeader>
+              <TableHeader>Statut</TableHeader>
+              <TableHeader>Variantes</TableHeader>
+              <TableHeader className="text-right">Action</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {products.map((p) => (
+              <TableRow key={p.id}>
+                <TableCell>
+                  {p.thumbnail ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={p.thumbnail}
+                      alt=""
+                      className="size-11 rounded-lg object-cover ring-1 ring-inset ring-zinc-950/10 dark:ring-white/10"
+                    />
+                  ) : (
+                    <div className="size-11 rounded-lg bg-zinc-950/5 ring-1 ring-inset ring-zinc-950/10 dark:bg-white/5 dark:ring-white/10" />
+                  )}
+                </TableCell>
+                <TableCell className="font-medium">{p.title}</TableCell>
+                <TableCell>
+                  <Code>{p.handle}</Code>
+                </TableCell>
+                <TableCell>
+                  <Badge color={p.status === 'published' ? 'green' : 'zinc'}>{p.status}</Badge>
+                </TableCell>
+                <TableCell className="tabular-nums">{p.variants?.length ?? 0}</TableCell>
+                <TableCell className="text-right">
+                  <Button plain href={`/products/${p.handle}`} target="_blank" rel="noreferrer">
+                    Ouvrir
+                    <ArrowTopRightOnSquareIcon aria-hidden />
+                  </Button>
+                </TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {products.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell>
-                    {p.thumbnail ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={p.thumbnail}
-                        alt=""
-                        className="size-11 rounded-lg object-cover ring-1 ring-inset ring-zinc-950/10 dark:ring-white/10"
-                      />
-                    ) : (
-                      <div className="size-11 rounded-lg bg-zinc-950/5 ring-1 ring-inset ring-zinc-950/10 dark:bg-white/5 dark:ring-white/10" />
-                    )}
-                  </TableCell>
-                  <TableCell className="font-medium">{p.title}</TableCell>
-                  <TableCell>
-                    <Code>{p.handle}</Code>
-                  </TableCell>
-                  <TableCell>
-                    <Badge color={p.status === 'published' ? 'green' : 'zinc'}>{p.status}</Badge>
-                  </TableCell>
-                  <TableCell className="tabular-nums">{p.variants?.length ?? 0}</TableCell>
-                  <TableCell className="text-right">
-                    <Button plain href={`/products/${p.handle}`} target="_blank" rel="noreferrer">
-                      Ouvrir
-                      <ArrowTopRightOnSquareIcon aria-hidden />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+            ))}
+          </TableBody>
+        </Table>
       )}
     </div>
   );

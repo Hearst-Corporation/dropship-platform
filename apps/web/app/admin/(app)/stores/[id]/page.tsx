@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { notFound } from 'next/navigation';
 import { getDbRead } from '@/lib/db';
 import { resolveStoreId } from '@/lib/resolve-store';
@@ -109,7 +110,7 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
   ];
 
   return (
-    <div className="flex flex-1 flex-col gap-6">
+    <div className="space-y-10">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <Text className="text-xs/5 uppercase tracking-wide">Boutique</Text>
@@ -124,19 +125,21 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {kpis.map((kpi) => (
-          <div
-            key={kpi.label}
-            className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10"
-          >
-            <Text>{kpi.label}</Text>
-            <p className="mt-2 text-2xl/8 font-semibold text-zinc-950 dark:text-white">{kpi.value}</p>
-          </div>
-        ))}
-      </div>
+      <section>
+        <Subheading>Indicateurs</Subheading>
+        <DescriptionList className="mt-4">
+          {kpis.map((kpi) => (
+            <Fragment key={kpi.label}>
+              <DescriptionTerm>{kpi.label}</DescriptionTerm>
+              <DescriptionDetails>{kpi.value}</DescriptionDetails>
+            </Fragment>
+          ))}
+        </DescriptionList>
+      </section>
 
-      <div className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+      <hr className="my-10 border-zinc-950/10 dark:border-white/10" />
+
+      <section>
         <div className="flex items-start justify-between gap-4">
           <Subheading>Informations</Subheading>
           <Badge color={statusActive ? 'green' : 'zinc'}>
@@ -187,9 +190,11 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
             </>
           )}
         </DescriptionList>
-      </div>
+      </section>
 
-      <div className="flex items-center justify-between gap-4 rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+      <hr className="my-10 border-zinc-950/10 dark:border-white/10" />
+
+      <section className="flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">
           <Subheading>Catalogue</Subheading>
           <Text className="mt-1">
@@ -200,7 +205,7 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
         <Button color="indigo" href={`/admin/stores/${store.id}/catalog`} className="shrink-0">
           Voir le catalogue
         </Button>
-      </div>
+      </section>
     </div>
   );
 }

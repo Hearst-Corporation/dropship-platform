@@ -7,7 +7,7 @@ import {
   ExclamationTriangleIcon,
   PlusIcon,
 } from '@heroicons/react/20/solid';
-import { Heading } from '@/components/catalyst/heading';
+import { Heading, Subheading } from '@/components/catalyst/heading';
 import { Text, TextLink, Strong } from '@/components/catalyst/text';
 import { Badge } from '@/components/catalyst/badge';
 import { Button } from '@/components/catalyst/button';
@@ -19,6 +19,11 @@ import {
   TableHeader,
   TableCell,
 } from '@/components/catalyst/table';
+import {
+  DescriptionList,
+  DescriptionTerm,
+  DescriptionDetails,
+} from '@/components/catalyst/description-list';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -163,21 +168,18 @@ function PeriodTabs({ value, onChange }: { value: Period; onChange: (p: Period) 
     { value: 'mtd', label: 'Ce mois' },
   ];
   return (
-    <div className="inline-flex items-center gap-1 rounded-lg bg-zinc-100 p-1 ring-1 ring-zinc-950/5 dark:bg-zinc-800/50 dark:ring-white/10">
-      {tabs.map((t) => (
-        <button
-          key={t.value}
-          type="button"
-          onClick={() => onChange(t.value)}
-          className={
-            value === t.value
-              ? 'rounded-md bg-white px-3 py-1 text-xs font-medium text-zinc-950 ring-1 ring-zinc-950/5 dark:bg-zinc-700 dark:text-white dark:ring-0'
-              : 'rounded-md px-3 py-1 text-xs font-medium text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
-          }
-        >
-          {t.label}
-        </button>
-      ))}
+    <div className="inline-flex items-center gap-1">
+      {tabs.map((t) =>
+        value === t.value ? (
+          <Button key={t.value} color="zinc" onClick={() => onChange(t.value)}>
+            {t.label}
+          </Button>
+        ) : (
+          <Button key={t.value} plain onClick={() => onChange(t.value)}>
+            {t.label}
+          </Button>
+        ),
+      )}
     </div>
   );
 }
@@ -229,22 +231,13 @@ function RoasBadge({ value }: { value: number }) {
 
 function ConnectBanner({ channel }: { channel: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-xl bg-zinc-50 px-4 py-3 ring-1 ring-zinc-950/5 dark:bg-zinc-800/50 dark:ring-white/10">
+    <Text className="flex items-center gap-2">
       <ExclamationTriangleIcon className="size-4 shrink-0 text-zinc-500" aria-hidden />
-      <Text>
+      <span>
         <Strong>{channel}</Strong> — compte non connecté. Configure la clé API dans{' '}
         <TextLink href="/admin/settings">Réglages</TextLink>.
-      </Text>
-    </div>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg bg-white p-6 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
-      <Text className="!text-xs uppercase tracking-widest">{label}</Text>
-      <p className="mt-2 text-2xl font-semibold tabular-nums text-zinc-950 dark:text-white">{value}</p>
-    </div>
+      </span>
+    </Text>
   );
 }
 
@@ -265,21 +258,20 @@ export default function MarketingPage() {
   const activeCampaigns = campaigns.filter((c) => c.status === 'active').length;
 
   return (
-    <div className="flex flex-1 flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-8">
       {/* Mock data warning banner */}
-      <div className="flex items-center gap-2.5 rounded-xl bg-amber-400/10 px-4 py-2.5 text-xs text-amber-700 ring-1 ring-inset ring-amber-400/20 dark:text-amber-400">
-        <ExclamationTriangleIcon className="size-4 shrink-0" aria-hidden />
+      <Text className="flex items-center gap-2.5">
+        <ExclamationTriangleIcon className="size-4 shrink-0 text-amber-500" aria-hidden />
         <span>
-          <strong className="font-semibold">Données mockées</strong> — connecte Google Ads, Meta Graph API, TikTok Business API et Amazon Ads dans{' '}
-          <a href="/admin/settings" className="font-medium underline underline-offset-2 hover:text-amber-500 dark:hover:text-amber-300">Réglages</a>{' '}
-          pour afficher les vraies métriques.
+          <Strong>Données mockées</Strong> — connecte Google Ads, Meta Graph API, TikTok Business API et Amazon Ads dans{' '}
+          <TextLink href="/admin/settings">Réglages</TextLink> pour afficher les vraies métriques.
         </span>
-      </div>
+      </Text>
 
       {/* En-tête */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Text className="!text-xs uppercase tracking-widest">Marketing · Pub payée</Text>
+          <Text>Marketing · Pub payée</Text>
           <Heading>Campagnes & revenus</Heading>
           <Text className="mt-1 max-w-2xl">
             Vue consolidée de toutes les campagnes actives — Google, Meta, TikTok, Amazon. Dépenses, revenus, ROAS et conversions en temps réel.
@@ -295,81 +287,83 @@ export default function MarketingPage() {
       </div>
 
       {/* KPIs globaux */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        <StatCard label="Dépensé" value={fmtEur(totalSpent)} />
-        <StatCard label="Revenus" value={fmtEur(totalRevenue)} />
-        <StatCard label="ROAS global" value={roas(totalRevenue, totalSpent)} />
-        <StatCard label="Conversions" value={fmtNum(totalConversions)} />
-        <StatCard label="Clics" value={fmtNum(totalClicks)} />
-        <StatCard label="Campagnes actives" value={String(activeCampaigns)} />
-      </div>
+      <section>
+        <Subheading>Vue d&apos;ensemble</Subheading>
+        <DescriptionList className="mt-4">
+          <DescriptionTerm>Dépensé</DescriptionTerm>
+          <DescriptionDetails className="tabular-nums">{fmtEur(totalSpent)}</DescriptionDetails>
+          <DescriptionTerm>Revenus</DescriptionTerm>
+          <DescriptionDetails className="tabular-nums">{fmtEur(totalRevenue)}</DescriptionDetails>
+          <DescriptionTerm>ROAS global</DescriptionTerm>
+          <DescriptionDetails className="tabular-nums">{roas(totalRevenue, totalSpent)}</DescriptionDetails>
+          <DescriptionTerm>Conversions</DescriptionTerm>
+          <DescriptionDetails className="tabular-nums">{fmtNum(totalConversions)}</DescriptionDetails>
+          <DescriptionTerm>Clics</DescriptionTerm>
+          <DescriptionDetails className="tabular-nums">{fmtNum(totalClicks)}</DescriptionDetails>
+          <DescriptionTerm>Campagnes actives</DescriptionTerm>
+          <DescriptionDetails className="tabular-nums">{String(activeCampaigns)}</DescriptionDetails>
+        </DescriptionList>
+      </section>
 
       {/* Par canal */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {summaries.map((s) => {
-          const { Logo } = CHANNEL_META[s.channel];
-          return (
-            <div
-              key={s.channel}
-              className="flex flex-col gap-3 rounded-lg bg-white p-4 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex size-8 items-center justify-center rounded-lg bg-zinc-100 ring-1 ring-zinc-950/5 dark:bg-zinc-800/50 dark:ring-white/10">
-                    <Logo />
-                  </span>
-                  <span className="text-sm font-semibold text-zinc-950 dark:text-white">{s.label}</span>
-                </div>
-                {s.connected ? (
-                  <Badge color="indigo">Connecté</Badge>
-                ) : (
-                  <Badge color="zinc">Non connecté</Badge>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest text-zinc-500">Dépensé</p>
-                  <p className="font-semibold tabular-nums text-zinc-950 dark:text-white">{fmtEur(s.spent_eur)}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest text-zinc-500">Revenus</p>
-                  <p className="font-semibold tabular-nums text-zinc-950 dark:text-white">{fmtEur(s.revenue_eur)}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest text-zinc-500">ROAS</p>
+      <section>
+        <Subheading>Par canal</Subheading>
+        <Table dense className="mt-4 [--gutter:--spacing(4)]">
+          <TableHead>
+            <TableRow>
+              <TableHeader>Canal</TableHeader>
+              <TableHeader>État</TableHeader>
+              <TableHeader className="text-right">Dépensé</TableHeader>
+              <TableHeader className="text-right">Revenus</TableHeader>
+              <TableHeader className="text-right">ROAS</TableHeader>
+              <TableHeader className="text-right">Campagnes</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {summaries.map((s) => (
+              <TableRow key={s.channel}>
+                <TableCell>
+                  <ChannelBadge channel={s.channel} />
+                </TableCell>
+                <TableCell>
+                  {s.connected ? (
+                    <Badge color="indigo">Connecté</Badge>
+                  ) : (
+                    <Badge color="zinc">Non connecté</Badge>
+                  )}
+                </TableCell>
+                <TableCell className="text-right tabular-nums text-zinc-950 dark:text-white">{fmtEur(s.spent_eur)}</TableCell>
+                <TableCell className="text-right tabular-nums text-zinc-950 dark:text-white">{fmtEur(s.revenue_eur)}</TableCell>
+                <TableCell className="text-right">
                   <RoasBadge value={s.spent_eur > 0 ? s.revenue_eur / s.spent_eur : 0} />
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest text-zinc-500">Campagnes</p>
-                  <p className="font-semibold text-zinc-950 dark:text-white">{s.campaigns_active} actives</p>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+                </TableCell>
+                <TableCell className="text-right tabular-nums text-zinc-500">{s.campaigns_active} actives</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </section>
 
       {/* Filtre canal */}
-      <div className="flex items-center gap-2">
-        {(['all', 'google', 'meta', 'tiktok', 'amazon'] as const).map((c) => (
-          <button
-            key={c}
-            type="button"
-            onClick={() => setChannelFilter(c)}
-            className={
-              channelFilter === c
-                ? 'rounded-lg bg-indigo-600 px-3 py-1 text-xs font-medium text-white dark:bg-indigo-500'
-                : 'rounded-lg bg-white px-3 py-1 text-xs font-medium text-zinc-500 ring-1 ring-zinc-950/5 hover:text-zinc-950 dark:bg-zinc-800/50 dark:text-zinc-400 dark:ring-white/10 dark:hover:text-white'
-            }
-          >
-            {c === 'all' ? 'Tous' : c === 'google' ? 'Google' : c === 'meta' ? 'Meta' : c === 'tiktok' ? 'TikTok' : 'Amazon'}
-          </button>
-        ))}
-        <span className="ml-2 text-xs text-zinc-500">{filtered.length} campagne{filtered.length > 1 ? 's' : ''}</span>
-      </div>
+      <section>
+        <Subheading>Campagnes</Subheading>
+        <div className="mt-4 flex items-center gap-1">
+          {(['all', 'google', 'meta', 'tiktok', 'amazon'] as const).map((c) =>
+            channelFilter === c ? (
+              <Button key={c} color="indigo" onClick={() => setChannelFilter(c)}>
+                {c === 'all' ? 'Tous' : c === 'google' ? 'Google' : c === 'meta' ? 'Meta' : c === 'tiktok' ? 'TikTok' : 'Amazon'}
+              </Button>
+            ) : (
+              <Button key={c} plain onClick={() => setChannelFilter(c)}>
+                {c === 'all' ? 'Tous' : c === 'google' ? 'Google' : c === 'meta' ? 'Meta' : c === 'tiktok' ? 'TikTok' : 'Amazon'}
+              </Button>
+            ),
+          )}
+          <Text className="ml-2">{filtered.length} campagne{filtered.length > 1 ? 's' : ''}</Text>
+        </div>
 
-      {/* Tableau campagnes */}
-      <Table dense className="[--gutter:--spacing(4)]">
+        {/* Tableau campagnes */}
+        <Table dense className="mt-4 [--gutter:--spacing(4)]">
         <TableHead>
           <TableRow>
             <TableHeader>Campagne</TableHeader>
@@ -439,20 +433,21 @@ export default function MarketingPage() {
             </TableCell>
           </TableRow>
         </TableBody>
-      </Table>
+        </Table>
+      </section>
 
       {/* Banner non connectés */}
       {summaries.filter((s) => !s.connected).length > 0 && (
-        <div className="flex flex-col gap-2">
+        <section className="flex flex-col gap-2">
           {summaries.filter((s) => !s.connected).map((s) => (
             <ConnectBanner key={s.channel} channel={s.label} />
           ))}
-        </div>
+        </section>
       )}
 
-      <p className="pb-1 text-center text-[10px] text-zinc-500">
+      <Text className="text-center">
         Données mockées — connecte Google Ads, Meta Graph API, TikTok Business API et Amazon Ads API dans Réglages pour afficher les vraies métriques.
-      </p>
+      </Text>
     </div>
   );
 }

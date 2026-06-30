@@ -5,9 +5,17 @@ import {
   type TemplateRegister,
 } from '@/lib/template-catalog';
 import { Heading, Subheading } from '@/components/catalyst/heading';
-import { Text } from '@/components/catalyst/text';
+import { Text, Code, Strong } from '@/components/catalyst/text';
 import { Badge } from '@/components/catalyst/badge';
 import { Button } from '@/components/catalyst/button';
+import {
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableHeader,
+  TableCell,
+} from '@/components/catalyst/table';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,10 +60,9 @@ export default async function TemplatesGalleryPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col space-y-8 px-6 pb-12">
+    <div className="flex flex-1 flex-col space-y-12 px-6 pb-12">
       <div>
-        <Text className="text-xs font-semibold uppercase tracking-[0.18em]">Catalogue</Text>
-        <Heading className="mt-1">Templates de storefront</Heading>
+        <Heading>Templates de storefront</Heading>
         <Text className="mt-2">
           {`${TEMPLATE_CATALOG.length - 1} layouts disponibles. Chaque template peut être assigné à n'importe quelle boutique. Clique sur "Voir en live" pour un preview rendu avec des données fictives.`}
         </Text>
@@ -70,67 +77,64 @@ export default async function TemplatesGalleryPage() {
               <Subheading>{labelForRegister(reg)}</Subheading>
               <Text className="text-xs">{entries.length} templates</Text>
             </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {entries.map((t) => {
-                const preview = previewByid[t.id];
-                return (
-                  <article
-                    key={t.id}
-                    className="flex flex-col overflow-hidden rounded-lg bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10"
-                  >
-                    <div className="relative aspect-16/10 overflow-hidden bg-zinc-100 dark:bg-zinc-950">
-                      {preview ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={preview}
-                          alt={t.label}
-                          className="absolute inset-0 h-full w-full object-cover object-top"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 flex items-center justify-center text-xs font-medium text-zinc-500">
-                          Pas d&apos;aper&ccedil;u disponible
+            <Table dense className="[--gutter:--spacing(6)]">
+              <TableHead>
+                <TableRow>
+                  <TableHeader>Aperçu</TableHeader>
+                  <TableHeader>Template</TableHeader>
+                  <TableHeader>Mode</TableHeader>
+                  <TableHeader>Niches</TableHeader>
+                  <TableHeader>Identifiant</TableHeader>
+                  <TableHeader className="text-right">Action</TableHeader>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {entries.map((t) => {
+                  const preview = previewByid[t.id];
+                  return (
+                    <TableRow key={t.id}>
+                      <TableCell>
+                        <div className="relative h-12 w-20 overflow-hidden rounded bg-zinc-100 dark:bg-zinc-950">
+                          {preview ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={preview}
+                              alt={t.label}
+                              className="absolute inset-0 h-full w-full object-cover object-top"
+                            />
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-zinc-500">
+                              N/A
+                            </div>
+                          )}
                         </div>
-                      )}
-                      <span className="absolute left-3 top-3">
-                        <Badge color="indigo">{t.register}</Badge>
-                      </span>
-                      <span className="absolute right-3 top-3">
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          <Strong>{t.label}</Strong>
+                          <Text className="line-clamp-2 max-w-md !text-xs">{t.hint}</Text>
+                        </div>
+                      </TableCell>
+                      <TableCell>
                         <Badge color="zinc">{t.mode}</Badge>
-                      </span>
-                    </div>
-
-                    <div className="flex flex-1 flex-col gap-3 p-4">
-                      <div>
-                        <Subheading level={3} className="!text-[15px]">
-                          {t.label}
-                        </Subheading>
-                        <Text className="mt-1 line-clamp-3 !text-xs">
-                          {t.hint}
-                        </Text>
-                      </div>
-
-                      {t.niches.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {t.niches.map((n) => (
-                            <Badge key={n} color="zinc">
-                              {n}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="flex flex-wrap gap-1.5">
-                        {t.moods.slice(0, 3).map((m) => (
-                          <span key={m} className="px-1.5 py-0.5 text-[10px] italic text-zinc-500">
-                            {m}
-                          </span>
-                        ))}
-                      </div>
-
-                      <div className="mt-auto flex items-center justify-between gap-2 border-t border-zinc-950/5 pt-3 dark:border-white/10">
-                        <code className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[10px] text-zinc-500">
-                          {t.id}
-                        </code>
+                      </TableCell>
+                      <TableCell>
+                        {t.niches.length > 0 ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {t.niches.map((n) => (
+                              <Badge key={n} color="indigo">
+                                {n}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <Text className="!text-xs text-zinc-500">Tous secteurs</Text>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Code>{t.id}</Code>
+                      </TableCell>
+                      <TableCell className="text-right">
                         <Button
                           href={`/admin/templates/${t.id}/preview`}
                           plain
@@ -139,12 +143,12 @@ export default async function TemplatesGalleryPage() {
                         >
                           Voir en live &#8594;
                         </Button>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           </section>
         );
       })}
