@@ -46,11 +46,11 @@ export function DryRunPendingButton() {
         {busy ? 'Pré-calcul…' : 'Pré-calculer les dry-runs'}
       </button>
       {result && (
-        <span className="text-[10px] text-gray-400">
+        <span className="text-xs text-gray-400">
           {result.processed} traitée{result.processed > 1 ? 's' : ''} sur {result.scanned} payée{result.scanned > 1 ? 's' : ''}
         </span>
       )}
-      {error && <span className="text-[10px] text-gray-400">{error}</span>}
+      {error && <span className="text-xs text-gray-400">{error}</span>}
     </div>
   );
 }

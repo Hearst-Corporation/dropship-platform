@@ -255,7 +255,7 @@ function Field({
         autoComplete="off"
         spellCheck={false}
       />
-      {help && <p className="mt-1 text-[11px] text-gray-500">{help}</p>}
+      {help && <p className="mt-1 text-xs text-gray-500">{help}</p>}
     </div>
   );
 }

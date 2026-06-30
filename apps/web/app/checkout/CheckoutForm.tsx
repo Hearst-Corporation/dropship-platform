@@ -267,14 +267,13 @@ export function CheckoutForm({ cart, shippingOptions, shippingError, stripeEnabl
 function Step({ n, active, done, children }: { n: number; active: boolean; done: boolean; children: React.ReactNode }) {
   return (
     <li
-      className="flex items-center gap-2"
+      className={active ? 'flex items-center gap-2 font-semibold' : 'flex items-center gap-2'}
       style={{
         color: active
           ? 'var(--ct-text-strong, #fff)'
           : done
             ? 'rgba(74,222,128,0.9)'
             : 'var(--ct-text-muted, rgba(245,245,245,0.48))',
-        fontWeight: active ? 600 : undefined,
       }}
     >
       <span

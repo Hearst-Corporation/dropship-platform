@@ -48,7 +48,7 @@ export function MarkPaidButton({ orderId }: Props) {
         {busy ? '…' : 'Marquer payée'}
       </button>
       {error && (
-        <span className="max-w-[200px] text-right text-[10px] text-gray-400">{error}</span>
+        <span className="max-w-52 text-right text-xs text-gray-400">{error}</span>
       )}
       <ConfirmDialog
         open={confirmOpen}

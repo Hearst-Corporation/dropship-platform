@@ -173,11 +173,11 @@ export default async function OrdersPage() {
                       <div className="font-medium text-zinc-950 dark:text-white">
                         #{row.display_id ?? row.medusa_order_id.slice(0, 8)}
                       </div>
-                      <div className="mt-0.5 max-w-[140px] truncate font-mono text-xs text-zinc-500">
+                      <div className="mt-0.5 max-w-36 truncate font-mono text-xs text-zinc-500">
                         {row.medusa_order_id}
                       </div>
                     </TableCell>
-                    <TableCell className="max-w-[160px] truncate text-zinc-500">
+                    <TableCell className="max-w-40 truncate text-zinc-500">
                       {row.customer_email ?? '—'}
                     </TableCell>
                     <TableCell className="font-semibold tabular-nums text-zinc-950 dark:text-white">
@@ -260,7 +260,7 @@ export default async function OrdersPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="max-w-[160px] truncate text-zinc-500">
+                      <div className="max-w-40 truncate text-zinc-500">
                         {order.email ?? '—'}
                       </div>
                       {order.shipping_address?.city && (
@@ -294,7 +294,7 @@ export default async function OrdersPage() {
                         ) : forward.status === 'dry_run' ? (
                           <Badge color="green">dry-run prêt</Badge>
                         ) : (
-                          <div className="flex max-w-[200px] flex-col items-start gap-1">
+                          <div className="flex max-w-52 flex-col items-start gap-1">
                             <Badge color="red">erreur</Badge>
                             {forward.error_message && (
                               <Text className="line-clamp-2 text-xs" title={forward.error_message}>

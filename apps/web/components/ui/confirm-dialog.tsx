@@ -97,8 +97,7 @@ export function ConfirmDialog({
     >
       {/* Backdrop */}
       <div
-        style={{ background: 'rgba(26,5,11,0.65)', backdropFilter: 'blur(6px)' }}
-        className="absolute inset-0"
+        className="absolute inset-0 bg-zinc-950/65 backdrop-blur-sm"
         onClick={() => {
           if (!confirming) onCancel();
         }}

@@ -96,7 +96,7 @@ function ChatBody() {
           </span>
           <div>
             <p className="text-sm font-semibold text-white">Super Agent</p>
-            <p className="text-[11px] text-gray-500">Assistant admin · OpenAI</p>
+            <p className="text-xs text-gray-500">Assistant admin · OpenAI</p>
           </div>
         </div>
         <button
@@ -115,7 +115,7 @@ function ChatBody() {
           <div className="flex h-full flex-col items-center justify-center text-center">
             <ChatBubbleLeftRightIcon className="size-8 text-gray-600" aria-hidden />
             <p className="mt-3 text-sm font-medium text-gray-300">Demande à l&apos;agent</p>
-            <p className="mt-1 max-w-[16rem] text-xs text-gray-500">
+            <p className="mt-1 max-w-64 text-xs text-gray-500">
               Gère tes stores, lance des recherches, interroge la base. Il agit sur l&apos;admin.
             </p>
           </div>

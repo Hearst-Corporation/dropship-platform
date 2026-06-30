@@ -11,7 +11,7 @@ export default function NotFound() {
         <p className="text-kicker uppercase tracking-kicker font-medium mb-5" style={{ color: 'var(--ct-text-muted)' }}>
           404
         </p>
-        <h1 className="font-semibold tracking-tight text-4xl sm:text-5xl leading-[1.05] mb-5">
+        <h1 className="font-semibold tracking-tight text-4xl sm:text-5xl leading-none mb-5">
           Cette page n&apos;existe pas.
         </h1>
         <p className="text-base leading-relaxed mb-10" style={{ color: 'var(--ct-text-body)' }}>

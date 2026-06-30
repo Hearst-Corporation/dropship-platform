@@ -224,7 +224,7 @@ export function AssetRegenerator({
       </div>
 
       <div className="space-y-5">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-[280px_1fr]">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-[18rem_1fr]">
           {/* Current preview */}
           <div>
             <Text className="mb-2 text-xs font-medium uppercase tracking-wide">
@@ -375,14 +375,14 @@ export function AssetRegenerator({
                       </Text>
                       {r.prompt && (
                         <Text
-                          className="line-clamp-2 text-[11px]"
+                          className="line-clamp-2 text-xs"
                           title={r.prompt}
                         >
                           {r.prompt}
                         </Text>
                       )}
                       {r.errorMessage && (
-                        <Text className="line-clamp-2 text-[11px] text-red-400" title={r.errorMessage}>
+                        <Text className="line-clamp-2 text-xs text-red-400" title={r.errorMessage}>
                           {r.errorMessage}
                         </Text>
                       )}

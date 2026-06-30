@@ -40,19 +40,17 @@ export function CookieBanner() {
   if (!visible) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-md z-60">
+    <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-md z-50">
       <div
-        className="rounded-2xl p-5 sm:p-6"
+        className="rounded-2xl p-5 sm:p-6 backdrop-blur-xl backdrop-saturate-150"
         style={{
           background: 'var(--ct-surface-2)',
           border: '1px solid var(--ct-border-strong)',
           boxShadow: 'var(--ct-shadow-depth)',
-          backdropFilter: 'blur(24px) saturate(150%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(150%)',
         }}
       >
         <p
-          className="text-[10px] uppercase tracking-[0.14em] font-bold mb-3"
+          className="text-xs uppercase tracking-wider font-bold mb-3"
           style={{ color: 'var(--ct-text-muted)' }}
         >
           Cookies

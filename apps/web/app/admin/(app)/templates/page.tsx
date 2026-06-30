@@ -103,7 +103,7 @@ export default async function TemplatesGalleryPage() {
                               className="absolute inset-0 h-full w-full object-cover object-top"
                             />
                           ) : (
-                            <div className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-zinc-500">
+                            <div className="absolute inset-0 flex items-center justify-center text-xs font-medium text-zinc-500">
                               N/A
                             </div>
                           )}

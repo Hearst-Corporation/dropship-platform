@@ -123,8 +123,8 @@ export function ForwardButton({ orderId, alreadySent }: Props) {
         <div
           className={
             sentResult.ok
-              ? 'max-w-[280px] rounded-md px-2.5 py-1.5 text-[11px] bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20'
-              : 'max-w-[280px] rounded-md px-2.5 py-1.5 text-[11px] bg-gray-800/50 text-gray-400 ring-1 ring-inset ring-white/10'
+              ? 'max-w-xs rounded-md px-2.5 py-1.5 text-xs bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20'
+              : 'max-w-xs rounded-md px-2.5 py-1.5 text-xs bg-gray-800/50 text-gray-400 ring-1 ring-inset ring-white/10'
           }
         >
           {sentResult.status === 'sent' && `Envoyée — AE #${sentResult.aeOrderId}`}
@@ -323,8 +323,8 @@ function Section({
       <h3
         className={
           tone === 'warn'
-            ? 'mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-400'
-            : 'mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500'
+            ? 'mb-2 text-xs font-semibold uppercase tracking-wider text-amber-400'
+            : 'mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500'
         }
       >
         {title}

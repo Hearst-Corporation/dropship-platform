@@ -77,11 +77,10 @@ export default async function CartPage() {
         <div className="mt-12 flex justify-end">
           <Link
             href="/checkout"
-            className="group inline-flex items-center gap-3 px-10 py-5 rounded-full text-sm font-medium uppercase tracking-cta transition-all duration-300 hover:-translate-y-0.5"
+            className="group inline-flex items-center gap-3 px-10 py-5 rounded-full text-sm font-medium uppercase tracking-cta transition-all duration-300 hover:-translate-y-0.5 shadow-cta"
             style={{
               backgroundColor: 'var(--ct-accent)',
               color: 'var(--ct-text-strong)',
-              boxShadow: '0 22px 40px -18px rgba(190,18,60,0.45)',
             }}
           >
             Passer au paiement
@@ -123,7 +122,7 @@ function Row({ label, value, bold = false }: { label: string; value: string; bol
       style={{ color: 'var(--ct-text-muted, rgba(245,245,245,0.48))' }}
     >
       <span>{label}</span>
-      <span style={{ color: 'var(--ct-text-body, rgba(245,245,245,0.72))', fontWeight: 500 }}>{value}</span>
+      <span className="font-medium" style={{ color: 'var(--ct-text-body, rgba(245,245,245,0.72))' }}>{value}</span>
     </div>
   );
 }
