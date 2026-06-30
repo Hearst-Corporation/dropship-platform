@@ -64,15 +64,15 @@ export default async function SettingsPage() {
             </dl>
           ) : (
             <p className="text-sm leading-6 text-gray-400">
-              L&apos;agent a besoin d&apos;un <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-xs text-gray-300">access_token</code> OAuth
-              pour appeler <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-xs text-gray-300">aliexpress.solution.product.list.get</code>.
+              L&apos;agent a besoin d&apos;un <code className="rounded-sm bg-white/10 px-1.5 py-0.5 font-mono text-xs text-gray-300">access_token</code> OAuth
+              pour appeler <code className="rounded-sm bg-white/10 px-1.5 py-0.5 font-mono text-xs text-gray-300">aliexpress.solution.product.list.get</code>.
               Autorise l&apos;accès avec ton compte AliExpress.
             </p>
           )}
           <div className="pt-2">
             <a
               href="/api/aliexpress/oauth/start"
-              className="inline-flex items-center gap-1.5 rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-400"
+              className="inline-flex items-center gap-1.5 rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-400"
             >
               {isConnected && !isExpired ? 'Re-autoriser AliExpress' : 'Connecter AliExpress'}
               <span aria-hidden>↗</span>
@@ -92,7 +92,7 @@ export default async function SettingsPage() {
               cjdropshipping.com
             </a>{' '}
             &#8594; Account Settings &#8594; Developer &#8594; copie l&apos;API Key et mets-la dans{' '}
-            <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-xs text-gray-300">CJ_DROPSHIPPING_API_KEY</code>.
+            <code className="rounded-sm bg-white/10 px-1.5 py-0.5 font-mono text-xs text-gray-300">CJ_DROPSHIPPING_API_KEY</code>.
           </p>
         </ProviderCard>
       </div>
@@ -121,7 +121,7 @@ function ProviderCard({
   children: ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-xl bg-gray-800/50 shadow-sm ring-1 ring-white/10">
+    <section className="overflow-hidden rounded-xl bg-gray-800/50 shadow-xs ring-1 ring-white/10">
       <div className="flex items-center gap-3 border-b border-white/10 px-5 py-4">
         <span className="h-9 w-1 shrink-0 rounded-full bg-indigo-500" aria-hidden />
         <div className="min-w-0 flex-1">

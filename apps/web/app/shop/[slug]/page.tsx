@@ -121,7 +121,7 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
 
         {error && (
           <div
-            className="mb-6 rounded border p-4"
+            className="mb-6 rounded-sm border p-4"
             style={{ backgroundColor: errorTone.bg, color: errorTone.text, borderColor: errorTone.border }}
           >
             {error}
@@ -142,7 +142,7 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
               <Link
                 key={product.id}
                 href={`/shop/${slug}/products/${product.handle}`}
-                className="group overflow-hidden rounded-xl border border-zinc-100 bg-white shadow-sm transition-shadow hover:shadow-md"
+                className="group overflow-hidden rounded-xl border border-zinc-100 bg-white shadow-xs transition-shadow hover:shadow-md"
               >
                 <div className="aspect-square overflow-hidden bg-zinc-100">
                   {imageUrl ? (

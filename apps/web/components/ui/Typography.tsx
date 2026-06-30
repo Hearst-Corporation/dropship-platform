@@ -18,9 +18,9 @@ const HEADING_STYLES: Record<HeadingLevel, string> = {
   // Section title — clear weight contrast vs body without competing with h1.
   h2: 'text-[clamp(2rem,4.5vw,4rem)] font-extrabold tracking-[-0.035em] leading-[1.02]',
   // Sub-section / card header.
-  h3: 'text-[clamp(1.5rem,2.6vw,2.25rem)] font-bold tracking-[-0.025em] leading-[1.1]',
+  h3: 'text-[clamp(1.5rem,2.6vw,2.25rem)] font-bold tracking-tight leading-[1.1]',
   // Block / list header.
-  h4: 'text-[clamp(1.125rem,1.5vw,1.375rem)] font-semibold tracking-[-0.015em] leading-[1.25]',
+  h4: 'text-[clamp(1.125rem,1.5vw,1.375rem)] font-semibold tracking-[-0.015em] leading-tight',
 };
 
 interface HeadingProps {

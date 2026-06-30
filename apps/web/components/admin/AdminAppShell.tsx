@@ -100,15 +100,15 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
       <Dialog open={sidebarOpen} onClose={setSidebarOpen} className="relative z-50 lg:hidden">
         <DialogBackdrop
           transition
-          className="fixed inset-0 bg-gray-950/80 transition-opacity duration-300 ease-linear data-[closed]:opacity-0"
+          className="fixed inset-0 bg-gray-950/80 transition-opacity duration-300 ease-linear data-closed:opacity-0"
         />
         <div className="fixed inset-0 flex">
           <DialogPanel
             transition
-            className="relative mr-16 flex w-full max-w-xs flex-1 transform transition duration-300 ease-in-out data-[closed]:-translate-x-full"
+            className="relative mr-16 flex w-full max-w-xs flex-1 transform transition duration-300 ease-in-out data-closed:-translate-x-full"
           >
             <TransitionChild>
-              <div className="absolute left-full top-0 flex w-16 justify-center pt-5 duration-300 ease-in-out data-[closed]:opacity-0">
+              <div className="absolute left-full top-0 flex w-16 justify-center pt-5 duration-300 ease-in-out data-closed:opacity-0">
                 <button type="button" onClick={() => setSidebarOpen(false)} className="-m-2.5 p-2.5">
                   <span className="sr-only">Fermer le menu</span>
                   <XMarkIcon aria-hidden className="size-6 text-white" />
@@ -136,7 +136,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Mobile topbar */}
-      <div className="sticky top-0 z-40 flex items-center gap-x-6 border-b border-white/10 bg-gray-900 px-4 py-4 shadow-sm sm:px-6 lg:hidden">
+      <div className="sticky top-0 z-40 flex items-center gap-x-6 border-b border-white/10 bg-gray-900 px-4 py-4 shadow-xs sm:px-6 lg:hidden">
         <button
           type="button"
           onClick={() => setSidebarOpen(true)}

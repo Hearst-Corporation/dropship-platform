@@ -298,19 +298,19 @@ export default function MarketingPage() {
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.1em] text-gray-500">Dépensé</p>
+                  <p className="text-[10px] uppercase tracking-widest text-gray-500">Dépensé</p>
                   <p className="font-semibold tabular-nums text-white">{fmtEur(s.spent_eur)}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.1em] text-gray-500">Revenus</p>
+                  <p className="text-[10px] uppercase tracking-widest text-gray-500">Revenus</p>
                   <p className="font-semibold tabular-nums text-white">{fmtEur(s.revenue_eur)}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.1em] text-gray-500">ROAS</p>
+                  <p className="text-[10px] uppercase tracking-widest text-gray-500">ROAS</p>
                   <RoasBadge value={s.spent_eur > 0 ? s.revenue_eur / s.spent_eur : 0} />
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.1em] text-gray-500">Campagnes</p>
+                  <p className="text-[10px] uppercase tracking-widest text-gray-500">Campagnes</p>
                   <p className="font-semibold text-white">{s.campaigns_active} actives</p>
                 </div>
               </div>
@@ -383,7 +383,7 @@ export default function MarketingPage() {
                 </tr>
               ))}
             </tbody>
-            <tfoot className="border-t border-white/10 text-[11px] font-semibold uppercase tracking-[0.1em] text-gray-400">
+            <tfoot className="border-t border-white/10 text-[11px] font-semibold uppercase tracking-widest text-gray-400">
               <tr>
                 <td className="px-4 py-2.5 text-gray-500" colSpan={4}>Total &middot; {filtered.length} campagnes</td>
                 <td className="px-3 py-2.5 text-right tabular-nums text-white">

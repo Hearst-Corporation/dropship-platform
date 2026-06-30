@@ -11,7 +11,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
     <div className="min-h-full">
       {/* Navigation bar — Cockpit-aware: uses surface tokens for dark shell */}
       <header
-        className="border-b sticky top-0 z-10 backdrop-blur-sm"
+        className="border-b sticky top-0 z-10 backdrop-blur-xs"
         style={{
           backgroundColor: 'var(--ct-surface-1, rgba(255,255,255,0.04))',
           borderColor: 'var(--ct-border, rgba(255,255,255,0.10))',

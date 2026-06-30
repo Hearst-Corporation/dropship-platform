@@ -268,7 +268,7 @@ export function AssetRegenerator({
                   disabled={running}
                   rows={5}
                   placeholder="Laisse vide pour laisser Claude rédiger un nouveau prompt..."
-                  className="w-full rounded-lg bg-white/5 px-3 py-2 font-mono text-sm text-white ring-1 ring-white/10 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full rounded-lg bg-white/5 px-3 py-2 font-mono text-sm text-white ring-1 ring-white/10 placeholder:text-gray-500 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
                 />
                 <p className="mt-1 text-xs text-gray-500">
                   Vide = Claude réécrit le prompt à partir du produit et de la niche.
@@ -354,7 +354,7 @@ export function AssetRegenerator({
                         </div>
                       )}
                       {r.isCurrent && (
-                        <span className="absolute left-1.5 top-1.5 rounded bg-indigo-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-indigo-400 ring-1 ring-indigo-500/20">
+                        <span className="absolute left-1.5 top-1.5 rounded-sm bg-indigo-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-indigo-400 ring-1 ring-indigo-500/20">
                           Courant
                         </span>
                       )}

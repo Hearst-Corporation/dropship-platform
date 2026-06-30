@@ -287,7 +287,7 @@ export default async function PortfolioDashboard() {
             </dl>
             <Link
               href="/admin/observability"
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-white/5 px-3 py-2 text-sm font-semibold text-white shadow-sm ring-1 ring-inset ring-white/10 hover:bg-white/10"
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-white/5 px-3 py-2 text-sm font-semibold text-white shadow-xs ring-1 ring-inset ring-white/10 hover:bg-white/10"
             >
               Détail par step <ArrowUpRightIcon className="size-3.5" aria-hidden />
             </Link>

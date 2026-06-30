@@ -36,7 +36,7 @@ function StepLine({ step }: { step: ChatStep }) {
       )}
     >
       {icon}
-      <span className="break-words font-mono leading-relaxed">{step.text}</span>
+      <span className="wrap-break-word font-mono leading-relaxed">{step.text}</span>
     </div>
   );
 }
@@ -143,7 +143,7 @@ function ChatBody() {
             }}
             rows={1}
             placeholder="Message à l'agent…"
-            className="max-h-32 min-h-[1.5rem] flex-1 resize-none bg-transparent text-sm text-white placeholder:text-gray-500 focus:outline-none"
+            className="max-h-32 min-h-6 flex-1 resize-none bg-transparent text-sm text-white placeholder:text-gray-500 focus:outline-hidden"
           />
           <button
             type="submit"
@@ -191,12 +191,12 @@ export function SuperAgentRail() {
       <Dialog open={mobileOpen} onClose={setMobileOpen} className="relative z-50 lg:hidden">
         <DialogBackdrop
           transition
-          className="fixed inset-0 bg-gray-950/80 transition-opacity duration-300 data-[closed]:opacity-0"
+          className="fixed inset-0 bg-gray-950/80 transition-opacity duration-300 data-closed:opacity-0"
         />
         <div className="fixed inset-0 flex justify-end">
           <DialogPanel
             transition
-            className="relative flex w-full max-w-md transform flex-col bg-gray-900 ring-1 ring-white/10 transition duration-300 ease-in-out data-[closed]:translate-x-full"
+            className="relative flex w-full max-w-md transform flex-col bg-gray-900 ring-1 ring-white/10 transition duration-300 ease-in-out data-closed:translate-x-full"
           >
             <button
               type="button"

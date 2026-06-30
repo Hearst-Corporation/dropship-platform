@@ -149,7 +149,7 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
             <div className="px-5 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
               <dt className="text-sm font-medium text-gray-400">Clé API</dt>
               <dd className="mt-1 text-sm text-white sm:col-span-2 sm:mt-0">
-                <code className="rounded bg-white/5 px-2 py-1 font-mono text-xs text-gray-400 ring-1 ring-white/10">
+                <code className="rounded-sm bg-white/5 px-2 py-1 font-mono text-xs text-gray-400 ring-1 ring-white/10">
                   {store.medusa_publishable_key.slice(0, 24)}&hellip;
                 </code>
               </dd>

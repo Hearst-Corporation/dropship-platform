@@ -32,7 +32,7 @@ export default async function ProductsPage() {
         </h1>
         {error && (
           <div
-            className="border p-4 rounded mb-6 text-sm"
+            className="border p-4 rounded-sm mb-6 text-sm"
             style={{
               borderColor: 'var(--ct-border-accent)',
               backgroundColor: 'var(--ct-accent-soft)',

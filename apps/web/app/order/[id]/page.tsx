@@ -23,7 +23,7 @@ export default async function OrderConfirmationPage({ params }: { params: Promis
         >
           Référence :{' '}
           <code
-            className="px-2 py-1 rounded text-sm"
+            className="px-2 py-1 rounded-sm text-sm"
             style={{
               backgroundColor: 'var(--ct-surface-2, rgba(255,255,255,0.06))',
               color: 'var(--ct-text-primary, rgba(245,245,245,0.92))',

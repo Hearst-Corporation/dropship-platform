@@ -76,7 +76,7 @@ export function BrandLogo({
       )}
       <span
         className={cn(
-          'font-semibold leading-none [letter-spacing:-0.02em]',
+          'font-semibold leading-none tracking-[-0.02em]',
           cfg.text,
         )}
       >

@@ -32,13 +32,13 @@ const VARIANT: Record<Variant, string> = {
     'text-admin-text-secondary hover:text-admin-text hover:bg-admin-bg-muted ' +
     'focus-visible:ring-admin-border-strong',
   danger:
-    'bg-admin-danger text-white hover:bg-red-700 active:bg-red-800 shadow-sm ' +
+    'bg-admin-danger text-white hover:bg-red-700 active:bg-red-800 shadow-xs ' +
     'focus-visible:ring-red-400',
 };
 
 const BASE =
   'inline-flex items-center justify-center font-medium tracking-tight transition-colors duration-150 ' +
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-admin-bg ' +
+  'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-admin-bg ' +
   'disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-inherit';
 
 interface CommonProps {

@@ -112,7 +112,7 @@ export default async function StoreAssetsPage({ params }: { params: Promise<{ id
             Régénère chaque visuel sans toucher au produit. Le prompt est éditable, l&apos;historique
             conserve les 10 derniers runs et un clic suffit pour revenir à une version précédente. Le
             storefront{' '}
-            <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[11px] text-gray-400 ring-1 ring-white/10">
+            <code className="rounded-sm bg-white/5 px-1.5 py-0.5 font-mono text-[11px] text-gray-400 ring-1 ring-white/10">
               /shop/{store.slug}
             </code>{' '}
             reflète immédiatement la version courante.

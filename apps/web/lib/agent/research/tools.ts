@@ -197,7 +197,7 @@ export const TOOLS: Anthropic.Messages.Tool[] = [
   {
     name: 'aliexpress_search',
     description:
-      'Search AliExpress for products in a category. Returns up to 20 candidates with cost (in EUR), orders, rating, image, supplier URL. Use to verify supply exists and assess margin potential (suggested retail = cost * 2.2 rounded to .99).',
+      'Search AliExpress for products in a category. Returns up to 20 candidates with cost (in EUR), orders, rating, image, supplier URL. Use to verify supply exists and assess margin potential (suggested retail = cost * 2.2 rounded-sm to .99).',
     input_schema: {
       type: 'object',
       properties: {

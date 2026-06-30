@@ -33,7 +33,7 @@ export function StoreShell({ children, store }: Props) {
   return (
     <div className="min-h-full flex flex-col">
       <header
-        className={`sticky top-0 z-30 shadow-sm backdrop-blur-sm ${headerTextClass}`}
+        className={`sticky top-0 z-30 shadow-xs backdrop-blur-xs ${headerTextClass}`}
         style={headerStyle}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">

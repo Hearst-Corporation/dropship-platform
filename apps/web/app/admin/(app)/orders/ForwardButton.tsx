@@ -189,7 +189,7 @@ function ReviewModal({
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-gray-900/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-gray-900/80 backdrop-blur-xs"
         onClick={() => !sending && onClose()}
       />
       {/* Panel */}

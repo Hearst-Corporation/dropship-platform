@@ -169,7 +169,7 @@ export function CheckoutForm({ cart, shippingOptions, shippingError, stripeEnabl
           {shippingError && <p className="text-sm" style={{ color: 'var(--ct-accent-strong)' }}>{shippingError}</p>}
           {shippingOptions.length === 0 && !shippingError && (
             <div
-              className="border p-4 rounded text-sm"
+              className="border p-4 rounded-sm text-sm"
               style={{
                 borderColor: 'var(--ct-warning-border)',
                 backgroundColor: 'var(--ct-warning-soft)',
@@ -184,7 +184,7 @@ export function CheckoutForm({ cart, shippingOptions, shippingError, stripeEnabl
               key={opt.id}
               onClick={() => pickShipping(opt.id)}
               disabled={pending}
-              className="w-full text-left border rounded p-4 flex justify-between items-center transition-colors"
+              className="w-full text-left border rounded-sm p-4 flex justify-between items-center transition-colors"
               style={{
                 borderColor: 'var(--ct-border, rgba(255,255,255,0.10))',
                 color: 'var(--ct-text-body, rgba(245,245,245,0.72))',
@@ -226,7 +226,7 @@ export function CheckoutForm({ cart, shippingOptions, shippingError, stripeEnabl
           ) : (
             <>
               <div
-                className="border p-4 rounded text-sm space-y-1"
+                className="border p-4 rounded-sm text-sm space-y-1"
                 style={{
                   borderColor: 'var(--ct-warning-border)',
                   backgroundColor: 'var(--ct-warning-soft)',
@@ -309,7 +309,7 @@ function Input({ label, value, onChange, type = 'text', autoComplete }: { label:
         value={value}
         onChange={(e) => onChange(e.target.value)}
         autoComplete={autoComplete}
-        className="w-full rounded px-3 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+        className="w-full rounded-sm px-3 py-2 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500"
         style={{
           backgroundColor: 'var(--ct-surface-1, rgba(255,255,255,0.04))',
           border: '1px solid var(--ct-border, rgba(255,255,255,0.10))',
@@ -332,7 +332,7 @@ function Select({ label, value, onChange, options }: { label: string; value: str
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded px-3 py-2"
+        className="w-full rounded-sm px-3 py-2"
         style={{
           backgroundColor: 'var(--ct-surface-1, rgba(255,255,255,0.04))',
           border: '1px solid var(--ct-border, rgba(255,255,255,0.10))',

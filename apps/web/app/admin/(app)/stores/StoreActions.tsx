@@ -49,7 +49,7 @@ export function StoreActions({
         disabled={deleting}
         aria-label={`Supprimer ${storeName}`}
         title={error || `Supprimer ${storeName}`}
-        className={`inline-flex items-center justify-center rounded-lg ring-1 ring-inset transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-40 ${sizeCls} ${
+        className={`inline-flex items-center justify-center rounded-lg ring-1 ring-inset transition-colors hover:bg-white/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-40 ${sizeCls} ${
           error ? 'ring-rose-500/40 text-rose-400' : 'ring-white/10 text-gray-400 hover:text-white'
         }`}
       >

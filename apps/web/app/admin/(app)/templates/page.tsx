@@ -81,7 +81,7 @@ export default async function TemplatesGalleryPage() {
                     key={t.id}
                     className="flex flex-col overflow-hidden rounded-xl bg-gray-800/50 ring-1 ring-white/10"
                   >
-                    <div className="relative aspect-[16/10] overflow-hidden bg-gray-900">
+                    <div className="relative aspect-16/10 overflow-hidden bg-gray-900">
                       {preview ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -117,7 +117,7 @@ export default async function TemplatesGalleryPage() {
                           {t.niches.map((n) => (
                             <span
                               key={n}
-                              className="rounded border border-white/10 bg-gray-900 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400"
+                              className="rounded-sm border border-white/10 bg-gray-900 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-widest text-gray-400"
                             >
                               {n}
                             </span>

@@ -40,7 +40,7 @@ export function CookieBanner() {
   if (!visible) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-md z-[60]">
+    <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-md z-60">
       <div
         className="rounded-2xl p-5 sm:p-6"
         style={{
@@ -70,7 +70,7 @@ export function CookieBanner() {
             type="button"
             onClick={() => choose('denied')}
             disabled={pending}
-            className="flex-1 px-4 py-2.5 rounded-full text-xs uppercase tracking-[0.1em] font-medium disabled:opacity-50"
+            className="flex-1 px-4 py-2.5 rounded-full text-xs uppercase tracking-widest font-medium disabled:opacity-50"
             style={{
               color: 'var(--ct-text-body)',
               border: '1px solid var(--ct-border-strong)',
@@ -90,7 +90,7 @@ export function CookieBanner() {
             type="button"
             onClick={() => choose('granted')}
             disabled={pending}
-            className="flex-1 px-4 py-2.5 rounded-full text-xs uppercase tracking-[0.1em] font-medium disabled:opacity-50"
+            className="flex-1 px-4 py-2.5 rounded-full text-xs uppercase tracking-widest font-medium disabled:opacity-50"
             style={{
               background: 'var(--ct-accent)',
               color: 'var(--ct-text-strong)',

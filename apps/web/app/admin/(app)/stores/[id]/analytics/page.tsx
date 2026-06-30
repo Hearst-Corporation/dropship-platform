@@ -219,7 +219,7 @@ export default async function StoreAnalyticsPage({ params, searchParams }: Props
         <div className="px-5 pt-4 pb-1">
           <p className="text-xs text-gray-500">
             Décomposition par utm_source / utm_campaign. Les visiteurs sans UTM sont regroupés sous{' '}
-            <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-gray-400">
+            <code className="rounded-sm bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-gray-400">
               (direct)
             </code>
             .

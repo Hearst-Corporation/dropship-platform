@@ -235,7 +235,7 @@ function NewStoreForm() {
                   onChange={(e) => setNiche(e.target.value)}
                   placeholder="ex. lampes de bureau design"
                   autoFocus
-                  className="mt-2 block w-full rounded-md bg-white/5 px-3 py-2 text-base text-white outline-none ring-1 ring-inset ring-white/10 placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm"
+                  className="mt-2 block w-full rounded-md bg-white/5 px-3 py-2 text-base text-white outline-hidden ring-1 ring-inset ring-white/10 placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm"
                 />
               </div>
 
@@ -249,7 +249,7 @@ function NewStoreForm() {
                   value={storeName}
                   onChange={(e) => setStoreName(e.target.value)}
                   placeholder="ex. Lueur Studio"
-                  className="mt-2 block w-full rounded-md bg-white/5 px-3 py-2 text-base text-white outline-none ring-1 ring-inset ring-white/10 placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm"
+                  className="mt-2 block w-full rounded-md bg-white/5 px-3 py-2 text-base text-white outline-hidden ring-1 ring-inset ring-white/10 placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm"
                 />
               </div>
 
@@ -262,7 +262,7 @@ function NewStoreForm() {
                     id="mode"
                     value={mode}
                     onChange={(e) => setMode(e.target.value as 'mono' | 'collection')}
-                    className="mt-2 block w-full rounded-md bg-white/5 px-3 py-2 text-base text-white outline-none ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm"
+                    className="mt-2 block w-full rounded-md bg-white/5 px-3 py-2 text-base text-white outline-hidden ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm"
                   >
                     <option value="mono" className="bg-gray-800">Mono-produit</option>
                     <option value="collection" className="bg-gray-800">Collection</option>
@@ -277,7 +277,7 @@ function NewStoreForm() {
                     id="language"
                     value={language}
                     onChange={(e) => setLanguage(e.target.value as 'fr' | 'en')}
-                    className="mt-2 block w-full rounded-md bg-white/5 px-3 py-2 text-base text-white outline-none ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm"
+                    className="mt-2 block w-full rounded-md bg-white/5 px-3 py-2 text-base text-white outline-hidden ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm"
                   >
                     <option value="fr" className="bg-gray-800">Français</option>
                     <option value="en" className="bg-gray-800">English</option>
@@ -291,7 +291,7 @@ function NewStoreForm() {
                   type="checkbox"
                   checked={skipVideo}
                   onChange={(e) => setSkipVideo(e.target.checked)}
-                  className="size-4 rounded border-white/10 bg-white/5 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-gray-900"
+                  className="size-4 rounded-sm border-white/10 bg-white/5 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-gray-900"
                 />
                 <label htmlFor="skipVideo" className="text-sm text-gray-400">
                   Ignorer la génération vidéo (création plus rapide)
@@ -299,7 +299,7 @@ function NewStoreForm() {
               </div>
 
               <div className="flex items-center justify-between gap-3 border-t border-white/10 pt-6">
-                <p className="min-h-[1.25rem] text-xs text-gray-500" aria-live="polite">
+                <p className="min-h-5 text-xs text-gray-500" aria-live="polite">
                   {disabledHint}
                 </p>
                 <div className="flex items-center gap-3">
@@ -312,7 +312,7 @@ function NewStoreForm() {
                   <button
                     type="submit"
                     disabled={!canSubmit}
-                    className="rounded-md bg-indigo-500 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="rounded-md bg-indigo-500 px-3.5 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-400 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Créer le store
                   </button>
@@ -369,7 +369,7 @@ function CreationScreen({
               href={`/shop/${result.slug}`}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-md bg-indigo-500 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-400"
+              className="inline-flex items-center gap-1.5 rounded-md bg-indigo-500 px-3.5 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-400"
             >
               Ouvrir le store
               <ArrowTopRightOnSquareIcon className="size-4" aria-hidden="true" />
@@ -400,14 +400,14 @@ function CreationScreen({
         <div className="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-3">
           <div className="flex min-w-0 items-center gap-3">
             <span
-              className={`size-2 flex-shrink-0 rounded-full ${running ? 'animate-pulse bg-indigo-400' : 'bg-red-400'}`}
+              className={`size-2 shrink-0 rounded-full ${running ? 'animate-pulse bg-indigo-400' : 'bg-red-400'}`}
               aria-hidden="true"
             />
             <span className="truncate text-sm font-semibold text-white">
               {running ? `Construction de « ${storeName} »` : `Erreur — « ${storeName} »`}
             </span>
           </div>
-          <div className="flex flex-shrink-0 items-center gap-3">
+          <div className="flex shrink-0 items-center gap-3">
             {running && (
               <span className="text-xs font-medium tabular-nums text-gray-400">
                 {percent}% &middot; {elapsed}s
@@ -452,10 +452,10 @@ function CreationScreen({
         )}
 
         {/* Logs en temps réel */}
-        <div className="flex max-h-[60vh] min-h-[16rem] flex-col gap-1.5 overflow-y-auto px-5 py-4 font-mono text-xs">
+        <div className="flex max-h-[60vh] min-h-64 flex-col gap-1.5 overflow-y-auto px-5 py-4 font-mono text-xs">
           {logs.map((l) => (
             <div key={l.id} className="flex items-start gap-3">
-              <span className="flex-shrink-0 pt-px tabular-nums text-gray-500">{l.ts}</span>
+              <span className="shrink-0 pt-px tabular-nums text-gray-500">{l.ts}</span>
               <span
                 className={
                   l.type === 'error'

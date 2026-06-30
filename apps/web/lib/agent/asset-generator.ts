@@ -123,7 +123,7 @@ export const FALLBACK_PROMPTS: PromptBundle = {
   cutout: 'Single product floating on a deep charcoal-to-black studio gradient, soft rim light from upper-right, one quiet contact shadow, e-commerce hero PNG style, no other objects, no people, no horizon, no text',
   lifestyles: [
     'Morning ritual on a pale oak bathroom counter, cold north-window light, white linen towel out of focus in the background, 50mm macro feel, premium editorial photograph, no text',
-    'Outdoor weekend moment on wet sand at golden hour, soft long shadow stretching across the frame, distant horizon blurred, 35mm shallow depth of field, cinematic warm light, no text',
+    'Outdoor weekend moment on wet sand at golden hour, soft long shadow-sm stretching across the frame, distant horizon blurred, 35mm shallow depth of field, cinematic warm light, no text',
     'Evening on a dark walnut dinner table beside a single brass candle, warm tungsten light reflecting on the product, magazine-style overhead 45° angle, no text',
   ],
   promo: 'Five-second continuous take, slow 30mm dolly push-in toward the product, one subtle ambient shift (light warming or steam drifting past), single light source, no cuts, no text',

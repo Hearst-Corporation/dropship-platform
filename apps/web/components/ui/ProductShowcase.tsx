@@ -19,8 +19,8 @@ interface Props {
 }
 
 const ASPECT = {
-  '16/10': 'aspect-[16/10]',
-  '4/3': 'aspect-[4/3]',
+  '16/10': 'aspect-16/10',
+  '4/3': 'aspect-4/3',
   '1/1': 'aspect-square',
 } as const;
 

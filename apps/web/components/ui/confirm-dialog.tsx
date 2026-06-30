@@ -133,7 +133,7 @@ export function ConfirmDialog({
             type="button"
             onClick={onCancel}
             disabled={confirming}
-            className="px-4 py-2 rounded-lg text-sm font-medium focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 rounded-lg text-sm font-medium focus-visible:outline-hidden disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               color: 'var(--ct-text-body)',
               transition: 'background var(--ct-dur-base) var(--ct-ease)',
@@ -152,7 +152,7 @@ export function ConfirmDialog({
             type="button"
             onClick={handleConfirm}
             disabled={confirming}
-            className="px-4 py-2 rounded-lg text-sm font-medium focus-visible:outline-none disabled:opacity-70 disabled:cursor-not-allowed"
+            className="px-4 py-2 rounded-lg text-sm font-medium focus-visible:outline-hidden disabled:opacity-70 disabled:cursor-not-allowed"
             style={{
               ...confirmStyle,
               transition: 'opacity var(--ct-dur-base) var(--ct-ease)',
