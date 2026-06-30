@@ -100,8 +100,13 @@ function computeCostEur(inputTokens: number, outputTokens: number): number {
 
 export interface KimiMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
-  content: string;
+  // OpenAI requires content to be null on an assistant message that only
+  // carries tool_calls.
+  content: string | null;
   tool_call_id?: string;
+  // Assistant messages that requested tools must carry the structured
+  // tool_calls so the following role:'tool' messages are accepted by OpenAI.
+  tool_calls?: KimiToolCall[];
 }
 
 export interface KimiTool {

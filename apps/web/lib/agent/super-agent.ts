@@ -27,7 +27,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import { getDb } from '@/lib/db';
-import { trackedKimiMessage } from './kimi';
+import { trackedKimiMessage, type KimiMessage } from './kimi';
 import {
   executeDevTool,
   DEV_TOOLS,
@@ -964,11 +964,7 @@ export async function* runSuperAgentTurn(
   userMessage: string,
   options: SuperAgentOptions,
 ): AsyncGenerator<SuperAgentEvent> {
-  const messages: Array<{
-    role: 'system' | 'user' | 'assistant' | 'tool';
-    content: string;
-    tool_call_id?: string;
-  }> = [];
+  const messages: KimiMessage[] = [];
 
   messages.push({ role: 'system', content: buildSuperSystemPrompt(options.page, options.storeId) });
 
@@ -1023,12 +1019,17 @@ export async function* runSuperAgentTurn(
     const assistantText = response.text.trim();
 
     if (response.tool_calls && response.tool_calls.length > 0) {
-      const toolCallJson = JSON.stringify(response.tool_calls.map((tc) => ({
-        id: tc.id,
-        type: tc.type,
-        function: { name: tc.function.name, arguments: tc.function.arguments },
-      })));
-      messages.push({ role: 'assistant', content: toolCallJson });
+      // The assistant message MUST carry the structured tool_calls (not a JSON
+      // string in content) so OpenAI accepts the following role:'tool' replies.
+      messages.push({
+        role: 'assistant',
+        content: response.text || null,
+        tool_calls: response.tool_calls.map((tc) => ({
+          id: tc.id,
+          type: tc.type,
+          function: { name: tc.function.name, arguments: tc.function.arguments },
+        })),
+      });
 
       const toolResults: Array<{ role: 'tool'; content: string; tool_call_id: string }> = [];
       for (const tc of response.tool_calls) {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
+import { apiFetch } from '@/lib/client-fetch';
 
 /**
  * Client for the Super Agent SSE endpoint (POST /api/agent/super).
@@ -80,7 +81,7 @@ export function useSuperAgentChat(page: string) {
         });
 
       try {
-        const res = await fetch('/api/agent/super', {
+        const res = await apiFetch('/api/agent/super', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
