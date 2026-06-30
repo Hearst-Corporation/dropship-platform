@@ -88,9 +88,9 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
   ];
 
   return (
-    <div className="flex flex-1 flex-col gap-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
+    <div className="space-y-8">
+      <div className="flex min-w-0 flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
           <Text className="text-xs font-medium uppercase tracking-wide">Catalogue</Text>
           <Heading>Produits du store</Heading>
           <Text>
@@ -102,9 +102,9 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
         </Button>
       </div>
 
-      <div>
+      <div className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
         <Subheading>Aperçu</Subheading>
-        <DescriptionList className="mt-4">
+        <DescriptionList className="mt-4 sm:grid-cols-2">
           {stats.map((stat) => (
             <Fragment key={stat.label}>
               <DescriptionTerm>{stat.label}</DescriptionTerm>
@@ -114,7 +114,7 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
         </DescriptionList>
       </div>
 
-      <div>
+      <div className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Subheading>
             {products.length} produit{products.length > 1 ? 's' : ''}

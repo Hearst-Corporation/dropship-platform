@@ -20,7 +20,6 @@ import {
   TableCell,
 } from '@/components/catalyst/table';
 import {
-  DescriptionList,
   DescriptionTerm,
   DescriptionDetails,
 } from '@/components/catalyst/description-list';
@@ -258,7 +257,7 @@ export default function MarketingPage() {
   const activeCampaigns = campaigns.filter((c) => c.status === 'active').length;
 
   return (
-    <div className="flex flex-1 flex-col gap-8">
+    <div className="space-y-8">
       {/* Mock data warning banner */}
       <Text className="flex items-center gap-2.5">
         <ExclamationTriangleIcon className="size-4 shrink-0 text-amber-500" aria-hidden />
@@ -270,7 +269,7 @@ export default function MarketingPage() {
 
       {/* En-tête */}
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <Text>Marketing · Pub payée</Text>
           <Heading>Campagnes & revenus</Heading>
           <Text className="mt-1 max-w-2xl">
@@ -287,26 +286,38 @@ export default function MarketingPage() {
       </div>
 
       {/* KPIs globaux */}
-      <section>
+      <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
         <Subheading>Vue d&apos;ensemble</Subheading>
-        <DescriptionList className="mt-4">
-          <DescriptionTerm>Dépensé</DescriptionTerm>
-          <DescriptionDetails className="tabular-nums">{fmtEur(totalSpent)}</DescriptionDetails>
-          <DescriptionTerm>Revenus</DescriptionTerm>
-          <DescriptionDetails className="tabular-nums">{fmtEur(totalRevenue)}</DescriptionDetails>
-          <DescriptionTerm>ROAS global</DescriptionTerm>
-          <DescriptionDetails className="tabular-nums">{roas(totalRevenue, totalSpent)}</DescriptionDetails>
-          <DescriptionTerm>Conversions</DescriptionTerm>
-          <DescriptionDetails className="tabular-nums">{fmtNum(totalConversions)}</DescriptionDetails>
-          <DescriptionTerm>Clics</DescriptionTerm>
-          <DescriptionDetails className="tabular-nums">{fmtNum(totalClicks)}</DescriptionDetails>
-          <DescriptionTerm>Campagnes actives</DescriptionTerm>
-          <DescriptionDetails className="tabular-nums">{String(activeCampaigns)}</DescriptionDetails>
-        </DescriptionList>
+        <dl className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="min-w-0">
+            <DescriptionTerm>Dépensé</DescriptionTerm>
+            <DescriptionDetails className="tabular-nums">{fmtEur(totalSpent)}</DescriptionDetails>
+          </div>
+          <div className="min-w-0">
+            <DescriptionTerm>Revenus</DescriptionTerm>
+            <DescriptionDetails className="tabular-nums">{fmtEur(totalRevenue)}</DescriptionDetails>
+          </div>
+          <div className="min-w-0">
+            <DescriptionTerm>ROAS global</DescriptionTerm>
+            <DescriptionDetails className="tabular-nums">{roas(totalRevenue, totalSpent)}</DescriptionDetails>
+          </div>
+          <div className="min-w-0">
+            <DescriptionTerm>Conversions</DescriptionTerm>
+            <DescriptionDetails className="tabular-nums">{fmtNum(totalConversions)}</DescriptionDetails>
+          </div>
+          <div className="min-w-0">
+            <DescriptionTerm>Clics</DescriptionTerm>
+            <DescriptionDetails className="tabular-nums">{fmtNum(totalClicks)}</DescriptionDetails>
+          </div>
+          <div className="min-w-0">
+            <DescriptionTerm>Campagnes actives</DescriptionTerm>
+            <DescriptionDetails className="tabular-nums">{String(activeCampaigns)}</DescriptionDetails>
+          </div>
+        </dl>
       </section>
 
       {/* Par canal */}
-      <section>
+      <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
         <Subheading>Par canal</Subheading>
         <Table dense className="mt-4 [--gutter:--spacing(4)]">
           <TableHead>
@@ -345,9 +356,9 @@ export default function MarketingPage() {
       </section>
 
       {/* Filtre canal */}
-      <section>
+      <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
         <Subheading>Campagnes</Subheading>
-        <div className="mt-4 flex items-center gap-1">
+        <div className="mt-4 flex flex-wrap items-center gap-1">
           {(['all', 'google', 'meta', 'tiktok', 'amazon'] as const).map((c) =>
             channelFilter === c ? (
               <Button key={c} color="indigo" onClick={() => setChannelFilter(c)}>

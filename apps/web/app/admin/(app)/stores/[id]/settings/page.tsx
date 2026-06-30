@@ -45,8 +45,8 @@ export default async function StoreSettingsPage({ params }: { params: Promise<{ 
   if (!store) notFound();
 
   return (
-    <div className="flex flex-1 flex-col gap-6">
-      <div>
+    <div className="space-y-8">
+      <div className="min-w-0">
         <Text className="text-xs font-medium uppercase tracking-wide text-zinc-500">Réglages</Text>
         <Heading>Configuration du store</Heading>
         <Text className="mt-1">

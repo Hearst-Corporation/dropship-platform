@@ -101,8 +101,8 @@ export default async function StoreAssetsPage({ params }: { params: Promise<{ id
   };
 
   return (
-    <div className="flex flex-1 flex-col gap-8">
-      <div className="flex flex-col gap-1">
+    <div className="space-y-8">
+      <div className="flex min-w-0 flex-col gap-1">
         <Text className="text-xs uppercase tracking-wide">{`Production · Assets · ${store.niche}`}</Text>
         <Heading>Assets de {store.name}</Heading>
         <Text>
@@ -126,7 +126,7 @@ export default async function StoreAssetsPage({ params }: { params: Promise<{ id
         </div>
       )}
 
-      <div className="flex flex-col gap-6">
+      <div className="space-y-6">
         {ASSET_KINDS.map((kind) => (
           <AssetRegenerator
             key={kind}

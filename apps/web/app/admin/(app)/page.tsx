@@ -195,24 +195,22 @@ export default async function PortfolioDashboard() {
   ];
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-8">
       <div>
         <Heading>Vue d&apos;ensemble</Heading>
         <Text>KPIs agrégés sur tous les stores actifs. Cliquez sur un bloc pour drill down.</Text>
       </div>
 
       {/* KPIs — grille de blocs label + valeur (pas de carte ad-hoc) */}
-      <div className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Stores actifs" value={stores.active.toLocaleString('fr-FR')} hint={`+${stores.created_7d} sur 7j`} href="/admin/stores" />
         <Stat label="Produits" value={stores.total_products.toLocaleString('fr-FR')} hint={`+${stores.products_7d} sur 7j`} href="/admin/catalog" />
         <Stat label="CA 30j" value={eur(revenue30dCents)} hint={`${revenue.orders_30d} commandes`} />
         <Stat label="CA 7j" value={eur(revenue7dCents)} hint={`${revenue.orders_7d} commandes`} />
       </div>
 
-      <hr className="my-2 border-zinc-950/10 dark:border-white/10" />
-
       {/* Trend — revenue + orders over 14 days */}
-      <section>
+      <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
         <Subheading>Tendance 14j — CA et commandes par jour</Subheading>
         {trend.length === 0 ? (
           <Text className="mt-4">Pas encore de ventes sur les 14 derniers jours.</Text>
@@ -238,10 +236,8 @@ export default async function PortfolioDashboard() {
         )}
       </section>
 
-      <hr className="my-2 border-zinc-950/10 dark:border-white/10" />
-
       {/* Top stores */}
-      <section>
+      <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
         <div className="flex items-center justify-between gap-2">
           <Subheading>Top stores — 7j</Subheading>
           <TextLink href="/admin/stores">Tous</TextLink>
@@ -279,10 +275,8 @@ export default async function PortfolioDashboard() {
         )}
       </section>
 
-      <hr className="my-2 border-zinc-950/10 dark:border-white/10" />
-
       {/* Funnel */}
-      <section>
+      <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
         <div className="flex items-center justify-between gap-2">
           <Subheading>Funnel 30j — Conversion globale</Subheading>
           <Badge color="indigo">{globalConv.toFixed(1)}%</Badge>
@@ -297,10 +291,8 @@ export default async function PortfolioDashboard() {
         </DescriptionList>
       </section>
 
-      <hr className="my-2 border-zinc-950/10 dark:border-white/10" />
-
       {/* Coût agent */}
-      <section>
+      <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
         <Subheading>Coût Claude 30j — Observabilité agent</Subheading>
         <DescriptionList className="mt-4">
           <DescriptionTerm>Total des appels agent</DescriptionTerm>

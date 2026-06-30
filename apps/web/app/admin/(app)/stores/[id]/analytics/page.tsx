@@ -152,9 +152,9 @@ export default async function StoreAnalyticsPage({ params, searchParams }: Props
   ];
 
   return (
-    <div className="flex flex-1 flex-col space-y-12">
+    <div className="space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <Text className="text-xs/5 font-medium uppercase tracking-wider">
             Analytics · {store.name}
           </Text>
@@ -179,17 +179,15 @@ export default async function StoreAnalyticsPage({ params, searchParams }: Props
       {/* Aggregate KPIs */}
       <section>
         <Subheading>Indicateurs clés</Subheading>
-        <DescriptionList className="mt-4">
+        <DescriptionList className="mt-4 sm:grid-cols-2">
           {stats.map((s) => (
             <DescriptionListKpi key={s.label} term={s.label} value={s.value} hint={s.hint} />
           ))}
         </DescriptionList>
       </section>
 
-      <hr className="my-2 border-zinc-950/10 dark:border-white/10" />
-
       {/* UX — Funnel */}
-      <section>
+      <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
         <Subheading>Comportement (UX)</Subheading>
         <Text className="mt-1">
           Funnel des sessions uniques sur les events serveur. Les session_id se persistent 30 jours.
@@ -218,10 +216,8 @@ export default async function StoreAnalyticsPage({ params, searchParams }: Props
         )}
       </section>
 
-      <hr className="my-2 border-zinc-950/10 dark:border-white/10" />
-
       {/* UA — Acquisition by source/campaign */}
-      <section>
+      <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
         <Subheading>Acquisition (UA)</Subheading>
         <Text className="mt-1">
           Décomposition par utm_source / utm_campaign. Les visiteurs sans UTM sont regroupés sous{' '}
@@ -273,10 +269,8 @@ export default async function StoreAnalyticsPage({ params, searchParams }: Props
         )}
       </section>
 
-      <hr className="my-2 border-zinc-950/10 dark:border-white/10" />
-
       {/* Pixel/CAPI status */}
-      <section>
+      <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
         <Subheading>Plomberie connectée</Subheading>
         <div className="mt-4 flex flex-wrap gap-3">
           <ConnState label="GA4" set={!!store.ga4_measurement_id} />

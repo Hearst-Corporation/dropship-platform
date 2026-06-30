@@ -59,6 +59,7 @@ export default async function SettingsPage() {
         name="AliExpress DS API"
         meta="AppKey 531346 · App Category: Drop Shipping"
         badge={<Badge color={aliColor}>{aliLabel}</Badge>}
+        first
       >
         {isConnected ? (
           <DescriptionList>
@@ -96,8 +97,6 @@ export default async function SettingsPage() {
         </div>
       </ProviderSection>
 
-      <hr className="my-10 border-zinc-950/10 dark:border-white/10" />
-
       <ProviderSection
         name="CJ Dropshipping API"
         meta="Email: adriennejkovic@gmail.com"
@@ -118,16 +117,24 @@ function ProviderSection({
   name,
   meta,
   badge,
+  first,
   children,
 }: {
   name: string;
   meta: string;
   badge: ReactNode;
+  first?: boolean;
   children: ReactNode;
 }) {
   return (
-    <section className="space-y-4">
-      <div className="flex items-center gap-3">
+    <section
+      className={
+        first
+          ? 'space-y-4'
+          : 'space-y-4 border-t border-zinc-950/10 pt-8 dark:border-white/10'
+      }
+    >
+      <div className="flex min-w-0 items-center gap-3">
         <div className="min-w-0 flex-1">
           <Subheading>{name}</Subheading>
           <Text className="text-xs/5">{meta}</Text>

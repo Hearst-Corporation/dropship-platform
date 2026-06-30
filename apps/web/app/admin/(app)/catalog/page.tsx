@@ -29,8 +29,8 @@ export default async function CatalogPage() {
   const drafts = products.length - published;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col space-y-8">
+      <div className="flex flex-wrap items-end justify-between gap-4 min-w-0">
         <div>
           <Heading>Catalogue Medusa</Heading>
           <Text className="mt-1 max-w-2xl">

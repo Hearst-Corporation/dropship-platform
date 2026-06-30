@@ -82,8 +82,9 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
   return (
     <div className="dark">
       <SidebarLayout sidebar={sidebar} navbar={navbar}>
-        {/* Reserve space on the right for the fixed SuperAgent rail (lg:w-96). */}
-        <div className="lg:pr-96">{children}</div>
+        {/* Reserve space on the right for the fixed SuperAgent rail (lg:w-96).
+            min-w-0 lets the parent overflow-x-clip contain wide tables. */}
+        <div className="min-w-0 lg:pr-96">{children}</div>
       </SidebarLayout>
     </div>
   );

@@ -123,17 +123,17 @@ export default async function StoresPage({
       {rows.length === 0 ? (
         <EmptyState />
       ) : (
-        <Table dense>
+        <Table dense className="min-w-0">
           <TableHead>
-              <TableRow>
-                <TableHeader>Store</TableHeader>
-                <TableHeader>Niche</TableHeader>
-                <TableHeader>Statut</TableHeader>
-                <TableHeader className="text-right">Produits</TableHeader>
-                <TableHeader className="text-right">Actions</TableHeader>
-              </TableRow>
-            </TableHead>
-            <TableBody>
+            <TableRow>
+              <TableHeader>Store</TableHeader>
+              <TableHeader>Niche</TableHeader>
+              <TableHeader>Statut</TableHeader>
+              <TableHeader className="text-right">Produits</TableHeader>
+              <TableHeader className="text-right">Actions</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody>
               {rows.map((store) => {
                 const s = statusOf(store);
                 const cover = pickStoreCover(store);

@@ -110,9 +110,9 @@ export default async function OrdersPage() {
   ];
 
   return (
-    <div className="flex flex-1 flex-col space-y-10">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
+    <div className="flex min-w-0 flex-1 flex-col space-y-8">
+      <div className="flex min-w-0 flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
           <Heading>Carnet de commandes</Heading>
           <Text>
             Forward chaque commande payée vers AliExpress. Le dry-run sauve le payload sans rien envoyer.
@@ -121,22 +121,24 @@ export default async function OrdersPage() {
         <DryRunPendingButton />
       </div>
 
-      <DescriptionList>
+      <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((kpi) => (
-          <div key={kpi.label} className="contents">
+          <div
+            key={kpi.label}
+            className="min-w-0 border-t border-zinc-950/10 pt-4 dark:border-white/10"
+          >
             <DescriptionTerm>{kpi.label}</DescriptionTerm>
             <DescriptionDetails>
-              <Strong className="tabular-nums">{kpi.value}</Strong>
+              <Strong className="text-2xl/8 tabular-nums">{kpi.value}</Strong>
             </DescriptionDetails>
           </div>
         ))}
-      </DescriptionList>
+      </dl>
 
       {fetchError && <Text className="text-red-600 dark:text-red-400">Erreur Medusa : {fetchError}</Text>}
 
       {awaitingPayment.length > 0 && (
-        <div>
-          <hr className="my-10 border-zinc-950/10 dark:border-white/10" />
+        <div className="min-w-0 border-t border-zinc-950/10 pt-8 dark:border-white/10">
           <div className="flex items-baseline gap-2">
             <Subheading>À payer chez AliExpress</Subheading>
             <Badge color="zinc">
@@ -212,8 +214,7 @@ export default async function OrdersPage() {
       )}
 
       {!fetchError && orders.length === 0 && (
-        <div>
-          <hr className="my-10 border-zinc-950/10 dark:border-white/10" />
+        <div className="min-w-0 border-t border-zinc-950/10 pt-8 dark:border-white/10">
           <Subheading>Aucune commande pour le moment.</Subheading>
           <Text className="mt-1">
             Les commandes Medusa payées apparaîtront ici dès qu&apos;un client passera commande.
@@ -222,8 +223,7 @@ export default async function OrdersPage() {
       )}
 
       {orders.length > 0 && (
-        <div>
-          <hr className="my-10 border-zinc-950/10 dark:border-white/10" />
+        <div className="min-w-0 border-t border-zinc-950/10 pt-8 dark:border-white/10">
           <div className="flex items-baseline gap-2">
             <Subheading>Toutes les commandes</Subheading>
             <Badge color="zinc">

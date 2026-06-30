@@ -110,7 +110,7 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
   ];
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <Text className="text-xs/5 uppercase tracking-wide">Boutique</Text>
@@ -127,7 +127,7 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
 
       <section>
         <Subheading>Indicateurs</Subheading>
-        <DescriptionList className="mt-4">
+        <DescriptionList className="mt-4 sm:grid-cols-2">
           {kpis.map((kpi) => (
             <Fragment key={kpi.label}>
               <DescriptionTerm>{kpi.label}</DescriptionTerm>
@@ -137,9 +137,7 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
         </DescriptionList>
       </section>
 
-      <hr className="my-10 border-zinc-950/10 dark:border-white/10" />
-
-      <section>
+      <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
         <div className="flex items-start justify-between gap-4">
           <Subheading>Informations</Subheading>
           <Badge color={statusActive ? 'green' : 'zinc'}>
@@ -147,7 +145,7 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
           </Badge>
         </div>
 
-        <DescriptionList className="mt-4">
+        <DescriptionList className="mt-4 sm:grid-cols-2">
           <DescriptionTerm>Niche</DescriptionTerm>
           <DescriptionDetails>{store.niche || '—'}</DescriptionDetails>
 
@@ -192,9 +190,7 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
         </DescriptionList>
       </section>
 
-      <hr className="my-10 border-zinc-950/10 dark:border-white/10" />
-
-      <section className="flex flex-wrap items-center justify-between gap-4">
+      <section className="flex flex-wrap items-center justify-between gap-4 border-t border-zinc-950/10 pt-8 dark:border-white/10">
         <div className="min-w-0">
           <Subheading>Catalogue</Subheading>
           <Text className="mt-1">

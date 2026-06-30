@@ -60,7 +60,7 @@ export default async function TemplatesGalleryPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col space-y-12 px-6 pb-12">
+    <div className="space-y-8">
       <div>
         <Heading>Templates de storefront</Heading>
         <Text className="mt-2">
@@ -72,7 +72,7 @@ export default async function TemplatesGalleryPage() {
         const entries = byRegister[reg];
         if (!entries.length) return null;
         return (
-          <section key={reg} className="flex flex-col gap-4">
+          <section key={reg} className="flex min-w-0 flex-col gap-4">
             <div className="flex items-baseline justify-between">
               <Subheading>{labelForRegister(reg)}</Subheading>
               <Text className="text-xs">{entries.length} templates</Text>
