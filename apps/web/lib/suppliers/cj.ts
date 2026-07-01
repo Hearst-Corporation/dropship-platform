@@ -2,6 +2,7 @@
  * CJ Dropshipping API client
  * Docs: https://developers.cjdropshipping.com/api2.0/v1/authentication
  */
+import type { SupplierClient, SupplierSearchResult } from './types';
 
 const CJ_EMAIL = (process.env.CJ_DROPSHIPPING_EMAIL || '').trim();
 const CJ_API_KEY = (process.env.CJ_DROPSHIPPING_API_KEY || '').trim();
@@ -130,3 +131,53 @@ export async function searchProducts(params: {
     };
   }
 }
+
+// ---------------------------------------------------------------------------
+// SupplierClient implementation — pluggable registry adapter
+// ---------------------------------------------------------------------------
+
+export const cjClient: SupplierClient = {
+  id: 'cj',
+  label: 'CJ Dropshipping',
+  tier: 'v1',
+  status: 'search_only',
+  capabilities: {
+    unitOrder: true,
+    noStock: true,
+    directShip: true,
+    neutralPackaging: true,
+    stockPriceSync: false,
+    tracking: false,
+    returns: false,
+    imageRights: false,
+  },
+
+  async searchProducts(params): Promise<SupplierSearchResult> {
+    const result = await searchProducts({
+      keywords: params.keywords,
+      page: params.page,
+      pageSize: params.pageSize,
+      categoryId: params.categoryId,
+    });
+    if (!result.success || !result.data) {
+      return {
+        success: false,
+        products: [],
+        error: result.error,
+      };
+    }
+    const products = result.data.list.map((p) => ({
+      supplier: 'cj' as const,
+      externalId: p.pid,
+      title: p.productNameEn,
+      price: p.sellPrice,
+      imageUrl: p.productImage,
+      supplierUrl: p.sellUrl || '',
+    }));
+    return {
+      success: true,
+      products,
+      total: result.data.total,
+    };
+  },
+};

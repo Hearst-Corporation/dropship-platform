@@ -8,8 +8,7 @@
 
 import { trackedMessage } from '../anthropic';
 import { validateNiche, type ValidatorCountry } from '@/lib/trends/meta-library';
-import * as aliexpress from '@/lib/suppliers/aliexpress';
-import * as cj from '@/lib/suppliers/cj';
+import { getSupplier, type SupplierId } from '@/lib/suppliers/registry';
 import { tavilySearch } from '@/lib/research/tavily';
 import { perplexityAnswer } from '@/lib/research/perplexity';
 import {
@@ -62,95 +61,69 @@ async function execMetaAdsLibrary(raw: unknown): Promise<ResearchToolResult> {
   };
 }
 
-async function execAliexpressSearch(raw: unknown): Promise<ResearchToolResult> {
-  const input = SupplierSearchInput.parse(raw);
-  const limit = Math.min(20, input.limit ?? 10);
-  const res = await aliexpress.searchProducts({
-    keywords: input.query,
-    pageSize: limit,
-    currency: 'EUR',
-    countryCode: 'FR',
-    locale: 'fr_FR',
-  });
-  if (!res.success || !res.data) {
-    return {
-      output: {
-        query: input.query,
-        candidates: [],
-        error: res.error ?? 'AliExpress: erreur inconnue',
-      },
-      summary: `AliExpress "${input.query}" — erreur (${res.error ?? 'inconnu'})`,
-    };
-  }
-  const candidates = res.data.products.slice(0, limit).map((p) => {
-    const costCents = Math.max(0, Math.round(parseFloat(p.sale_price || p.original_price || '0') * 100));
-    const retailCents = Math.max(999, Math.round((costCents * 2.2) / 100) * 100 - 1);
-    const ordersParsed = parseInt(p.thirty_days_sold_count || '0', 10);
-    return {
-      supplier: 'aliexpress' as const,
-      supplier_product_id: p.product_id,
-      title: p.product_title,
-      image_url: p.product_main_image_url,
-      supplier_url: p.product_url,
-      cost_cents: costCents,
-      suggested_price_cents: retailCents,
-      margin_cents: retailCents - costCents,
-      orders: Number.isFinite(ordersParsed) ? ordersParsed : 0,
-      rating: p.evaluate_rate || null,
-    };
-  });
-  return {
-    output: { query: input.query, candidates, total_found: res.data.total_record_count },
-    summary: `AliExpress "${input.query}" — ${candidates.length} produit${candidates.length === 1 ? '' : 's'}`,
-  };
-}
+/**
+ * Factory that returns a supplier-search executor for a given registry id.
+ * Tool NAMES (aliexpress_search, cj_search) are kept in the dispatch switch
+ * so the Anthropic prompt keeps working without prompt changes.
+ */
+function execSupplierSearch(id: SupplierId) {
+  return async (raw: unknown): Promise<ResearchToolResult> => {
+    const input = SupplierSearchInput.parse(raw);
+    const limit = Math.min(20, input.limit ?? 10);
+    const label = id === 'aliexpress' ? 'AliExpress' : id.toUpperCase();
 
-async function execCjSearch(raw: unknown): Promise<ResearchToolResult> {
-  const input = SupplierSearchInput.parse(raw);
-  const limit = Math.min(20, input.limit ?? 10);
-  let res;
-  try {
-    res = await cj.searchProducts({ keywords: input.query, pageSize: limit });
-  } catch (e) {
-    // CJ frequently 401s when the key is invalid — never crash the loop.
+    let result;
+    try {
+      result = await getSupplier(id).searchProducts({
+        keywords: input.query,
+        pageSize: limit,
+        currency: 'EUR',
+        countryCode: 'FR',
+        locale: 'fr_FR',
+      });
+    } catch (e) {
+      return {
+        output: {
+          query: input.query,
+          candidates: [],
+          error: e instanceof Error ? e.message : String(e),
+        },
+        summary: `${label} "${input.query}" — indisponible`,
+      };
+    }
+
+    if (!result.success) {
+      return {
+        output: {
+          query: input.query,
+          candidates: [],
+          error: result.error ?? `${label}: erreur inconnue`,
+        },
+        summary: `${label} "${input.query}" — erreur (${result.error ?? 'inconnu'})`,
+      };
+    }
+
+    const candidates = result.products.slice(0, limit).map((p) => {
+      const costCents = Math.max(0, Math.round(p.price * 100));
+      const retailCents = Math.max(999, Math.round((costCents * 2.2) / 100) * 100 - 1);
+      return {
+        supplier: p.supplier,
+        supplier_product_id: p.externalId,
+        title: p.title,
+        image_url: p.imageUrl,
+        supplier_url: p.supplierUrl,
+        cost_cents: costCents,
+        suggested_price_cents: retailCents,
+        margin_cents: retailCents - costCents,
+        orders: p.orders ?? 0,
+        rating: p.evaluateRate ?? null,
+      };
+    });
+
     return {
-      output: {
-        query: input.query,
-        candidates: [],
-        error: e instanceof Error ? e.message : String(e),
-      },
-      summary: `CJ "${input.query}" — indisponible`,
+      output: { query: input.query, candidates, total_found: result.total ?? candidates.length },
+      summary: `${label} "${input.query}" — ${candidates.length} produit${candidates.length === 1 ? '' : 's'}`,
     };
-  }
-  if (!res.success || !res.data) {
-    return {
-      output: {
-        query: input.query,
-        candidates: [],
-        error: res.error ?? 'CJ: erreur inconnue',
-      },
-      summary: `CJ "${input.query}" — ${res.error ?? 'indisponible'}`,
-    };
-  }
-  const candidates = res.data.list.slice(0, limit).map((p) => {
-    const costCents = Math.max(0, Math.round(p.sellPrice * 100));
-    const retailCents = Math.max(999, Math.round((costCents * 2.2) / 100) * 100 - 1);
-    return {
-      supplier: 'cj' as const,
-      supplier_product_id: p.pid,
-      title: p.productNameEn,
-      image_url: p.productImage,
-      supplier_url: p.sellUrl,
-      cost_cents: costCents,
-      suggested_price_cents: retailCents,
-      margin_cents: retailCents - costCents,
-      orders: 0,
-      rating: null,
-    };
-  });
-  return {
-    output: { query: input.query, candidates, total_found: res.data.total },
-    summary: `CJ "${input.query}" — ${candidates.length} produit${candidates.length === 1 ? '' : 's'}`,
   };
 }
 
@@ -281,9 +254,9 @@ export async function executeTool(name: string, input: unknown): Promise<Researc
     case 'meta_ads_library':
       return execMetaAdsLibrary(input);
     case 'aliexpress_search':
-      return execAliexpressSearch(input);
+      return execSupplierSearch('aliexpress')(input);
     case 'cj_search':
-      return execCjSearch(input);
+      return execSupplierSearch('cj')(input);
     case 'search_ad_benchmarks':
       return execAdBenchmarks(input);
     case 'shortlist_niche':

@@ -1,7 +1,7 @@
 import { medusa } from '@/lib/medusa';
 import { getDb } from '@/lib/db';
-import * as aliexpress from '@/lib/suppliers/aliexpress';
-import * as cj from '@/lib/suppliers/cj';
+import { searchAllSuppliers, type ProductSource } from '@/lib/suppliers/registry';
+import type { RawProduct } from '@/lib/suppliers/types';
 import { filterByImageQuality, type ImageQualityVerdict } from './image-quality';
 import { generateMonoAssets } from './asset-generator';
 import { writeLandingContent } from './landing-writer';
@@ -59,7 +59,7 @@ interface EnrichedProduct {
   costCents: number;
   imageUrl: string;
   supplierUrl: string;
-  supplier: 'aliexpress' | 'cj' | 'ai-generated';
+  supplier: ProductSource;
   externalId: string;
 }
 
@@ -72,21 +72,6 @@ interface BrandingResult {
   logoEmoji: string;
 }
 
-type RawProduct = {
-  supplier: 'aliexpress' | 'cj';
-  externalId: string;
-  title: string;
-  price: number;
-  imageUrl: string;
-  supplierUrl: string;
-  // Optional supplier signals used by the deterministic product scorer
-  // (P0.5). Populated from AE search response when available. Missing for
-  // CJ (the v1 client doesn't expose these), which is fine — scorer
-  // treats them as neutral.
-  orders?: number;
-  evaluateRate?: string;
-};
-
 // Slug helper kept local for store-name slugs; product handles go through
 // buildMedusaHandle so the Google Merchant feed and the import path share
 // the same convention.
@@ -97,61 +82,36 @@ async function searchSuppliers(
   maxPerSupplier: number,
   emit: (e: AgentEvent) => void,
 ): Promise<RawProduct[]> {
-  const results: RawProduct[] = [];
-  let aliCount = 0;
-  let cjCount = 0;
+  const { products, errors } = await searchAllSuppliers({
+    keywords: niche,
+    pageSize: maxPerSupplier,
+    currency: 'EUR',
+    countryCode: 'FR',
+    locale: 'fr_FR',
+  });
 
-  const [aliRes, cjRes] = await Promise.allSettled([
-    aliexpress.searchProducts({
-      keywords: niche,
-      pageSize: maxPerSupplier,
-      currency: 'EUR',
-      countryCode: 'FR',
-      locale: 'fr_FR',
-    }),
-    cj.searchProducts({ keywords: niche, pageSize: maxPerSupplier }),
-  ]);
-
-  if (aliRes.status === 'fulfilled' && aliRes.value.success && aliRes.value.data) {
-    for (const p of aliRes.value.data.products) {
-      const ordersParsed = parseInt(p.thirty_days_sold_count || '0', 10);
-      results.push({
-        supplier: 'aliexpress',
-        externalId: p.product_id,
-        title: p.product_title,
-        price: parseFloat(p.sale_price || p.original_price || '0'),
-        imageUrl: p.product_main_image_url,
-        supplierUrl: p.product_url,
-        orders: Number.isFinite(ordersParsed) ? ordersParsed : undefined,
-        evaluateRate: p.evaluate_rate || undefined,
-      });
-    }
-    aliCount = aliRes.value.data.products.length;
+  // Derive per-supplier counts for the progress event (mirrors old AE/CJ split).
+  const bySupplier: Record<string, number> = {};
+  for (const p of products) {
+    bySupplier[p.supplier] = (bySupplier[p.supplier] ?? 0) + 1;
   }
 
-  if (cjRes.status === 'fulfilled' && cjRes.value.success && cjRes.value.data) {
-    for (const p of cjRes.value.data.list) {
-      results.push({
-        supplier: 'cj',
-        externalId: p.pid,
-        title: p.productNameEn,
-        price: p.sellPrice,
-        imageUrl: p.productImage,
-        supplierUrl: p.sellUrl || '',
-      });
-    }
-    cjCount = cjRes.value.data.list.length;
-  }
-
-  if (aliCount > 0 || cjCount > 0) {
+  if (products.length > 0) {
+    const aliCount = bySupplier['aliexpress'] ?? 0;
+    const cjCount = bySupplier['cj'] ?? 0;
     emit({
       type: 'progress',
       message: `${aliCount} produits AliExpress + ${cjCount} produits CJ trouvés`,
-      data: { aliCount, cjCount, total: results.length },
+      data: { aliCount, cjCount, total: products.length },
     });
   }
 
-  return results;
+  // Surface supplier connectivity errors (mirrors old per-supplier failure log).
+  for (const err of errors) {
+    emit({ type: 'progress', message: `⚠ Fournisseur: ${err}` });
+  }
+
+  return products;
 }
 
 // Output token budget for a multi-product JSON payload. Each product carries a
@@ -368,7 +328,7 @@ response is long:
         costCents: ep.costCents,
         imageUrl: raw.imageUrl,
         supplierUrl: raw.supplierUrl,
-        supplier: raw.supplier,
+        supplier: raw.supplier as ProductSource,
         externalId: raw.externalId,
       };
     });

@@ -1,13 +1,19 @@
 /**
- * Forward a paid Medusa order to AliExpress for fulfillment.
+ * Forward a paid Medusa order to the appropriate supplier for fulfillment.
  *
  * Default behaviour is dry-run: we build the payload and persist it in
- * `dropship_order_forwards` but never call AliExpress. Set `dryRun: false`
+ * `dropship_order_forwards` but never call the supplier. Set `dryRun: false`
  * (and pass an explicit `confirm: true`) to actually place the order.
+ *
+ * Supplier dispatch is via the registry — adding a new supplier only requires
+ * registering it in `lib/suppliers/registry.ts` and setting `placeOrder`.
  */
 
 import { medusa, type MedusaOrder } from '@/lib/medusa';
-import { placeOrder, type AliExpressPlaceOrderInput, type AliExpressLogisticsAddress } from '@/lib/suppliers/aliexpress';
+import { aliExpressOrderUrl } from '@/lib/suppliers/aliexpress';
+import { getSupplier, isSupplierId, type SupplierId } from '@/lib/suppliers/registry';
+import { assertDropshipPure, canAutoForward } from '@/lib/suppliers/policy';
+import type { PlaceOrderInput, SupplierOrderItem, SupplierAddress } from '@/lib/suppliers/types';
 import { getDb } from '@/lib/db';
 import { retry } from '@/lib/retry';
 
@@ -39,10 +45,10 @@ interface ForwardResult {
   ok: boolean;
   status: 'dry_run' | 'sent' | 'error';
   forwardId: string;            // dropship_order_forwards.id
-  aeOrderId?: string;
-  payload: AliExpressPlaceOrderInput;
+  supplierOrderId?: string;
+  payload: PlaceOrderInput;
   error?: string;
-  /** Items the agent could not map to an AliExpress product_id — always to be reviewed. */
+  /** Items the agent could not map to a forwardable supplier — always to be reviewed. */
   unmappedItems: { itemId: string; title: string; reason: string }[];
 }
 
@@ -90,7 +96,7 @@ function splitPhone(raw: string | undefined | null, countryCode: string | undefi
   return { dial: expected, number: local };
 }
 
-function buildLogisticsAddress(order: MedusaOrder, provinceOverride?: string): { address: AliExpressLogisticsAddress; missing: string[] } {
+function buildSupplierAddress(order: MedusaOrder, provinceOverride?: string): { address: SupplierAddress; missing: string[] } {
   const a = order.shipping_address ?? {};
   const fullName = [a.first_name, a.last_name].filter(Boolean).join(' ').trim();
   const province = (a.province || provinceOverride || '').trim();
@@ -105,15 +111,15 @@ function buildLogisticsAddress(order: MedusaOrder, provinceOverride?: string): {
   if (!province) missing.push('province');
   if (!phone.number) missing.push('mobile_no');
 
-  const address: AliExpressLogisticsAddress = {
-    address: a.address_1 || '',
+  const address: SupplierAddress = {
+    address1: a.address_1 || '',
     address2: a.address_2 || undefined,
     city: a.city || '',
-    contact_person: fullName || order.email || '',
-    country: (a.country_code || '').toUpperCase(),
-    full_name: fullName || order.email || '',
-    mobile_no: phone.number,
-    phone_country: phone.dial,
+    contactPerson: fullName || order.email || '',
+    countryCode: (a.country_code || '').toUpperCase(),
+    fullName: fullName || order.email || '',
+    phoneNumber: phone.number,
+    phoneDial: phone.dial,
     province,
     zip: a.postal_code || '',
   };
@@ -128,19 +134,32 @@ interface ProductMapping {
   supplier: string;
 }
 
-async function mapItemsToAliExpress(order: MedusaOrder): Promise<{
-  product_items: { product_count: number; product_id: string; sku_attr?: string }[];
+/**
+ * Resolve Medusa order items to supplier items, applying registry/policy gates.
+ *
+ * Rules:
+ * 1. Items with no row in dropship_store_products → unmapped ("No row in ...").
+ * 2. Items whose supplier is not in the registry (e.g. 'ai-generated') → unmapped.
+ * 3. Items whose supplier is search_only (e.g. CJ) → unmapped ("not auto-forwardable").
+ * 4. Items whose supplier differs from the first-seen forwardable supplier →
+ *    unmapped ("mixed-supplier order — supplier=X deferred") — we only forward
+ *    one supplier leg per call to preserve the existing single-lock behaviour.
+ * 5. Invalid quantity → unmapped.
+ */
+async function mapItemsToSupplier(order: MedusaOrder): Promise<{
+  items: SupplierOrderItem[];
   unmapped: { itemId: string; title: string; reason: string }[];
   storeId?: string;
+  forwardSupplier?: SupplierId;
 }> {
-  const items = order.items ?? [];
-  if (items.length === 0) return { product_items: [], unmapped: [], storeId: undefined };
+  const orderItems = order.items ?? [];
+  if (orderItems.length === 0) return { items: [], unmapped: [], storeId: undefined };
 
-  const productIds = Array.from(new Set(items.map((i) => i.product_id).filter(Boolean)));
+  const productIds = Array.from(new Set(orderItems.map((i) => i.product_id).filter(Boolean)));
   if (productIds.length === 0) {
     return {
-      product_items: [],
-      unmapped: items.map((i) => ({ itemId: i.id, title: i.title, reason: 'Medusa item has no product_id' })),
+      items: [],
+      unmapped: orderItems.map((i) => ({ itemId: i.id, title: i.title, reason: 'Medusa item has no product_id' })),
     };
   }
 
@@ -154,38 +173,72 @@ async function mapItemsToAliExpress(order: MedusaOrder): Promise<{
 
   const byMedusaId = new Map(rows.map((r) => [r.medusa_product_id, r]));
 
-  const product_items: { product_count: number; product_id: string; sku_attr?: string }[] = [];
+  const items: SupplierOrderItem[] = [];
   const unmapped: { itemId: string; title: string; reason: string }[] = [];
   let storeId: string | undefined;
+  let forwardSupplier: SupplierId | undefined;
 
-  for (const item of items) {
+  for (const item of orderItems) {
     const mapping = byMedusaId.get(item.product_id);
     if (!mapping) {
       unmapped.push({ itemId: item.id, title: item.title, reason: 'No row in dropship_store_products' });
       continue;
     }
-    if (mapping.supplier !== 'aliexpress') {
-      unmapped.push({ itemId: item.id, title: item.title, reason: `supplier=${mapping.supplier}, only aliexpress is forwardable` });
+
+    // Gate 1: supplier must be a known registry id (rejects 'ai-generated', unknown strings).
+    if (!isSupplierId(mapping.supplier)) {
+      unmapped.push({
+        itemId: item.id,
+        title: item.title,
+        reason: `supplier=${mapping.supplier} is not a registered supplier`,
+      });
       continue;
     }
+
+    // Gate 2: supplier must support automated order placement.
+    const client = getSupplier(mapping.supplier);
+    if (!canAutoForward(client)) {
+      unmapped.push({
+        itemId: item.id,
+        title: item.title,
+        reason: `supplier=${mapping.supplier} (${client.status}) is not auto-forwardable`,
+      });
+      continue;
+    }
+
+    // Gate 3: all forwardable items in one call must share the same supplier.
+    // If this item's supplier differs from the first-seen one, defer it.
+    if (forwardSupplier === undefined) {
+      forwardSupplier = mapping.supplier;
+    } else if (mapping.supplier !== forwardSupplier) {
+      unmapped.push({
+        itemId: item.id,
+        title: item.title,
+        reason: `mixed-supplier order — supplier=${mapping.supplier} deferred`,
+      });
+      continue;
+    }
+
     storeId = mapping.store_id;
+
     if (!item.quantity || item.quantity <= 0) {
       unmapped.push({ itemId: item.id, title: item.title, reason: `Invalid quantity ${item.quantity}` });
       continue;
     }
-    // AE wants sku_attr like "14:175;5:100" (option_id:value_id pairs).
-    // Medusa stores free-form SKU strings ("Standard", "M-Blue", etc.) which AE silently ignores.
-    // Only forward the SKU when it's already in AE shape; otherwise let AE pick the default.
+
+    // Only forward the SKU when it's already in the supplier's expected shape
+    // (e.g. AE "14:175;5:100"); otherwise let the supplier pick the default.
     const sku = item.variant?.sku;
-    const aeShapedSku = sku && /^\d+:\d+(;\d+:\d+)*$/.test(sku) ? sku : undefined;
-    product_items.push({
-      product_count: item.quantity,
-      product_id: mapping.external_id,
-      ...(aeShapedSku ? { sku_attr: aeShapedSku } : {}),
+    const shapedSku = sku && /^\d+:\d+(;\d+:\d+)*$/.test(sku) ? sku : undefined;
+
+    items.push({
+      externalId: mapping.external_id,
+      quantity: item.quantity,
+      ...(shapedSku ? { skuAttr: shapedSku } : {}),
     });
   }
 
-  return { product_items, unmapped, storeId };
+  return { items, unmapped, storeId, forwardSupplier };
 }
 
 /**
@@ -248,13 +301,13 @@ async function loadAttributionForOrder(medusaOrderId: string): Promise<OrderAttr
  */
 export async function forwardOrder(medusaOrderId: string, opts: ForwardOptions): Promise<ForwardResult> {
   const order = await medusa.getOrder(medusaOrderId);
-  const { product_items, unmapped, storeId } = await mapItemsToAliExpress(order);
-  const { address, missing } = buildLogisticsAddress(order, opts.provinceOverride);
+  const { items, unmapped, storeId, forwardSupplier } = await mapItemsToSupplier(order);
+  const { address, missing } = buildSupplierAddress(order, opts.provinceOverride);
 
-  const payload: AliExpressPlaceOrderInput = {
-    logistics_address: address,
-    product_items,
-    out_order_id: medusaOrderId,
+  const payload: PlaceOrderInput = {
+    outOrderId: medusaOrderId,
+    address,
+    items,
   };
 
   // Hydrate attribution context. Caller-provided wins; otherwise we look
@@ -269,7 +322,7 @@ export async function forwardOrder(medusaOrderId: string, opts: ForwardOptions):
 
   // Hard gates: nothing to ship, missing address, or all items unmapped.
   const hardError =
-    product_items.length === 0
+    items.length === 0
       ? `No mappable items (unmapped: ${unmapped.length})`
       : missing.length > 0
         ? `Missing required address fields: ${missing.join(', ')}`
@@ -279,10 +332,20 @@ export async function forwardOrder(medusaOrderId: string, opts: ForwardOptions):
     const { rows } = await db.query<{ id: string }>(
       `INSERT INTO dropship_order_forwards
          (medusa_order_id, store_id, payload, status, error_message, dry_run,
-          attribution_json, session_id, event_id)
-       VALUES ($1, $2, $3, 'error', $4, $5, $6, $7, $8)
+          attribution_json, session_id, event_id, supplier)
+       VALUES ($1, $2, $3, 'error', $4, $5, $6, $7, $8, $9)
        RETURNING id`,
-      [medusaOrderId, storeId ?? null, JSON.stringify(payload), hardError, opts.dryRun, attributionJson, sessionId, eventId],
+      [
+        medusaOrderId,
+        storeId ?? null,
+        JSON.stringify(payload),
+        hardError,
+        opts.dryRun,
+        attributionJson,
+        sessionId,
+        eventId,
+        forwardSupplier ?? 'aliexpress',
+      ],
     );
     return {
       ok: false,
@@ -298,10 +361,18 @@ export async function forwardOrder(medusaOrderId: string, opts: ForwardOptions):
     const { rows } = await db.query<{ id: string }>(
       `INSERT INTO dropship_order_forwards
          (medusa_order_id, store_id, payload, status, dry_run,
-          attribution_json, session_id, event_id)
-       VALUES ($1, $2, $3, 'dry_run', true, $4, $5, $6)
+          attribution_json, session_id, event_id, supplier)
+       VALUES ($1, $2, $3, 'dry_run', true, $4, $5, $6, $7)
        RETURNING id`,
-      [medusaOrderId, storeId ?? null, JSON.stringify(payload), attributionJson, sessionId, eventId],
+      [
+        medusaOrderId,
+        storeId ?? null,
+        JSON.stringify(payload),
+        attributionJson,
+        sessionId,
+        eventId,
+        forwardSupplier!,
+      ],
     );
     return {
       ok: true,
@@ -312,26 +383,34 @@ export async function forwardOrder(medusaOrderId: string, opts: ForwardOptions):
     };
   }
 
-  // Live: claim the slot first so a concurrent click can't place a second AE
-  // order. The unique partial index on (medusa_order_id) WHERE dry_run=false
-  // AND status IN ('sending','sent') turns the second INSERT into a 23505
-  // (unique_violation), which we treat as "another caller is/has already
-  // forwarded this order".
+  // Live: claim the slot first so a concurrent click can't place a second
+  // supplier order. The unique partial index on (medusa_order_id, supplier)
+  // WHERE dry_run=false AND status IN ('sending','sent') turns the second
+  // INSERT into a 23505 (unique_violation), which we treat as "another caller
+  // is/has already forwarded this order for this supplier".
   let lockId: string;
   try {
     const { rows } = await db.query<{ id: string }>(
       `INSERT INTO dropship_order_forwards
          (medusa_order_id, store_id, payload, status, dry_run,
-          attribution_json, session_id, event_id)
-       VALUES ($1, $2, $3, 'sending', false, $4, $5, $6)
+          attribution_json, session_id, event_id, supplier)
+       VALUES ($1, $2, $3, 'sending', false, $4, $5, $6, $7)
        RETURNING id`,
-      [medusaOrderId, storeId ?? null, JSON.stringify(payload), attributionJson, sessionId, eventId],
+      [
+        medusaOrderId,
+        storeId ?? null,
+        JSON.stringify(payload),
+        attributionJson,
+        sessionId,
+        eventId,
+        forwardSupplier!,
+      ],
     );
     lockId = rows[0]!.id;
   } catch (e) {
     const code = (e as { code?: string }).code;
     if (code === '23505') {
-      console.warn('[order-forwarder] live send already in-flight or completed', { medusaOrderId });
+      console.warn('[order-forwarder] live send already in-flight or completed', { medusaOrderId, forwardSupplier });
       return {
         ok: false,
         status: 'error',
@@ -344,21 +423,45 @@ export async function forwardOrder(medusaOrderId: string, opts: ForwardOptions):
     throw e;
   }
 
-  // Retry placeOrder on AliExpress 5xx and network errors.
-  // placeOrder never throws — it returns { success: false, error } — so we
-  // promote transient failures to thrown errors so retry() can catch them.
-  // 4xx-style application errors (bad payload, auth) must NOT be retried.
+  // Fail-closed guard: re-assert the supplier is auto-forwardable immediately
+  // before we send (catches any runtime state mismatch).
+  const client = getSupplier(forwardSupplier!);
+  try {
+    assertDropshipPure(client);
+  } catch (e) {
+    const errMsg = e instanceof Error ? e.message : 'assertDropshipPure failed';
+    console.error('[order-forwarder] assertDropshipPure rejected', { medusaOrderId, forwardSupplier, error: errMsg });
+    await db.query(
+      `UPDATE dropship_order_forwards
+          SET response = $1, status = 'error', error_message = $2
+        WHERE id = $3`,
+      [null, errMsg, lockId],
+    );
+    return {
+      ok: false,
+      status: 'error',
+      forwardId: lockId,
+      payload,
+      unmappedItems: unmapped,
+      error: errMsg,
+    };
+  }
+
+  // Retry supplier placeOrder on 5xx and network errors.
+  // placeOrder must never throw for application errors — it returns
+  // { success: false, error }. We promote transient failures to thrown errors
+  // so retry() can catch and back-off them.
   const isTransient = (errMsg: string | undefined): boolean =>
     /HTTP\s+5\d\d|network|timeout|abort|fetch|econnreset|etimedout/i.test(errMsg ?? '');
 
-  const aeRes = await retry(
+  const res = await retry(
     async () => {
-      const res = await placeOrder(payload);
-      if (!res.success && isTransient(res.error)) {
+      const r = await client.placeOrder!(payload);
+      if (!r.success && isTransient(r.error)) {
         // Promote to a thrown Error so retry() can back-off and retry.
-        throw new Error(res.error ?? 'AliExpress transient error');
+        throw new Error(r.error ?? 'Supplier transient error');
       }
-      return res;
+      return r;
     },
     {
       maxAttempts: 3,
@@ -372,36 +475,40 @@ export async function forwardOrder(medusaOrderId: string, opts: ForwardOptions):
   ).catch((e: unknown) => {
     // All retries exhausted — return a failure result so the forwarder can
     // update the DB row to status='error' as before.
-    const msg = e instanceof Error ? e.message : 'AliExpress transient error after retries';
-    return { success: false as const, raw: null, error: msg };
+    const msg = e instanceof Error ? e.message : 'Supplier transient error after retries';
+    return { success: false as const, raw: null, supplierOrderId: undefined, error: msg };
   });
 
-  if (aeRes.success) {
+  if (res.success) {
+    // Back-compat: ae_order_id column is kept for legacy readers (admin UI,
+    // anomaly-watch, orders route). Write it only for AliExpress rows.
+    const aeOrderId = forwardSupplier === 'aliexpress' ? (res.supplierOrderId ?? null) : null;
     await db.query(
       `UPDATE dropship_order_forwards
-          SET ae_order_id = $1, response = $2, status = 'sent'
-        WHERE id = $3`,
-      [aeRes.ae_order_id ?? null, JSON.stringify(aeRes.raw), lockId],
+          SET supplier_order_id = $1, ae_order_id = $2, response = $3, status = 'sent'
+        WHERE id = $4`,
+      [res.supplierOrderId ?? null, aeOrderId, JSON.stringify(res.raw), lockId],
     );
     return {
       ok: true,
       status: 'sent',
       forwardId: lockId,
-      aeOrderId: aeRes.ae_order_id,
+      supplierOrderId: res.supplierOrderId,
       payload,
       unmappedItems: unmapped,
     };
   }
 
-  console.error('[order-forwarder] AE placeOrder failed', {
+  console.error('[order-forwarder] supplier placeOrder failed', {
     medusaOrderId,
-    error: aeRes.error,
+    forwardSupplier,
+    error: res.error,
   });
   await db.query(
     `UPDATE dropship_order_forwards
         SET response = $1, status = 'error', error_message = $2
       WHERE id = $3`,
-    [JSON.stringify(aeRes.raw), aeRes.error ?? 'unknown error', lockId],
+    [JSON.stringify(res.raw), res.error ?? 'unknown error', lockId],
   );
   return {
     ok: false,
@@ -409,6 +516,9 @@ export async function forwardOrder(medusaOrderId: string, opts: ForwardOptions):
     forwardId: lockId,
     payload,
     unmappedItems: unmapped,
-    error: aeRes.error,
+    error: res.error,
   };
 }
+
+// Re-export for legacy readers that build AE deep-links.
+export { aliExpressOrderUrl };

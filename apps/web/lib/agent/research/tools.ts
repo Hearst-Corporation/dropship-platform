@@ -9,6 +9,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import { TEMPLATE_IDS, TEMPLATE_CATALOG } from '@/lib/template-catalog';
+import { SupplierIdSchema, SUPPLIER_IDS } from '@/lib/suppliers/registry';
 
 // ── Zod schemas for tool inputs ────────────────────────────────────────
 
@@ -37,7 +38,7 @@ export const AdBenchmarksInput = z.object({
 });
 
 export const FeaturedProductInput = z.object({
-  supplier: z.enum(['aliexpress', 'cj']),
+  supplier: SupplierIdSchema,
   supplier_product_id: z.string().min(1).max(80),
   title: z.string().min(2).max(300),
   image_url: z.string().url().max(2000),
@@ -269,7 +270,7 @@ export const TOOLS: Anthropic.Messages.Tool[] = [
           description:
             'The hero product the operator should start the store with. Copy these fields VERBATIM from one of the aliexpress_search / cj_search candidates you already ran (do not invent URLs or images — they must point to a real supplier listing).',
           properties: {
-            supplier: { type: 'string', enum: ['aliexpress', 'cj'] },
+            supplier: { type: 'string', enum: [...SUPPLIER_IDS] },
             supplier_product_id: { type: 'string' },
             title: { type: 'string' },
             image_url: { type: 'string', description: 'Product image URL from the supplier candidate.' },

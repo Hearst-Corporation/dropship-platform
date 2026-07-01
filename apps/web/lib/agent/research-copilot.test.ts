@@ -4,7 +4,7 @@
  * Same mocking topology as `curation-copilot.test.ts`:
  *   - @/lib/db          : in-memory capture with canned rows + INSERT/UPDATE.
  *   - ./anthropic       : trackedMessage swapped for a programmable queue.
- *   - @/lib/trends/meta-library, @/lib/suppliers/*, @/lib/research/*: spies.
+ *   - @/lib/trends/meta-library, @/lib/suppliers/registry, @/lib/research/*: spies.
  *
  * The agent's tool-use loop is exercised end-to-end so we assert on:
  *   1. Plain-text turn persists user + assistant.
@@ -75,15 +75,33 @@ vi.mock('@/lib/trends/meta-library', () => ({
   validateNiche: validateNicheMock,
 }));
 
-const aliexpressSearch = vi.fn();
-vi.mock('@/lib/suppliers/aliexpress', () => ({
-  searchProducts: aliexpressSearch,
+// Registry mock — executors call getSupplier(id).searchProducts().
+// We expose per-supplier vi.fn() so tests can set return values easily.
+const { aliexpressSearchProducts, cjSearchProducts } = vi.hoisted(() => ({
+  aliexpressSearchProducts: vi.fn(),
+  cjSearchProducts: vi.fn(),
 }));
 
-const cjSearch = vi.fn();
-vi.mock('@/lib/suppliers/cj', () => ({
-  searchProducts: cjSearch,
-}));
+vi.mock('@/lib/suppliers/registry', async () => {
+  const { z } = await import('zod');
+  const MOCK_SUPPLIER_IDS = ['aliexpress', 'cj'] as const;
+  const MOCK_SupplierIdSchema = z.enum(MOCK_SUPPLIER_IDS);
+  return {
+    getSupplier: (id: string) => {
+      if (id === 'aliexpress') return { searchProducts: aliexpressSearchProducts };
+      if (id === 'cj') return { searchProducts: cjSearchProducts };
+      throw new Error(`Unknown supplier in mock: ${id}`);
+    },
+    isSupplierId: (v: string) => v === 'aliexpress' || v === 'cj',
+    SupplierIdSchema: MOCK_SupplierIdSchema,
+    SUPPLIER_IDS: MOCK_SUPPLIER_IDS,
+    searchAllSuppliers: vi.fn(),
+  };
+});
+
+// Keep legacy aliases so existing reset() references compile.
+const aliexpressSearch = aliexpressSearchProducts;
+const cjSearch = cjSearchProducts;
 
 // ── Anthropic mock ────────────────────────────────────────────────────
 
@@ -260,46 +278,42 @@ describe('research-copilot', () => {
   });
 
   it('aliexpress_search normalises product candidates', async () => {
+    // Mock returns the SupplierSearchResult shape (normalized RawProduct[]).
     aliexpressSearch.mockResolvedValue({
       success: true,
-      data: {
-        products: [
-          {
-            product_id: 'ae1',
-            product_title: 'Tapis yoga premium',
-            product_main_image_url: 'https://img/1.jpg',
-            product_url: 'https://ae/1',
-            sale_price: '12.50',
-            original_price: '20.00',
-            discount: '', shop_id: '', shop_url: '',
-            category_id: '', category_name: '',
-            evaluate_rate: '95%', thirty_days_sold_count: '1200',
-          },
-          {
-            product_id: 'ae2',
-            product_title: 'Tapis basique',
-            product_main_image_url: 'https://img/2.jpg',
-            product_url: 'https://ae/2',
-            sale_price: '8.00',
-            original_price: '10.00',
-            discount: '', shop_id: '', shop_url: '',
-            category_id: '', category_name: '',
-            evaluate_rate: '88%', thirty_days_sold_count: '500',
-          },
-          {
-            product_id: 'ae3',
-            product_title: 'Tapis basique 2',
-            product_main_image_url: 'https://img/3.jpg',
-            product_url: 'https://ae/3',
-            sale_price: '5.00',
-            original_price: '7.00',
-            discount: '', shop_id: '', shop_url: '',
-            category_id: '', category_name: '',
-            evaluate_rate: '70%', thirty_days_sold_count: '200',
-          },
-        ],
-        current_page_no: 1, current_record_count: 3, total_record_count: 3,
-      },
+      products: [
+        {
+          supplier: 'aliexpress',
+          externalId: 'ae1',
+          title: 'Tapis yoga premium',
+          price: 12.50,
+          imageUrl: 'https://img/1.jpg',
+          supplierUrl: 'https://ae/1',
+          orders: 1200,
+          evaluateRate: '95%',
+        },
+        {
+          supplier: 'aliexpress',
+          externalId: 'ae2',
+          title: 'Tapis basique',
+          price: 8.00,
+          imageUrl: 'https://img/2.jpg',
+          supplierUrl: 'https://ae/2',
+          orders: 500,
+          evaluateRate: '88%',
+        },
+        {
+          supplier: 'aliexpress',
+          externalId: 'ae3',
+          title: 'Tapis basique 2',
+          price: 5.00,
+          imageUrl: 'https://img/3.jpg',
+          supplierUrl: 'https://ae/3',
+          orders: 200,
+          evaluateRate: '70%',
+        },
+      ],
+      total: 3,
     });
 
     anthropicResponseQueue.push({
@@ -330,8 +344,10 @@ describe('research-copilot', () => {
   });
 
   it('cj_search returns [] without throwing when CJ key is missing', async () => {
+    // SupplierSearchResult shape (registry-normalized).
     cjSearch.mockResolvedValue({
       success: false,
+      products: [],
       error: 'CJ credentials not configured',
     });
 
