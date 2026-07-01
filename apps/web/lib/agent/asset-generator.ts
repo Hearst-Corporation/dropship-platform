@@ -675,6 +675,75 @@ export async function generateMonoAssets(
   };
 }
 
+/**
+ * Brand hero for COLLECTION stores. Collection mode historically generated
+ * nothing — the storefront fell back to a flat color hero. One editorial
+ * ambiance image (fal.ai flux-pro ultra + clarity upscale, ~0.07€) turns the
+ * generic layout into a branded landing. Deterministic prompt (no extra LLM
+ * call). Never throws: returns { heroUrl: null, error } so the run continues
+ * with the color fallback when fal is absent or fails.
+ */
+export interface CollectionHeroResult {
+  heroUrl: string | null;
+  runId: string | null;
+  error: string | null;
+  /** False when no image provider is configured at all (FAL_KEY absent). */
+  providerConfigured: boolean;
+  /** The exact FLUX prompt — persisted so a later regeneration can replay it. */
+  prompt: string;
+}
+
+export function buildCollectionHeroPrompt(args: {
+  storeName: string;
+  niche: string;
+  imageryMood?: string;
+}): string {
+  const mood = args.imageryMood?.trim() || 'soft natural light, calm premium minimalism';
+  return (
+    `Editorial brand hero photograph for a premium e-commerce storefront named "${args.storeName}". ` +
+    `Theme: ${args.niche}. Atmosphere: ${mood}. ` +
+    'Full-bleed 16:9 lifestyle composition, styled set with objects evoking the theme, ' +
+    'soft directional light, generous negative space for headline overlay, magazine quality, ' +
+    'no text, no logos, no watermarks, no people.'
+  );
+}
+
+export async function generateCollectionHero(args: {
+  storeSlug: string;
+  storeName: string;
+  niche: string;
+  imageryMood?: string;
+  onProgress?: (msg: string) => void;
+}): Promise<CollectionHeroResult> {
+  const prompt = buildCollectionHeroPrompt(args);
+  if (!isFalConfigured()) {
+    return {
+      heroUrl: null,
+      runId: null,
+      error: 'FAL_KEY non configuré — hero de marque non généré',
+      providerConfigured: false,
+      prompt,
+    };
+  }
+
+  try {
+    args.onProgress?.('Génération du hero de marque (fal.ai flux-pro ultra)...');
+    const bytes = await falGenerateImage({ prompt, quality: 'hero' });
+    const runDirName = buildRunDirName();
+    const heroUrl = await persistAsset({
+      storeSlug: args.storeSlug,
+      runDirName,
+      filename: 'hero.png',
+      bytes,
+    });
+    return { heroUrl, runId: runDirName, error: null, providerConfigured: true, prompt };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'erreur inconnue';
+    console.error('[asset-generator] collection hero failed', { slug: args.storeSlug, error: msg });
+    return { heroUrl: null, runId: null, error: msg, providerConfigured: true, prompt };
+  }
+}
+
 /*
  * Production storage:
  *

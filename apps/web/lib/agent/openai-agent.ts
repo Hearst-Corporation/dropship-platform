@@ -139,7 +139,7 @@ export interface OpenAIRunMeta {
 export async function trackedOpenAIMessage(
   meta: OpenAIRunMeta,
   messages: OpenAIMessage[],
-  options?: { tools?: OpenAITool[]; maxTokens?: number },
+  options?: { tools?: OpenAITool[]; maxTokens?: number; jsonMode?: boolean },
 ): Promise<{ text: string; usage: OpenAIUsage; tool_calls?: OpenAIToolCall[]; finishReason: string | null }> {
   const startedAt = Date.now();
   let responseText = '';
@@ -161,6 +161,13 @@ export async function trackedOpenAIMessage(
     if (options?.tools) {
       body.tools = options.tools;
       body.tool_choice = 'auto';
+    }
+    // OpenAI native JSON mode: guarantees a syntactically valid JSON body.
+    // Fixes the intermittent "invalid JSON" failures on French copy (unescaped
+    // quotes at temperature 0.7). The prompt must mention "JSON" (API rule) —
+    // every call site using this flag already does.
+    if (options?.jsonMode) {
+      body.response_format = { type: 'json_object' };
     }
 
     let lastError: unknown;

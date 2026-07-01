@@ -19,9 +19,13 @@ import { http, HttpResponse } from 'msw';
 const MEDUSA_BASE = 'http://medusa-mock.local';
 
 let productCounter = 0;
+let medusaDown = false;
 
 export const medusaHandlers = [
   http.post(`${MEDUSA_BASE}/admin/sales-channels`, () => {
+    if (medusaDown) {
+      return HttpResponse.json({ message: 'Service Unavailable' }, { status: 503 });
+    }
     return HttpResponse.json({
       sales_channel: {
         id: 'sc_test_001',
@@ -93,4 +97,10 @@ export const medusaHandlers = [
 /** Reset product id counter between tests for deterministic assertions. */
 export function resetMedusaCounter() {
   productCounter = 0;
+  medusaDown = false;
+}
+
+/** Simulate a full Medusa outage (sales-channel creation returns 503). */
+export function setMedusaDown(down: boolean) {
+  medusaDown = down;
 }

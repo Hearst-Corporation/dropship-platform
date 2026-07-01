@@ -39,6 +39,14 @@ const schema = z.object({
   // it in the form before clicking "Lancer". When the template's register
   // is 'luxury', the asset generator + landing writer switch to maison voice.
   template: z.enum(TEMPLATE_IDS as unknown as [string, ...string[]]).optional(),
+  // Free-form operator brief: constraints on margins, shipping, compliance,
+  // excluded product families. Steers selection, enrichment and the ads plan.
+  brief: z.string().max(4000).optional(),
+  // Target markets as ISO country codes (['FR', 'AE'], max 5).
+  markets: z
+    .array(z.string().regex(/^[A-Za-z]{2,3}$/))
+    .max(5)
+    .optional(),
 });
 
 export async function POST(req: NextRequest) {

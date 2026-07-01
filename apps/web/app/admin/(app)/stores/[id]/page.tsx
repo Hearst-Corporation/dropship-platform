@@ -2,8 +2,10 @@ import { Fragment } from 'react';
 import { notFound } from 'next/navigation';
 import { getDbRead } from '@/lib/db';
 import { resolveStoreId } from '@/lib/resolve-store';
+import { loadStoreReport } from '@/lib/agent/store-report';
 import { StoreAvatar } from '@/components/ui';
 import { StoreActions } from '../StoreActions';
+import { RunReportSections } from './RunReportSections';
 import { Heading, Subheading } from '@/components/catalyst/heading';
 import { Text, TextLink, Strong, Code } from '@/components/catalyst/text';
 import { Badge } from '@/components/catalyst/badge';
@@ -61,7 +63,7 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
   if (!storeId) notFound();
   const db = getDbRead();
 
-  const [storeRes, productsRes] = await Promise.all([
+  const [storeRes, productsRes, runReport] = await Promise.all([
     db.query<StoreDetailRow>(
       `SELECT id, slug, name, niche, tagline, description, logo_emoji, primary_color, accent_color,
             status, product_count, medusa_sales_channel_id, medusa_publishable_key,
@@ -80,6 +82,7 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
      FROM dropship_store_products WHERE store_id = $1 ORDER BY created_at ASC LIMIT 500`,
       [storeId],
     ),
+    loadStoreReport(db, storeId),
   ]);
 
   const store = storeRes.rows[0];
@@ -202,6 +205,8 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
           Voir le catalogue
         </Button>
       </section>
+
+      <RunReportSections report={runReport} />
     </div>
   );
 }

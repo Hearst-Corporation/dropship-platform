@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   Squares2X2Icon,
   ChartBarIcon,
+  MegaphoneIcon,
   CubeIcon,
   AdjustmentsHorizontalIcon,
   PhotoIcon,
@@ -37,6 +38,12 @@ const STORE_TABS: readonly StoreTab[] = [
     label: 'Analytics',
     routePattern: '/admin/stores/[id]/analytics',
     Icon: ChartBarIcon,
+  },
+  {
+    id: 'campaign',
+    label: 'Campagne',
+    routePattern: '/admin/stores/[id]/campaign',
+    Icon: MegaphoneIcon,
   },
   {
     id: 'catalog',

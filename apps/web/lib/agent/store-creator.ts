@@ -1,9 +1,11 @@
 import { medusa } from '@/lib/medusa';
 import { getDb } from '@/lib/db';
-import { searchAllSuppliers, type ProductSource } from '@/lib/suppliers/registry';
+import { listSuppliers, searchAllSuppliers, type ProductSource } from '@/lib/suppliers/registry';
+import { EXCLUDED_PLATFORMS, evaluateDropshipPure } from '@/lib/suppliers/policy';
 import type { RawProduct } from '@/lib/suppliers/types';
 import { filterByImageQuality, type ImageQualityVerdict } from './image-quality';
-import { generateMonoAssets } from './asset-generator';
+import { generateCollectionHero, generateMonoAssets } from './asset-generator';
+import { suggestTemplate } from '@/lib/template-catalog';
 import { writeLandingContent } from './landing-writer';
 import { extractJson } from './json';
 import { trackedOpenAIMessage } from './openai-agent';
@@ -11,6 +13,13 @@ import { runContext } from './run-context';
 import { rankAndKeepTop } from './product-scorer';
 import { buildMedusaHandle, slugifyTitle } from './handle';
 import { buildPaletteFromPreset, getPreset } from '@/lib/design/presets';
+import { generateGoogleAdsPlan, stageGoogleAdsPlan } from './ads-planner';
+import {
+  saveStoreReport,
+  type ProductRunReport,
+  type StoreRunReport,
+  type SupplierRunOutcome,
+} from './store-report';
 
 export interface StoreCreationInput {
   niche: string;
@@ -43,6 +52,14 @@ export interface StoreCreationInput {
    *  asset generator + landing writer switch to luxury voice instead of the
    *  standard DTC defaults. Defaults to `'auto'` if absent. */
   template?: string;
+  /**
+   * Free-form operator brief. Injected into product selection, enrichment and
+   * the Google Ads plan so constraints like "forte marge, expédition fiable,
+   * pas de produits médicaux réglementés" actually steer the agent.
+   */
+  brief?: string;
+  /** Target markets as ISO country codes (default ['FR']). */
+  markets?: string[];
 }
 
 export interface AgentEvent {
@@ -61,6 +78,12 @@ interface EnrichedProduct {
   supplierUrl: string;
   supplier: ProductSource;
   externalId: string;
+  /** Agent-assessed sourcing/compliance risk (defaults to 'unknown'). */
+  riskLevel: 'low' | 'medium' | 'high' | 'unknown';
+  /** Short FR note on fit for the target markets. */
+  marketFit: string;
+  /** Why the agent selected this product. */
+  selectionReason: string;
 }
 
 interface BrandingResult {
@@ -77,11 +100,17 @@ interface BrandingResult {
 // the same convention.
 const slugify = slugifyTitle;
 
+interface SupplierSearchOutcome {
+  products: RawProduct[];
+  bySupplier: Record<string, number>;
+  errors: string[];
+}
+
 async function searchSuppliers(
   niche: string,
   maxPerSupplier: number,
   emit: (e: AgentEvent) => void,
-): Promise<RawProduct[]> {
+): Promise<SupplierSearchOutcome> {
   const { products, errors } = await searchAllSuppliers({
     keywords: niche,
     pageSize: maxPerSupplier,
@@ -97,12 +126,11 @@ async function searchSuppliers(
   }
 
   if (products.length > 0) {
-    const aliCount = bySupplier['aliexpress'] ?? 0;
-    const cjCount = bySupplier['cj'] ?? 0;
+    const parts = Object.entries(bySupplier).map(([s, n]) => `${s}: ${n}`);
     emit({
       type: 'progress',
-      message: `${aliCount} produits AliExpress + ${cjCount} produits CJ trouvés`,
-      data: { aliCount, cjCount, total: products.length },
+      message: `${products.length} produits fournisseurs trouvés (${parts.join(', ')})`,
+      data: { ...bySupplier, total: products.length },
     });
   }
 
@@ -111,7 +139,66 @@ async function searchSuppliers(
     emit({ type: 'progress', message: `⚠ Fournisseur: ${err}` });
   }
 
-  return products;
+  return { products, bySupplier, errors };
+}
+
+/**
+ * Snapshot of the FULL supplier policy for this run: every registered client
+ * (considered + per-run outcome), the AutoDS automation layer, and every
+ * hard-excluded platform with its justification. Pure and synchronous — the
+ * source of truth is code (registry + policy), not the DB mirror.
+ */
+function buildSupplierOutcomes(outcome: SupplierSearchOutcome): SupplierRunOutcome[] {
+  const errorFor = (id: string) => outcome.errors.find((e) => e.startsWith(`${id}:`));
+  const rows: SupplierRunOutcome[] = listSuppliers().map((s) => {
+    const verdict = evaluateDropshipPure(s);
+    const found = outcome.bySupplier[s.id] ?? 0;
+    const err = errorFor(s.id);
+    let reason: string;
+    if (!verdict.ok) {
+      reason = `Hors socle dropship-pur (${verdict.blockedBy.join(', ')})`;
+    } else if (found > 0) {
+      reason = `${found} produit${found > 1 ? 's' : ''} retenu${found > 1 ? 's' : ''} pour la sélection`;
+    } else if (err) {
+      reason = `Interrogé mais indisponible: ${err.slice(err.indexOf(':') + 1).trim()}`;
+    } else {
+      reason = 'Interrogé, aucun résultat pertinent pour cette niche';
+    }
+    return {
+      id: s.id,
+      label: s.label,
+      tier: s.tier,
+      status: s.status,
+      considered: verdict.ok,
+      eligible: verdict.ok,
+      productsFound: found,
+      reason,
+    };
+  });
+
+  rows.push({
+    id: 'autods',
+    label: 'AutoDS (automation)',
+    status: 'automation',
+    considered: false,
+    eligible: false,
+    productsFound: 0,
+    reason: 'Couche d automatisation, pas une source produits',
+  });
+
+  for (const p of EXCLUDED_PLATFORMS) {
+    rows.push({
+      id: p.id,
+      label: p.label,
+      status: 'excluded',
+      considered: false,
+      eligible: false,
+      productsFound: 0,
+      reason: p.note,
+    });
+  }
+
+  return rows;
 }
 
 // Output token budget for a multi-product JSON payload. Each product carries a
@@ -123,13 +210,89 @@ function tokenBudgetForProducts(maxProducts: number): number {
   return Math.min(16384, Math.max(8192, maxProducts * 500 + 2000));
 }
 
-// Called when supplier APIs have no results — Claude generates product concepts
+/**
+ * Call the agent model in JSON mode and parse the payload, with ONE retry on
+ * an unparseable body. Returns the parsed object plus the finishReason of the
+ * last attempt; `parsed` is null when both attempts failed. The raw head of a
+ * failed body is surfaced through `emit` so the operator sees WHY instead of a
+ * bare "invalid JSON".
+ */
+async function callJsonModel<T>(
+  step: string,
+  prompt: string,
+  maxTokens: number,
+  emit: (e: AgentEvent) => void,
+): Promise<{ parsed: T | null; finishReason: string | null }> {
+  let finishReason: string | null = null;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const { text, finishReason: fr } = await trackedOpenAIMessage(
+      { step },
+      [{ role: 'user', content: prompt }],
+      { maxTokens, jsonMode: true },
+    );
+    finishReason = fr;
+    const parsed = extractJson<T>(text);
+    if (parsed) return { parsed, finishReason };
+    emit({
+      type: 'progress',
+      message: `⚠ Réponse IA non parsable (tentative ${attempt}/2)${text ? ` · début: ${text.slice(0, 120)}` : ' · réponse vide'}`,
+    });
+  }
+  return { parsed: null, finishReason };
+}
+
+/** Shared FR/EN operator-brief block injected into the selection prompts. */
+function briefBlock(brief: string | undefined, markets: string[]): string {
+  const marketLine = `Target markets: ${markets.join(' + ')}. Every product must ship reliably to these markets.`;
+  if (!brief?.trim()) return marketLine;
+  return `${marketLine}
+
+Operator brief (MUST be respected for selection, pricing, risk and copy):
+${brief.trim().slice(0, 4000)}`;
+}
+
+const PRODUCT_RISK_CONTRACT = `
+      "riskLevel": "low | medium | high — sourcing/compliance risk (regulated, fragile, claims-sensitive)",
+      "marketFit": "one short sentence: fit for the target markets",
+      "selectionReason": "one short sentence: why this product was selected"`;
+
+type RiskFields = { riskLevel?: string; marketFit?: string; selectionReason?: string };
+
+/**
+ * Normalize a model-emitted money amount to integer euro CENTS.
+ * The contract asks for cents, but GPT intermittently answers in decimal
+ * euros (88.49 instead of 8849) — that killed a whole import batch with
+ * `invalid input syntax for type integer`. Rule: a non-integer value is
+ * decimal euros (× 100); an integer is already cents.
+ */
+function normalizeCents(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  if (!Number.isInteger(n)) return Math.round(n * 100);
+  return n;
+}
+
+function normalizeRisk(p: RiskFields): Pick<EnrichedProduct, 'riskLevel' | 'marketFit' | 'selectionReason'> {
+  const risk = typeof p.riskLevel === 'string' ? p.riskLevel.toLowerCase().trim() : '';
+  return {
+    riskLevel: risk === 'low' || risk === 'medium' || risk === 'high' ? risk : 'unknown',
+    marketFit: typeof p.marketFit === 'string' && p.marketFit.trim() ? p.marketFit.trim() : 'Non évalué',
+    selectionReason:
+      typeof p.selectionReason === 'string' && p.selectionReason.trim()
+        ? p.selectionReason.trim()
+        : 'Sélection par pertinence niche',
+  };
+}
+
+// Called when supplier APIs have no results — the agent model generates concepts
 async function generateProductsWithClaude(
   niche: string,
   storeName: string,
   maxProducts: number,
   language: 'fr' | 'en',
   emit: (e: AgentEvent) => void,
+  brief?: string,
+  markets: string[] = ['FR'],
 ): Promise<{ products: EnrichedProduct[]; branding: BrandingResult }> {
   emit({ type: 'step', message: `APIs fournisseurs indisponibles — génération IA des produits pour "${niche}"...` });
 
@@ -137,17 +300,29 @@ async function generateProductsWithClaude(
     ? 'Write ALL content in French (titles, descriptions).'
     : 'Write ALL content in English.';
 
-  const { text, finishReason } = await trackedOpenAIMessage({ step: 'generate-products' }, [
-    {
-      role: 'user',
-      content: `You are a dropshipping expert. Create a complete product catalog for a dropshipping store.
+  const { parsed, finishReason } = await callJsonModel<{
+    products: Array<{
+      id: string;
+      originalTitle: string;
+      enrichedTitle: string;
+      enrichedDescription: string;
+      costCents: number;
+      retailPriceCents: number;
+      imageUrl: string;
+      supplierUrl: string;
+    } & RiskFields>;
+    branding: BrandingResult;
+  }>(
+    'generate-products',
+    `You are a dropshipping expert. Create a complete product catalog for a dropshipping store.
 
 Store name: "${storeName}"
 Niche: "${niche}"
 Number of products needed: ${maxProducts}
 ${langInstruction}
+${briefBlock(brief, markets)}
 
-Generate ${maxProducts} realistic dropshipping products for this niche. These should be products typically found on AliExpress or CJ Dropshipping.
+Generate ${maxProducts} realistic dropshipping products for this niche. These should be products typically found on AliExpress or CJ Dropshipping. Avoid regulated medical devices, excessive health claims and dangerous goods.
 
 Return ONLY valid JSON:
 {
@@ -157,10 +332,10 @@ Return ONLY valid JSON:
       "originalTitle": "Raw product name as it would appear from supplier",
       "enrichedTitle": "Compelling retail title (max 65 chars)",
       "enrichedDescription": "Benefit-focused description (130-170 words). Include key features, materials, use cases, and why customers love it.",
-      "costCents": <supplier cost in euro cents, realistic for AliExpress pricing>,
-      "retailPriceCents": <retail price = cost * 2.2 rounded to nearest .99, min 999>,
+      "costCents": <INTEGER euro cents, realistic for AliExpress pricing, e.g. 850 for €8.50 — NEVER decimal euros>,
+      "retailPriceCents": <INTEGER euro cents = cost * 2.2 rounded to nearest .99, min 999, e.g. 2199 for €21.99>,
       "imageUrl": "",
-      "supplierUrl": ""
+      "supplierUrl": "",${PRODUCT_RISK_CONTRACT}
     }
   ],
   "branding": {
@@ -174,27 +349,15 @@ Return ONLY valid JSON:
 }
 
 Hard color rule: the three colors must form a coherent palette. If you cannot guarantee that, default to a monochromatic palette built from one hue (e.g. primary=#1F3D2C dark, secondary=#EAF2EC light, accent=#2E7D5C mid). Random complementary stunts ruin the storefront.`,
-    },
-  ], { maxTokens: tokenBudgetForProducts(maxProducts) });
+    tokenBudgetForProducts(maxProducts),
+    emit,
+  );
 
-  const parsed = extractJson<{
-    products: Array<{
-      id: string;
-      originalTitle: string;
-      enrichedTitle: string;
-      enrichedDescription: string;
-      costCents: number;
-      retailPriceCents: number;
-      imageUrl: string;
-      supplierUrl: string;
-    }>;
-    branding: BrandingResult;
-  }>(text);
   if (!parsed) {
     throw new Error(
       finishReason === 'length'
         ? 'Réponse IA tronquée (limite de tokens) — réessayez ou réduisez le nombre de produits'
-        : 'Claude returned invalid JSON for product generation',
+        : 'Réponse IA non exploitable pour la génération produits (JSON invalide après 2 tentatives)',
     );
   }
 
@@ -212,12 +375,13 @@ Hard color rule: the three colors must form a coherent palette. If you cannot gu
     originalTitle: p.originalTitle,
     enrichedTitle: p.enrichedTitle,
     enrichedDescription: p.enrichedDescription,
-    priceCents: p.retailPriceCents,
-    costCents: p.costCents,
+    priceCents: normalizeCents(p.retailPriceCents),
+    costCents: normalizeCents(p.costCents),
     imageUrl: p.imageUrl || '',
     supplierUrl: p.supplierUrl || '',
     supplier: 'ai-generated' as const,
     externalId: p.id,
+    ...normalizeRisk(p),
   }));
 
   return { products, branding: parsed.branding };
@@ -230,12 +394,14 @@ async function enrichSupplierProductsWithClaude(
   maxProducts: number,
   language: 'fr' | 'en',
   emit: (e: AgentEvent) => void,
+  brief?: string,
+  markets: string[] = ['FR'],
 ): Promise<{ products: EnrichedProduct[]; branding: BrandingResult }> {
   const langInstruction = language === 'fr'
     ? 'Write all content in French.'
     : 'Write all content in English.';
 
-  emit({ type: 'step', message: 'Enrichissement IA en cours (Claude)...' });
+  emit({ type: 'step', message: 'Sélection et enrichissement IA des produits...' });
 
   const productsJson = JSON.stringify(
     rawProducts.slice(0, 40).map((p, i) => ({
@@ -250,25 +416,33 @@ async function enrichSupplierProductsWithClaude(
     2,
   );
 
-  const { text, finishReason } = await trackedOpenAIMessage(
-    { step: 'enrich-products' },
-    [
-      {
-        role: 'user',
-        content: `You are an expert dropshipping product specialist and copywriter.
+  const { parsed, finishReason } = await callJsonModel<{
+    products: Array<{
+      index: number;
+      enrichedTitle: string;
+      enrichedDescription: string;
+      retailPriceCents: number;
+      costCents: number;
+    } & RiskFields>;
+    branding: BrandingResult;
+  }>(
+    'enrich-products',
+    `You are an expert dropshipping product specialist and copywriter.
 
 Store name: "${storeName}"
 Niche: "${niche}"
 ${langInstruction}
+${briefBlock(brief, markets)}
 
 Raw supplier products:
 ${productsJson}
 
 Tasks:
-1. Select the best ${maxProducts} products most relevant to the niche.
+1. Select the best ${maxProducts} products most relevant to the niche and the operator brief. Reject regulated medical devices, excessive health claims and dangerous goods.
 2. Write a compelling title (max 65 chars) and description (130-170 words) for each.
 3. Retail price = cost * 2.2 rounded to nearest .99, minimum €9.99.
-4. Generate store branding.
+4. Assess each product: risk level, market fit, selection reason.
+5. Generate store branding.
 
 Return ONLY valid JSON. Emit "branding" FIRST so it survives even if the
 response is long:
@@ -286,31 +460,20 @@ response is long:
       "index": <original index number>,
       "enrichedTitle": "...",
       "enrichedDescription": "...",
-      "retailPriceCents": <integer>,
-      "costCents": <integer from cost_eur * 100>
+      "retailPriceCents": <INTEGER euro cents, e.g. 2199 for €21.99 — NEVER decimal euros>,
+      "costCents": <INTEGER euro cents = cost_eur * 100, e.g. 850 for €8.50>,${PRODUCT_RISK_CONTRACT}
     }
   ]
 }`,
-      },
-    ],
-    { maxTokens: tokenBudgetForProducts(maxProducts) },
+    tokenBudgetForProducts(maxProducts),
+    emit,
   );
 
-  const parsed = extractJson<{
-    products: Array<{
-      index: number;
-      enrichedTitle: string;
-      enrichedDescription: string;
-      retailPriceCents: number;
-      costCents: number;
-    }>;
-    branding: BrandingResult;
-  }>(text);
   if (!parsed) {
     throw new Error(
       finishReason === 'length'
         ? 'Réponse IA tronquée (limite de tokens) — réessayez ou réduisez le nombre de produits'
-        : 'Claude returned invalid JSON',
+        : 'Réponse IA non exploitable pour l enrichissement (JSON invalide après 2 tentatives)',
     );
   }
 
@@ -324,12 +487,13 @@ response is long:
         originalTitle: raw.title,
         enrichedTitle: ep.enrichedTitle,
         enrichedDescription: ep.enrichedDescription,
-        priceCents: ep.retailPriceCents,
-        costCents: ep.costCents,
+        priceCents: normalizeCents(ep.retailPriceCents),
+        costCents: normalizeCents(ep.costCents),
         imageUrl: raw.imageUrl,
         supplierUrl: raw.supplierUrl,
         supplier: raw.supplier as ProductSource,
         externalId: raw.externalId,
+        ...normalizeRisk(ep),
       };
     });
 
@@ -364,7 +528,12 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
   let resolveNext: ((v: { value: AgentEvent; done: false }) => void) | null = null;
   let done = false;
 
+  // Full event log, persisted in the run report so the admin can replay the
+  // run after the SSE stream is gone.
+  const eventLog: StoreRunReport['events'] = [];
+
   const emit = (e: AgentEvent) => {
+    eventLog.push({ ts: new Date().toISOString(), type: e.type, message: e.message });
     if (resolveNext) {
       const r = resolveNext;
       resolveNext = null;
@@ -379,10 +548,32 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
   // mode uses the requested count (default 12).
   const maxProducts = mode === 'mono' ? 1 : input.maxProducts ?? 12;
   const language = input.language ?? 'fr';
+  const markets = input.markets?.length ? input.markets.map((m) => m.toUpperCase()) : ['FR'];
+  const brief = input.brief?.trim() || undefined;
 
   const run = async () => {
     const db = getDb();
     const slug = slugify(input.storeName) + '-' + Date.now().toString(36);
+
+    // Report scaffold filled as the run progresses; saved on success AND error.
+    const report: StoreRunReport = {
+      version: 1,
+      storeId: '',
+      storeName: input.storeName,
+      slug,
+      niche: input.niche,
+      mode,
+      language,
+      template: input.template ?? 'auto',
+      brief: brief ?? null,
+      markets,
+      suppliers: [],
+      products: [],
+      assets: { status: 'supplier-images', notes: '' },
+      adsPlan: null,
+      events: eventLog,
+      createdAt: new Date().toISOString(),
+    };
 
     try {
       emit({ type: 'step', message: `Démarrage de l'agent pour "${input.storeName}" (niche: ${input.niche})` });
@@ -390,19 +581,53 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
       // Insert with the chosen template right away — landing-writer + asset
       // generator both read `template` from the row to decide whether to use
       // the luxury voice / luxury prompts. Defaults to 'auto' (legacy mode).
+      // Template resolution at creation time: an explicit operator choice
+      // wins; otherwise the agent picks a niche-fit template from the catalog
+      // instead of shipping the bare 'auto' layout.
+      const requestedTemplate = input.template && input.template !== 'auto' ? input.template : null;
+      const chosenTemplate =
+        requestedTemplate ??
+        suggestTemplate({ niche: input.niche, mode, productCount: maxProducts, brief });
+
       const insertRes = await db.query<{ id: string }>(
         `INSERT INTO dropship_stores (slug, name, niche, mode, status, template) VALUES ($1, $2, $3, $4, 'creating', $5) RETURNING id`,
-        [slug, input.storeName, input.niche, mode, input.template ?? 'auto'],
+        [slug, input.storeName, input.niche, mode, chosenTemplate],
       );
       const storeId = insertRes.rows[0]!.id;
+      report.storeId = storeId;
+      report.template = chosenTemplate;
 
-      // From here on every Anthropic call landed via trackedMessage will
+      emit({
+        type: 'progress',
+        message: requestedTemplate
+          ? `Template imposé par l'opérateur: ${chosenTemplate}`
+          : `Template retenu par l'agent: ${chosenTemplate}`,
+        data: { template: chosenTemplate },
+      });
+
+      if (brief) {
+        emit({ type: 'progress', message: `Brief opérateur pris en compte (${markets.join(' + ')})` });
+      }
+
+      // From here on every model call landed via the tracked wrappers will
       // pick up storeId automatically (AsyncLocalStorage in run-context).
       await runContext.run({ storeId }, async () => {
 
-      emit({ type: 'step', message: 'Recherche produits chez AliExpress & CJ Dropshipping...' });
+      emit({ type: 'step', message: 'Recherche produits chez les fournisseurs dropshipping...' });
 
-      const rawProducts = await searchSuppliers(input.niche, 25, emit);
+      const searchOutcome = await searchSuppliers(input.niche, 25, emit);
+      const rawProducts = searchOutcome.products;
+
+      // Supplier policy snapshot: which platforms were considered, which are
+      // excluded and why. Persisted in the report + surfaced as an event.
+      report.suppliers = buildSupplierOutcomes(searchOutcome);
+      const consideredCount = report.suppliers.filter((s) => s.considered).length;
+      const excludedCount = report.suppliers.filter((s) => s.status === 'excluded').length;
+      emit({
+        type: 'progress',
+        message: `Politique fournisseurs: ${consideredCount} sources interrogées, ${excludedCount} plateformes exclues (MOQ/grossiste/sans API)`,
+        data: { considered: consideredCount, excluded: excludedCount },
+      });
 
       // ── P0.5 Deterministic pre-vision scorer ────────────────────────
       // Before paying Haiku Vision $0.001/image to score every supplier
@@ -472,7 +697,7 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
         // Fallback: let Claude generate the whole catalog
         emit({ type: 'progress', message: 'APIs fournisseurs non disponibles — passage en mode génération IA pure.' });
 
-        const aiResult = await generateProductsWithClaude(input.niche, input.storeName, maxProducts, language, emit);
+        const aiResult = await generateProductsWithClaude(input.niche, input.storeName, maxProducts, language, emit, brief, markets);
 
         emit({ type: 'step', message: 'Attribution des visuels produits...' });
         for (const p of aiResult.products) {
@@ -486,7 +711,7 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
       } else {
         // Enrich real supplier products
         const result = await enrichSupplierProductsWithClaude(
-          input.niche, input.storeName, rawProducts, maxProducts, language, emit,
+          input.niche, input.storeName, rawProducts, maxProducts, language, emit, brief, markets,
         );
         enriched = result.products;
         branding = result.branding;
@@ -499,79 +724,115 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
       if (input.primaryColor) branding.primaryColor = input.primaryColor;
       if (input.accentColor) branding.accentColor = input.accentColor;
 
-      emit({ type: 'step', message: 'Création du canal de vente Medusa...' });
-      const channel = await medusa.createSalesChannel(
-        input.storeName,
-        `Store dropshipping — ${input.niche}`,
-      );
-
-      emit({ type: 'step', message: 'Création de la clé API publique...' });
-      let apiKey: { id: string; token: string };
+      // Medusa provisioning is best-effort: when the backend is down the run
+      // MUST still deliver a store — products are persisted in Postgres with
+      // medusa_product_id NULL and the storefront checkout is deferred. A dead
+      // run that loses the whole selection is a worse outcome than a store
+      // pending its sales channel.
+      let channelId: string | null = null;
+      let publishableKey: string | null = null;
       try {
-        apiKey = await medusa.createPublishableApiKey(`${input.storeName} Store Key`);
-        await medusa.addSalesChannelsToPublishableKey(apiKey.id, [channel.id]);
+        emit({ type: 'step', message: 'Création du canal de vente Medusa...' });
+        const channel = await medusa.createSalesChannel(
+          input.storeName,
+          `Store dropshipping — ${input.niche}`,
+        );
 
-        // Without this link, Medusa /store/shipping-options returns 0 options
-        // for any cart on this sales_channel — checkout would dead-end at "no
-        // shipping option available". We use the first stock_location (a
-        // single warehouse setup is the assumption for this MVP).
-        const stockLocations = await medusa.listStockLocations();
-        if (stockLocations[0]) {
-          await medusa.linkSalesChannelsToStockLocation(stockLocations[0].id, [channel.id]);
-        } else {
-          console.warn('[store-creator] no stock_location to link new sales channel to', { channelId: channel.id });
+        emit({ type: 'step', message: 'Création de la clé API publique...' });
+        try {
+          const apiKey = await medusa.createPublishableApiKey(`${input.storeName} Store Key`);
+          await medusa.addSalesChannelsToPublishableKey(apiKey.id, [channel.id]);
+
+          // Without this link, Medusa /store/shipping-options returns 0 options
+          // for any cart on this sales_channel — checkout would dead-end at "no
+          // shipping option available". We use the first stock_location (a
+          // single warehouse setup is the assumption for this MVP).
+          const stockLocations = await medusa.listStockLocations();
+          if (stockLocations[0]) {
+            await medusa.linkSalesChannelsToStockLocation(stockLocations[0].id, [channel.id]);
+          } else {
+            console.warn('[store-creator] no stock_location to link new sales channel to', { channelId: channel.id });
+          }
+          channelId = channel.id;
+          publishableKey = apiKey.token;
+        } catch (e) {
+          console.error('[store-creator] publishable key / stock-location setup failed, rolling back', {
+            channelId: channel.id,
+            error: e instanceof Error ? e.message : String(e),
+          });
+          await medusa.deleteSalesChannel(channel.id).catch(() => {});
+          throw e;
         }
       } catch (e) {
-        console.error('[store-creator] publishable key / stock-location setup failed, rolling back', {
-          channelId: channel.id,
-          error: e instanceof Error ? e.message : String(e),
+        const msg = e instanceof Error ? e.message : 'erreur inconnue';
+        emit({
+          type: 'progress',
+          message: `⚠ Medusa indisponible (${msg}). Produits persistés en local, canal de vente à reprovisionner.`,
         });
-        await medusa.deleteSalesChannel(channel.id).catch(() => {});
-        throw e;
       }
+      const medusaOk = Boolean(channelId && publishableKey);
 
-      emit({ type: 'step', message: `Import de ${enriched.length} produits dans Medusa...` });
+      emit({
+        type: 'step',
+        message: medusaOk
+          ? `Import de ${enriched.length} produits dans Medusa...`
+          : `Persistance locale de ${enriched.length} produits (Medusa hors ligne)...`,
+      });
 
       const IMPORT_CONCURRENCY = 4;
 
       let imported = 0;
+      const productStatuses = new Map<string, ProductRunReport['status']>();
       const importOne = async (ep: EnrichedProduct) => {
-        try {
-          const handle = buildMedusaHandle({
-            title: ep.enrichedTitle,
-            externalId: ep.externalId,
-            storeId,
-          });
-          const medusaProduct = await medusa.createProductWithChannel(
-            {
+        let medusaProductId: string | null = null;
+        let status: ProductRunReport['status'] = medusaOk ? 'imported' : 'local_only';
+        if (medusaOk && channelId) {
+          try {
+            const handle = buildMedusaHandle({
               title: ep.enrichedTitle,
-              description: ep.enrichedDescription,
-              handle,
-              status: 'published',
-              thumbnail: ep.imageUrl || undefined,
-              images: ep.imageUrl ? [ep.imageUrl] : [],
-              options: [{ title: 'Default', values: ['Standard'] }],
-              variants: [
-                {
-                  title: 'Standard',
-                  // Medusa v2 stores money in major units (EUR with decimals),
-                  // not minor units. The payment-stripe module converts to
-                  // Stripe's smallest unit by multiplying by 100, so passing
-                  // cents here makes Stripe see 100× the real total.
-                  prices: [{ currency_code: 'eur', amount: ep.priceCents / 100 }],
-                  inventory_quantity: 999,
+              externalId: ep.externalId,
+              storeId,
+            });
+            const medusaProduct = await medusa.createProductWithChannel(
+              {
+                title: ep.enrichedTitle,
+                description: ep.enrichedDescription,
+                handle,
+                status: 'published',
+                thumbnail: ep.imageUrl || undefined,
+                images: ep.imageUrl ? [ep.imageUrl] : [],
+                options: [{ title: 'Default', values: ['Standard'] }],
+                variants: [
+                  {
+                    title: 'Standard',
+                    // Medusa v2 stores money in major units (EUR with decimals),
+                    // not minor units. The payment-stripe module converts to
+                    // Stripe's smallest unit by multiplying by 100, so passing
+                    // cents here makes Stripe see 100× the real total.
+                    prices: [{ currency_code: 'eur', amount: ep.priceCents / 100 }],
+                    inventory_quantity: 999,
+                  },
+                ],
+                metadata: {
+                  supplier: ep.supplier,
+                  external_id: ep.externalId,
+                  cost_cents: ep.costCents,
+                  store_id: storeId,
                 },
-              ],
-              metadata: {
-                supplier: ep.supplier,
-                external_id: ep.externalId,
-                cost_cents: ep.costCents,
-                store_id: storeId,
               },
-            },
-            channel.id,
-          );
+              channelId,
+            );
+            medusaProductId = medusaProduct.id;
+          } catch (err) {
+            status = 'import_failed';
+            emit({
+              type: 'progress',
+              message: `⚠ Import Medusa échoué: ${ep.enrichedTitle} — ${err instanceof Error ? err.message : 'erreur'} (produit conservé en local)`,
+            });
+          }
+        }
 
+        try {
           const verdict = visionVerdicts.get(ep.externalId);
           await db.query(
             `INSERT INTO dropship_store_products
@@ -582,13 +843,14 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
              ON CONFLICT (store_id, supplier, external_id) DO NOTHING`,
             [
-              storeId, medusaProduct.id, ep.supplier, ep.externalId,
+              storeId, medusaProductId, ep.supplier, ep.externalId,
               ep.originalTitle, ep.enrichedTitle, ep.enrichedDescription,
               ep.priceCents, ep.costCents, ep.imageUrl || null, ep.supplierUrl || null,
               verdict?.score ?? null, JSON.stringify(verdict?.issues ?? []),
             ],
           );
 
+          productStatuses.set(ep.externalId, status);
           imported++;
           emit({
             type: 'progress',
@@ -596,6 +858,7 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
             data: { imported, total: enriched.length },
           });
         } catch (err) {
+          productStatuses.set(ep.externalId, 'import_failed');
           emit({
             type: 'progress',
             message: `⚠ Ignoré: ${ep.enrichedTitle} — ${err instanceof Error ? err.message : 'erreur'}`,
@@ -606,6 +869,26 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
       for (let i = 0; i < enriched.length; i += IMPORT_CONCURRENCY) {
         await Promise.all(enriched.slice(i, i + IMPORT_CONCURRENCY).map(importOne));
       }
+
+      // Per-product report rows: price, cost, margin, risk, market fit, status.
+      report.products = enriched.map((ep) => ({
+        externalId: ep.externalId,
+        supplier: ep.supplier,
+        title: ep.enrichedTitle,
+        priceCents: ep.priceCents,
+        costCents: ep.costCents,
+        marginPct: ep.priceCents > 0 && ep.costCents > 0
+          ? Math.round(((ep.priceCents - ep.costCents) / ep.priceCents) * 100)
+          : null,
+        riskLevel: ep.riskLevel,
+        marketFit: ep.marketFit,
+        status: productStatuses.get(ep.externalId) ?? 'proposed',
+        reason: ep.selectionReason,
+        imageUrl: ep.imageUrl || null,
+      }));
+      report.assets = enriched.some((ep) => ep.supplier === 'ai-generated')
+        ? { status: 'placeholder', notes: 'Visuels de secours déterministes (picsum seedé) — catalogue généré par IA sans photos fournisseur.' }
+        : { status: 'supplier-images', notes: 'Photos fournisseur qualifiées par le filtre vision.' };
 
       // Locked design system: the picker passed (or defaulted) a preset slug.
       // Resolve it to a curated preset and freeze the palette in DB so every
@@ -632,7 +915,7 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
         [
           branding.tagline, branding.description,
           branding.primaryColor, branding.secondaryColor, branding.accentColor,
-          branding.logoEmoji, channel.id, apiKey.token, imported,
+          branding.logoEmoji, channelId, publishableKey, imported,
           preset.slug, JSON.stringify(palette), storeId,
         ],
       );
@@ -653,7 +936,7 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
             productTitle: heroProduct.enrichedTitle,
             productDescription: heroProduct.enrichedDescription,
             mode,
-            template: input.template,
+            template: chosenTemplate,
             accentColor: palette.accent,
             supplierCostCents: heroProduct.costCents,
           });
@@ -664,6 +947,46 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
         } catch (e) {
           const msg = e instanceof Error ? e.message : 'erreur inconnue';
           emit({ type: 'progress', message: `⚠ Landing writer: ${msg}` });
+        }
+      }
+
+      // Collection mode: one branded ambiance hero (fal.ai) so the storefront
+      // opens on a real visual instead of a flat color block. Non-fatal — the
+      // color hero remains the fallback when fal is absent or fails.
+      if (mode === 'collection') {
+        emit({ type: 'step', message: 'Génération du visuel de marque (hero)...' });
+        const hero = await generateCollectionHero({
+          storeSlug: slug,
+          storeName: input.storeName,
+          niche: input.niche,
+          imageryMood: preset.imageryMood,
+          onProgress: (msg) => emit({ type: 'progress', message: msg }),
+        });
+        if (hero.heroUrl) {
+          await db.query(
+            `UPDATE dropship_stores SET
+               hero_image_url = $1, assets_run_id = $2, assets_status = 'ready', updated_at = now()
+             WHERE id = $3`,
+            [hero.heroUrl, hero.runId, storeId],
+          );
+          report.assets = {
+            status: 'generated',
+            notes: 'Hero de marque généré (fal.ai flux-pro ultra) + photos fournisseur pour les fiches produit.',
+          };
+          emit({ type: 'progress', message: 'Hero de marque généré et persisté' });
+        } else if (hero.providerConfigured) {
+          // Provider present but failing (balance, network): queue the exact
+          // prompt so the operator can replay the generation later.
+          report.assets = {
+            status: 'pending_generation',
+            notes: `Hero de marque en attente: ${hero.error}. Prompt prêt pour régénération, photos fournisseur en attendant.`,
+            heroPrompt: hero.prompt,
+          };
+          emit({ type: 'progress', message: `⚠ Hero de marque en attente (${hero.error}) — prompt persisté pour régénération` });
+        } else {
+          report.assets.notes = `${report.assets.notes} Hero de marque non généré: ${hero.error}.`.trim();
+          report.assets.heroPrompt = hero.prompt;
+          emit({ type: 'progress', message: `⚠ Hero de marque: ${hero.error}` });
         }
       }
 
@@ -699,7 +1022,7 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
                   imageUrl: heroProduct.imageUrl,
                 },
                 niche: input.niche,
-                template: input.template,
+                template: chosenTemplate,
                 accentColor: palette.accent,
                 storeName: input.storeName,
                 language,
@@ -746,17 +1069,22 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
         }
 
         if (hasHero) {
+          report.assets = { status: 'generated', notes: 'Hero et déclinaisons générés par le pipeline visuel.' };
           await db.query(
             `UPDATE dropship_stores SET status = 'active', updated_at = now() WHERE id = $1`,
             [storeId],
           );
         } else {
-          // Assets failed (fal/Comfy/Anthropic down). Activate the store
+          // Assets failed (fal/Comfy provider down). Activate the store
           // anyway — the storefront falls back to the supplier images and
           // the operator can re-trigger asset generation later via the admin
           // regenerator. Persisting `creating` would make the storefront 404
           // permanently which is a worse outcome than imperfect visuals.
           const errMsg = assets?.errors[0] || lastAssetError || 'Génération des assets échouée';
+          report.assets = {
+            status: 'pending_generation',
+            notes: `Provider visuel indisponible (${errMsg}). Photos fournisseur en attendant, régénération possible depuis l admin.`,
+          };
           await db.query(
             `UPDATE dropship_stores SET status = 'active', error_message = $1, updated_at = now() WHERE id = $2`,
             [errMsg, storeId],
@@ -765,10 +1093,60 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
         }
       }
 
+      // Google Ads launch plan: generated on EVERY run (staged, never pushed).
+      // Failure is impossible by contract — the planner falls back to a
+      // deterministic plan marked source='fallback'.
+      emit({ type: 'step', message: 'Préparation du plan Google Ads de lancement...' });
+      const adsPlan = await generateGoogleAdsPlan({
+        storeName: input.storeName,
+        slug,
+        niche: input.niche,
+        brief,
+        markets,
+        language,
+        landingUrl: `/shop/${slug}`,
+        products: enriched.map((ep) => ({
+          title: ep.enrichedTitle,
+          priceCents: ep.priceCents,
+          costCents: ep.costCents,
+        })),
+      });
+      report.adsPlan = adsPlan;
+
+      let heroProductRowId: string | null = null;
+      try {
+        const heroRow = await db.query<{ id: string }>(
+          `SELECT id FROM dropship_store_products WHERE store_id = $1 ORDER BY created_at ASC LIMIT 1`,
+          [storeId],
+        );
+        heroProductRowId = heroRow.rows[0]?.id ?? null;
+      } catch {
+        heroProductRowId = null;
+      }
+      const staged = await stageGoogleAdsPlan(db, { storeId, productRowId: heroProductRowId, plan: adsPlan });
+      emit({
+        type: 'progress',
+        message: staged.campaignId
+          ? `Plan Google Ads prêt (${adsPlan.source === 'openai' ? 'généré par IA' : 'plan de secours déterministe'}) · campagne draft ${adsPlan.dailyBudgetEur}€/j · ${adsPlan.countries.join(' + ')}`
+          : `Plan Google Ads prêt (${adsPlan.source === 'openai' ? 'généré par IA' : 'plan de secours déterministe'}) · conservé dans le rapport du store`,
+        data: { adsPlanSource: adsPlan.source, campaignId: staged.campaignId, variantId: staged.variantId },
+      });
+
+      // Persist the full run report (suppliers, produits, assets, plan ads,
+      // logs) via the existing platform_settings mechanism — no migration.
+      const reportSaved = await saveStoreReport(db, report);
+      if (reportSaved) {
+        emit({ type: 'progress', message: 'Rapport de run persisté (fournisseurs, risques, plan ads, logs)' });
+      }
+
       emit({
         type: 'success',
         message: `✅ "${input.storeName}" créé avec ${imported} produit${imported > 1 ? 's' : ''} !`,
-        data: { storeId, slug, storeName: input.storeName, productCount: imported, mode, url: `/shop/${slug}` },
+        data: {
+          storeId, slug, storeName: input.storeName, productCount: imported, mode, url: `/shop/${slug}`,
+          adsPlan: { source: adsPlan.source, dailyBudgetEur: adsPlan.dailyBudgetEur, countries: adsPlan.countries },
+          medusaOnline: medusaOk,
+        },
       });
       });
     } catch (err) {
@@ -778,6 +1156,8 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
         [msg, slug],
       ).catch(() => {});
       emit({ type: 'error', message: msg });
+      // Persist what we have — a failed run must still be inspectable.
+      if (report.storeId) await saveStoreReport(db, report);
     }
 
     done = true;
