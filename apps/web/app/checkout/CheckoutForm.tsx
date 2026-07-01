@@ -1,7 +1,5 @@
 'use client';
 
-import { apiFetch } from '@/lib/client-fetch';
-
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatMoney, type StoreCart, type StoreShippingOption } from '@/lib/medusa-store';
@@ -40,7 +38,6 @@ export function CheckoutForm({ cart, shippingOptions, shippingError, stripeEnabl
     address_1: cart.shipping_address?.address_1 ?? '',
     city: cart.shipping_address?.city ?? '',
     postal_code: cart.shipping_address?.postal_code ?? '',
-    province: cart.shipping_address?.province ?? '',
     country_code: cart.shipping_address?.country_code ?? 'fr',
     phone: cart.shipping_address?.phone ?? '',
   });
@@ -53,7 +50,7 @@ export function CheckoutForm({ cart, shippingOptions, shippingError, stripeEnabl
     setError(null);
     startTransition(async () => {
       try {
-        const res = await apiFetch('/api/checkout/address', {
+        const res = await fetch('/api/checkout/address', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(form),
@@ -72,7 +69,7 @@ export function CheckoutForm({ cart, shippingOptions, shippingError, stripeEnabl
     setError(null);
     startTransition(async () => {
       try {
-        const res = await apiFetch('/api/checkout/shipping', {
+        const res = await fetch('/api/checkout/shipping', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ optionId }),
@@ -91,7 +88,7 @@ export function CheckoutForm({ cart, shippingOptions, shippingError, stripeEnabl
     setError(null);
     startTransition(async () => {
       try {
-        const res = await apiFetch('/api/checkout/complete', {
+        const res = await fetch('/api/checkout/complete', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({}),
@@ -111,7 +108,7 @@ export function CheckoutForm({ cart, shippingOptions, shippingError, stripeEnabl
 
   return (
     <div className="space-y-6">
-      <ol className="flex text-xs gap-2" style={{ color: 'var(--ct-text-muted, rgba(245,245,245,0.48))' }}>
+      <ol className="flex text-xs gap-2 text-zinc-500">
         <Step n={1} active={step === 'address'} done={step !== 'address'}>Adresse</Step>
         <Step n={2} active={step === 'shipping'} done={step === 'payment'}>Livraison</Step>
         <Step n={3} active={step === 'payment'} done={false}>Paiement</Step>
@@ -119,39 +116,22 @@ export function CheckoutForm({ cart, shippingOptions, shippingError, stripeEnabl
 
       {step === 'address' && (
         <div className="space-y-3">
-          <Input label="Email" value={form.email} onChange={(v) => setField('email', v)} type="email" autoComplete="email" />
+          <Input label="Email" value={form.email} onChange={(v) => setField('email', v)} type="email" />
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Prénom" value={form.first_name} onChange={(v) => setField('first_name', v)} autoComplete="given-name" />
-            <Input label="Nom" value={form.last_name} onChange={(v) => setField('last_name', v)} autoComplete="family-name" />
+            <Input label="Prénom" value={form.first_name} onChange={(v) => setField('first_name', v)} />
+            <Input label="Nom" value={form.last_name} onChange={(v) => setField('last_name', v)} />
           </div>
-          <Input label="Adresse" value={form.address_1} onChange={(v) => setField('address_1', v)} autoComplete="address-line1" />
-          <div className="grid grid-cols-2 gap-3">
-            <Input label="Code postal" value={form.postal_code} onChange={(v) => setField('postal_code', v)} autoComplete="postal-code" />
-            <Input label="Ville" value={form.city} onChange={(v) => setField('city', v)} autoComplete="address-level2" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Input label="Région / Département" value={form.province} onChange={(v) => setField('province', v)} autoComplete="address-level1" />
+          <Input label="Adresse" value={form.address_1} onChange={(v) => setField('address_1', v)} />
+          <div className="grid grid-cols-3 gap-3">
+            <Input label="Code postal" value={form.postal_code} onChange={(v) => setField('postal_code', v)} />
+            <Input label="Ville" value={form.city} onChange={(v) => setField('city', v)} />
             <Select label="Pays" value={form.country_code} onChange={(v) => setField('country_code', v)} options={COUNTRIES.map((c) => ({ value: c.code, label: c.name }))} />
           </div>
-          <Input label="Téléphone" value={form.phone} onChange={(v) => setField('phone', v)} type="tel" autoComplete="tel" />
+          <Input label="Téléphone" value={form.phone} onChange={(v) => setField('phone', v)} />
           <button
             onClick={submitAddress}
-            disabled={
-              pending ||
-              !form.email ||
-              !form.first_name ||
-              !form.last_name ||
-              !form.address_1 ||
-              !form.city ||
-              !form.postal_code ||
-              !form.province ||
-              !form.phone
-            }
-            className="px-6 py-3 rounded-full disabled:opacity-60 font-medium text-sm"
-            style={{
-              backgroundColor: 'var(--ct-accent)',
-              color: 'var(--ct-text-strong)',
-            }}
+            disabled={pending || !form.email || !form.first_name || !form.address_1}
+            className="bg-black text-white px-6 py-3 rounded-md hover:bg-zinc-800 disabled:opacity-60"
           >
             {pending ? '…' : 'Continuer'}
           </button>
@@ -160,22 +140,10 @@ export function CheckoutForm({ cart, shippingOptions, shippingError, stripeEnabl
 
       {step === 'shipping' && (
         <div className="space-y-3">
-          <h2
-            className="font-semibold"
-            style={{ color: 'var(--ct-text-strong, #fff)' }}
-          >
-            Livraison
-          </h2>
-          {shippingError && <p className="text-sm" style={{ color: 'var(--ct-accent-strong)' }}>{shippingError}</p>}
+          <h2 className="font-semibold">Livraison</h2>
+          {shippingError && <p className="text-red-600 text-sm">{shippingError}</p>}
           {shippingOptions.length === 0 && !shippingError && (
-            <div
-              className="border p-4 rounded-sm text-sm"
-              style={{
-                borderColor: 'var(--ct-warning-border)',
-                backgroundColor: 'var(--ct-warning-soft)',
-                color: 'var(--ct-warning-text)',
-              }}
-            >
+            <div className="border border-amber-300 bg-amber-50 text-amber-900 p-4 rounded text-sm">
               Aucune option de livraison disponible pour cette adresse — config Medusa à compléter.
             </div>
           )}
@@ -184,40 +152,19 @@ export function CheckoutForm({ cart, shippingOptions, shippingError, stripeEnabl
               key={opt.id}
               onClick={() => pickShipping(opt.id)}
               disabled={pending}
-              className="w-full text-left border rounded-sm p-4 flex justify-between items-center transition-colors"
-              style={{
-                borderColor: 'var(--ct-border, rgba(255,255,255,0.10))',
-                color: 'var(--ct-text-body, rgba(245,245,245,0.72))',
-                backgroundColor: 'var(--ct-surface-1, rgba(255,255,255,0.04))',
-              }}
+              className="w-full text-left border rounded p-4 hover:bg-zinc-50 flex justify-between items-center"
             >
-              <span
-                className="font-medium"
-                style={{ color: 'var(--ct-text-primary, rgba(245,245,245,0.92))' }}
-              >
-                {opt.name}
-              </span>
+              <span className="font-medium">{opt.name}</span>
               <span>{formatMoney(opt.amount, cart.currency_code)}</span>
             </button>
           ))}
-          <button
-            onClick={() => setStep('address')}
-            className="text-sm underline"
-            style={{ color: 'var(--ct-text-muted, rgba(245,245,245,0.48))' }}
-          >
-            Modifier l’adresse
-          </button>
+          <button onClick={() => setStep('address')} className="text-sm underline text-zinc-600">Modifier l’adresse</button>
         </div>
       )}
 
       {step === 'payment' && (
         <div className="space-y-3">
-          <h2
-            className="font-semibold"
-            style={{ color: 'var(--ct-text-strong, #fff)' }}
-          >
-            Paiement
-          </h2>
+          <h2 className="font-semibold">Paiement</h2>
           {stripeEnabled && stripePublishableKey ? (
             <StripePayment
               publishableKey={stripePublishableKey}
@@ -225,96 +172,42 @@ export function CheckoutForm({ cart, shippingOptions, shippingError, stripeEnabl
             />
           ) : (
             <>
-              <div
-                className="border p-4 rounded-sm text-sm space-y-1"
-                style={{
-                  borderColor: 'var(--ct-warning-border)',
-                  backgroundColor: 'var(--ct-warning-soft)',
-                  color: 'var(--ct-warning-text)',
-                }}
-              >
+              <div className="border border-amber-300 bg-amber-50 text-amber-900 p-4 rounded text-sm space-y-1">
                 <p className="font-medium">Mode test (paiement manuel)</p>
                 <p>Stripe non configuré — la commande est créée sans capture de carte.</p>
               </div>
               <button
                 onClick={complete}
                 disabled={pending}
-                className="px-6 py-3 rounded-full disabled:opacity-60 w-full font-medium text-sm"
-                style={{
-                  backgroundColor: 'var(--ct-accent)',
-                  color: 'var(--ct-text-strong)',
-                }}
+                className="bg-black text-white px-6 py-3 rounded-md hover:bg-zinc-800 disabled:opacity-60 w-full"
               >
                 {pending ? '…' : `Confirmer la commande (${formatMoney(cart.total, cart.currency_code)})`}
               </button>
             </>
           )}
-          <button
-            onClick={() => setStep('shipping')}
-            className="text-sm underline"
-            style={{ color: 'var(--ct-text-muted, rgba(245,245,245,0.48))' }}
-          >
-            Modifier la livraison
-          </button>
+          <button onClick={() => setStep('shipping')} className="text-sm underline text-zinc-600">Modifier la livraison</button>
         </div>
       )}
 
-      {error && <p className="text-sm" style={{ color: 'var(--ct-accent-strong)' }}>{error}</p>}
+      {error && <p className="text-red-600 text-sm">{error}</p>}
     </div>
   );
 }
 
 function Step({ n, active, done, children }: { n: number; active: boolean; done: boolean; children: React.ReactNode }) {
   return (
-    <li
-      className={active ? 'flex items-center gap-2 font-semibold' : 'flex items-center gap-2'}
-      style={{
-        color: active
-          ? 'var(--ct-text-strong, #fff)'
-          : done
-            ? 'rgba(74,222,128,0.9)'
-            : 'var(--ct-text-muted, rgba(245,245,245,0.48))',
-      }}
-    >
-      <span
-        className="w-5 h-5 rounded-full inline-flex items-center justify-center text-xs"
-        style={{
-          backgroundColor: active
-            ? 'var(--ct-accent)'
-            : done
-              ? 'rgba(74,222,128,0.8)'
-              : 'var(--ct-surface-3, rgba(255,255,255,0.09))',
-          color: active || done ? 'var(--ct-text-strong)' : 'var(--ct-text-muted, rgba(245,245,245,0.48))',
-        }}
-      >
-        {n}
-      </span>
+    <li className={`flex items-center gap-2 ${active ? 'text-black font-medium' : done ? 'text-green-700' : ''}`}>
+      <span className={`w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] ${active ? 'bg-black text-white' : done ? 'bg-green-600 text-white' : 'bg-zinc-200'}`}>{n}</span>
       {children}
     </li>
   );
 }
 
-function Input({ label, value, onChange, type = 'text', autoComplete }: { label: string; value: string; onChange: (v: string) => void; type?: string; autoComplete?: string }) {
+function Input({ label, value, onChange, type = 'text' }: { label: string; value: string; onChange: (v: string) => void; type?: string }) {
   return (
     <label className="block text-sm">
-      <span
-        className="block mb-1"
-        style={{ color: 'var(--ct-text-body, rgba(245,245,245,0.72))' }}
-      >
-        {label}
-      </span>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        autoComplete={autoComplete}
-        className="w-full rounded-sm px-3 py-2 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500"
-        style={{
-          backgroundColor: 'var(--ct-surface-1, rgba(255,255,255,0.04))',
-          border: '1px solid var(--ct-border, rgba(255,255,255,0.10))',
-          color: 'var(--ct-text-primary, rgba(245,245,245,0.92))',
-        }}
-      />
+      <span className="block mb-1 text-zinc-700">{label}</span>
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="w-full border rounded px-3 py-2" />
     </label>
   );
 }
@@ -322,22 +215,8 @@ function Input({ label, value, onChange, type = 'text', autoComplete }: { label:
 function Select({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
   return (
     <label className="block text-sm">
-      <span
-        className="block mb-1"
-        style={{ color: 'var(--ct-text-body, rgba(245,245,245,0.72))' }}
-      >
-        {label}
-      </span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-sm px-3 py-2"
-        style={{
-          backgroundColor: 'var(--ct-surface-1, rgba(255,255,255,0.04))',
-          border: '1px solid var(--ct-border, rgba(255,255,255,0.10))',
-          color: 'var(--ct-text-primary, rgba(245,245,245,0.92))',
-        }}
-      >
+      <span className="block mb-1 text-zinc-700">{label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full border rounded px-3 py-2 bg-white">
         {options.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>
         ))}
