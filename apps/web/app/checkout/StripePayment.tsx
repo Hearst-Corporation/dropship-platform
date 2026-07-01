@@ -1,12 +1,9 @@
 'use client';
 
-import { apiFetch } from '@/lib/client-fetch';
-
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { loadStripe, type Stripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
-import { firePixels } from '@/lib/analytics/pixel-client';
 
 interface StripePaymentProps {
   publishableKey: string;
@@ -25,31 +22,12 @@ export function StripePayment({ publishableKey, amountLabel }: StripePaymentProp
 
   useEffect(() => {
     let cancelled = false;
-    apiFetch('/api/checkout/payment', { method: 'POST' })
+    fetch('/api/checkout/payment', { method: 'POST' })
       .then(async (r) => {
-        const j = (await r.json()) as {
-          success?: boolean;
-          error?: string;
-          clientSecret?: string;
-          amount?: number;
-          currency?: string;
-          eventId?: string | null;
-        };
+        const j = await r.json();
         if (cancelled) return;
         if (!r.ok || !j.success) throw new Error(j.error || 'Erreur init paiement');
-        setClientSecret(j.clientSecret ?? null);
-        // Pair the server-side InitiateCheckout fire with a client pixel
-        // call carrying the same eventID for Meta and TikTok dedup.
-        if (j.eventId) {
-          firePixels(
-            'initiate_checkout',
-            {
-              value: j.amount !== undefined ? j.amount / 100 : undefined,
-              currency: j.currency,
-            },
-            j.eventId,
-          );
-        }
+        setClientSecret(j.clientSecret as string);
       })
       .catch((e) => !cancelled && setError(e instanceof Error ? e.message : 'Erreur'));
     return () => {
@@ -57,8 +35,8 @@ export function StripePayment({ publishableKey, amountLabel }: StripePaymentProp
     };
   }, []);
 
-  if (error) return <p className="text-(--ct-accent-strong) text-sm">{error}</p>;
-  if (!clientSecret) return <p className="text-(--ct-text-muted) text-sm">Initialisation du paiement…</p>;
+  if (error) return <p className="text-red-600 text-sm">{error}</p>;
+  if (!clientSecret) return <p className="text-zinc-500 text-sm">Initialisation du paiement…</p>;
 
   return (
     <Elements
@@ -90,7 +68,7 @@ function StripePayForm({ amountLabel }: { amountLabel: string }) {
         setError(result.error.message ?? 'Erreur paiement');
         return;
       }
-      const res = await apiFetch('/api/checkout/complete', {
+      const res = await fetch('/api/checkout/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ skipPaymentInit: true }),
@@ -108,12 +86,12 @@ function StripePayForm({ amountLabel }: { amountLabel: string }) {
   return (
     <div className="space-y-4">
       <PaymentElement />
-      {error && <p className="text-(--ct-accent-strong) text-sm">{error}</p>}
+      {error && <p className="text-red-600 text-sm">{error}</p>}
       <button
         type="button"
         onClick={pay}
         disabled={pending || !stripe || !elements}
-        className="bg-(--ct-accent) text-white px-6 py-3 rounded-md hover:bg-(--ct-surface-2) disabled:opacity-60 w-full"
+        className="bg-black text-white px-6 py-3 rounded-md hover:bg-zinc-800 disabled:opacity-60 w-full"
       >
         {pending ? 'Paiement…' : `Payer ${amountLabel}`}
       </button>
