@@ -833,5 +833,100 @@ describe('mixed-supplier cart', () => {
     );
     const cjIdx = cjUpdate!.params.indexOf('CJ_ORDER_222');
     expect(cjUpdate!.params[cjIdx + 1]).toBeNull(); // ae_order_id NULL for CJ
+
+    // Full success is not partial.
+    expect(result.partial).toBe(false);
+  });
+
+  // FIX-R4: a partial send ({AE:sent, CJ:error}) must set partial=true and
+  // ok=false, keeping the full forwards[] so both outcomes are legible.
+  it('flags a partial send (AE sent, CJ errored) with partial=true and ok=false', async () => {
+    vi.resetModules();
+
+    vi.doMock('@/lib/db', () => ({
+      getDb: () => ({
+        query: (sql: string, params?: unknown[]) => {
+          if (sql.includes('dropship_funnel_events')) {
+            return Promise.resolve({ rows: [], rowCount: 0 });
+          }
+          if (sql.includes('dropship_store_products')) {
+            return Promise.resolve({
+              rows: [
+                { medusa_product_id: 'prod_ae', external_id: 'ae_111', store_id: 'store_uuid_001', supplier: 'aliexpress' },
+                { medusa_product_id: 'prod_cj', external_id: 'cj_222', store_id: 'store_uuid_001', supplier: 'cj' },
+              ],
+              rowCount: 2,
+            });
+          }
+          if (sql.includes('INSERT') && sql.includes('sending')) {
+            const supplier = params?.[params.length - 1];
+            const id = supplier === 'aliexpress' ? 'fwd_lock_ae' : 'fwd_lock_cj';
+            return Promise.resolve({ rows: [{ id }], rowCount: 1 });
+          }
+          if (sql.includes('UPDATE')) {
+            return Promise.resolve({ rows: [], rowCount: 1 });
+          }
+          return Promise.resolve({ rows: [], rowCount: 0 });
+        },
+      }),
+      getDbRead: () => ({ query: () => Promise.resolve({ rows: [], rowCount: 0 }) }),
+    }));
+
+    vi.doMock('@/lib/medusa', () => ({
+      medusa: {
+        getOrder: vi.fn(async () => ({
+          id: 'order_partial_001',
+          email: 'buyer@example.com',
+          shipping_address: {
+            first_name: 'Jean', last_name: 'Dupont',
+            address_1: '10 rue de la Paix', city: 'Paris', province: 'Île-de-France',
+            postal_code: '75001', country_code: 'fr', phone: '+33612345678',
+          },
+          items: [
+            { id: 'item_ae', title: 'AE Product', product_id: 'prod_ae', quantity: 1, variant: { sku: null } },
+            { id: 'item_cj', title: 'CJ Product', product_id: 'prod_cj', quantity: 2, variant: { sku: null } },
+          ],
+        })),
+      },
+    }));
+
+    vi.doMock('@/lib/suppliers/registry', async (importOriginal) => {
+      const original = await importOriginal<typeof import('@/lib/suppliers/registry')>();
+      return {
+        ...original,
+        getSupplier: (id: string) => mockGetSupplier(id),
+      };
+    });
+
+    // AE succeeds, CJ fails with a NON-transient error (no retry).
+    mockAEPlaceOrder.mockResolvedValueOnce({
+      success: true,
+      supplierOrderId: 'AE_ORDER_111',
+      raw: { ae: true },
+    });
+    mockCJPlaceOrder.mockResolvedValueOnce({
+      success: false,
+      error: 'CJ product out of stock',
+      raw: { cj: false },
+    });
+
+    const { forwardOrder } = await import('./order-forwarder');
+    const result = await forwardOrder('order_partial_001', { dryRun: false });
+
+    // Aggregate: not a total failure, but not fully ok either.
+    expect(result.ok).toBe(false);
+    expect(result.partial).toBe(true);
+    expect(result.status).toBe('error');
+    expect(result.forwards).toHaveLength(2);
+
+    const bySupplier = new Map(result.forwards.map((f) => [f.supplier, f]));
+    expect(bySupplier.get('aliexpress')?.status).toBe('sent');
+    expect(bySupplier.get('aliexpress')?.supplierOrderId).toBe('AE_ORDER_111');
+    expect(bySupplier.get('cj')?.status).toBe('error');
+    expect(bySupplier.get('cj')?.error).toMatch(/out of stock/i);
+
+    // Both suppliers were called (the AE leg really placed an order).
+    expect(mockAEPlaceOrder).toHaveBeenCalledOnce();
+    expect(mockCJPlaceOrder).toHaveBeenCalledOnce();
   });
 });

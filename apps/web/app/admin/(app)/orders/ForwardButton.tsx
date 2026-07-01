@@ -44,10 +44,26 @@ interface ForwardLeg {
 /** Mirror of ForwardResult from lib/agent/order-forwarder.ts. */
 interface ForwardResult {
   ok: boolean;
+  /** True on a mixed outcome: at least one leg sent AND at least one errored. */
+  partial?: boolean;
   forwards: ForwardLeg[];
   unmappedItems: { itemId: string; title: string; reason: string }[];
   status: 'dry_run' | 'sent' | 'error';
   error?: string;
+}
+
+/** Human label for a supplier id (AliExpress gets the "AE" shorthand). */
+function legName(supplier: string): string {
+  return supplier === 'aliexpress'
+    ? 'AliExpress'
+    : supplier.charAt(0).toUpperCase() + supplier.slice(1);
+}
+
+/** "AE #123" / "cj #456" reference for a sent leg. */
+function legRef(leg: ForwardLeg): string {
+  return leg.supplier === 'aliexpress'
+    ? `AE #${leg.supplierOrderId}`
+    : `${leg.supplier} #${leg.supplierOrderId}`;
 }
 
 export function ForwardButton({ orderId, alreadySent }: Props) {
@@ -106,7 +122,12 @@ export function ForwardButton({ orderId, alreadySent }: Props) {
     try {
       const r = await forward(false);
       setSentResult(r);
-      if (r.ok) router.refresh();
+      // Refresh whenever ANY leg was actually sent — a partial forward
+      // ({AE:sent, CJ:error}) returns ok=false but really placed a supplier
+      // order. Without the refresh the button stayed enabled and a re-click hit
+      // the "already in-flight" 23505 error. Refresh on any sent leg so the row
+      // reflects reality.
+      if (r.forwards?.some((f) => f.status === 'sent')) router.refresh();
     } catch (e) {
       setSentResult({
         ok: false,
@@ -128,6 +149,9 @@ export function ForwardButton({ orderId, alreadySent }: Props) {
 
   // Inline result badge shown outside the modal after a send.
   const sentLegs = sentResult?.forwards ?? [];
+  // A partial send really placed at least one supplier order, so tone the badge
+  // as a success (indigo) even though ok=false.
+  const sentAny = sentLegs.some((f) => f.status === 'sent');
 
   return (
     <div className="flex flex-col items-end gap-1.5">
@@ -147,24 +171,24 @@ export function ForwardButton({ orderId, alreadySent }: Props) {
       {sentResult && !modalOpen && (
         <div
           className={
-            sentResult.ok
+            sentResult.ok || sentAny
               ? 'max-w-xs rounded-md px-2.5 py-1.5 text-xs bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20'
               : 'max-w-xs rounded-md px-2.5 py-1.5 text-xs bg-gray-800/50 text-gray-400 ring-1 ring-inset ring-white/10'
           }
         >
-          {sentResult.status === 'sent' && sentLegs.length > 0 && (
+          {sentLegs.length > 0 ? (
             <div className="flex flex-col gap-0.5">
               {sentLegs.map((leg, i) => (
-                <span key={i}>
-                  Envoyée —{' '}
-                  {leg.supplier === 'aliexpress'
-                    ? `AE #${leg.supplierOrderId}`
-                    : `${leg.supplier} #${leg.supplierOrderId}`}
+                <span key={i} className={leg.status === 'error' ? 'text-red-400' : undefined}>
+                  {leg.status === 'sent'
+                    ? `Envoyée — ${legRef(leg)}`
+                    : `Échec — ${legName(leg.supplier)}${leg.error ? ` : ${leg.error}` : ''}`}
                 </span>
               ))}
             </div>
+          ) : (
+            sentResult.error ?? 'Erreur inconnue'
           )}
-          {sentResult.status === 'error' && (sentResult.error ?? 'Erreur inconnue')}
         </div>
       )}
 
@@ -215,6 +239,8 @@ function ReviewModal({
   const forwards = dryRunResult?.forwards ?? [];
   const unmapped = dryRunResult?.unmappedItems ?? [];
   const sentLegs = sentResult?.forwards ?? [];
+  const sentAnyModal = sentLegs.some((f) => f.status === 'sent');
+  const erroredAnyModal = sentLegs.some((f) => f.status === 'error');
 
   return (
     <div
@@ -240,16 +266,36 @@ function ReviewModal({
         </header>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
-          {sentResult?.ok && sentResult.status === 'sent' ? (
-            <div className="rounded-lg bg-indigo-500/10 px-4 py-3 ring-1 ring-inset ring-indigo-500/20">
-              <p className="text-sm font-medium text-indigo-400">Envoyée</p>
-              {sentLegs.map((leg, i) => (
-                <p key={i} className="mt-1 text-xs text-gray-400">
-                  {leg.supplier === 'aliexpress'
-                    ? `AE #${leg.supplierOrderId} — connecte-toi sur aliexpress.com pour finaliser le paiement.`
-                    : `${leg.supplier} #${leg.supplierOrderId}`}
-                </p>
-              ))}
+          {sentResult && sentLegs.length > 0 ? (
+            // One row per leg so a partial send ({AE:sent, CJ:error}) is legible:
+            // the sent legs show their reference, the errored legs show why.
+            <div
+              className={
+                sentAnyModal
+                  ? 'rounded-lg bg-indigo-500/10 px-4 py-3 ring-1 ring-inset ring-indigo-500/20'
+                  : 'rounded-lg bg-red-500/10 px-4 py-3 ring-1 ring-inset ring-red-500/20'
+              }
+            >
+              <p className={sentAnyModal ? 'text-sm font-medium text-indigo-400' : 'text-sm font-medium text-white'}>
+                {erroredAnyModal
+                  ? sentAnyModal
+                    ? 'Envoi partiel'
+                    : "Échec de l'envoi"
+                  : 'Envoyée'}
+              </p>
+              {sentLegs.map((leg, i) =>
+                leg.status === 'sent' ? (
+                  <p key={i} className="mt-1 text-xs text-gray-400">
+                    {leg.supplier === 'aliexpress'
+                      ? `AE #${leg.supplierOrderId} — connecte-toi sur aliexpress.com pour finaliser le paiement.`
+                      : `${leg.supplier} #${leg.supplierOrderId}`}
+                  </p>
+                ) : (
+                  <p key={i} className="mt-1 text-xs text-red-400">
+                    {legName(leg.supplier)} : {leg.error ?? 'erreur inconnue'}
+                  </p>
+                ),
+              )}
             </div>
           ) : sentResult?.status === 'error' ? (
             <div className="rounded-lg bg-red-500/10 px-4 py-3 ring-1 ring-inset ring-red-500/20">
@@ -343,9 +389,11 @@ function ReviewModal({
             disabled={sending}
             className="rounded-lg px-4 py-2 text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-white disabled:opacity-50"
           >
-            {sentResult?.ok ? 'Fermer' : 'Annuler'}
+            {sentResult?.ok || sentAnyModal ? 'Fermer' : 'Annuler'}
           </button>
-          {!sentResult?.ok && (
+          {/* Hide the confirm button once ANY leg was placed — a re-click on a
+              partial send would only hit the 23505 "already in-flight" error. */}
+          {!sentResult?.ok && !sentAnyModal && (
             <button
               type="button"
               onClick={onConfirm}

@@ -56,6 +56,13 @@ interface ForwardResult {
   /** True when every attempted leg succeeded (dry_run counts as ok). */
   ok: boolean;
   /**
+   * True when the send was a PARTIAL success: at least one leg sent AND at
+   * least one leg errored. A partial send is not a total failure — the route
+   * returns HTTP 200 for it (some supplier order was really placed) and the
+   * UI must refresh so the sent legs stop looking pending.
+   */
+  partial: boolean;
+  /**
    * Per-supplier legs. A mixed cart forwards one row PER distinct forwardable
    * supplier (the composite lock on (medusa_order_id, supplier) allows this) —
    * no forwardable leg is silently dropped anymore.
@@ -158,6 +165,12 @@ interface ProductMapping {
 interface SupplierGroup {
   supplier: SupplierId;
   items: SupplierOrderItem[];
+  /**
+   * Known limitation (not a fix): a group assumes a single store per supplier
+   * per order — the first mapped item's store_id wins (see mapItemsToSupplier).
+   * A cart mixing two stores that share one supplier would attribute the whole
+   * leg to the first store.
+   */
   storeId?: string;
 }
 
@@ -573,6 +586,7 @@ export async function forwardOrder(medusaOrderId: string, opts: ForwardOptions):
     );
     return {
       ok: false,
+      partial: false,
       status: 'error',
       error: hardError,
       forwards: [
@@ -593,9 +607,15 @@ export async function forwardOrder(medusaOrderId: string, opts: ForwardOptions):
   const allDryRun = forwards.every((f) => f.status === 'dry_run');
   const aggregateStatus: ForwardResult['status'] = allSent ? 'sent' : allDryRun ? 'dry_run' : 'error';
   const firstError = forwards.find((f) => f.status === 'error')?.error;
+  // Partial = a mixed outcome where at least one supplier order was really
+  // placed but another leg failed (e.g. {AE:sent, CJ:error}). Distinct from a
+  // total failure — the route must treat it as a 200, not a 422.
+  const partial =
+    forwards.some((f) => f.status === 'sent') && forwards.some((f) => f.status === 'error');
 
   return {
     ok: forwards.every((f) => f.status !== 'error'),
+    partial,
     status: aggregateStatus,
     error: firstError,
     forwards,

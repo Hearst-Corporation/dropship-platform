@@ -144,10 +144,14 @@ export async function runAnomalyWatch(): Promise<AnomalyWatchResult> {
 
   // 2) Stuck Stripe → forward gap > 4h. We rely on the 50 most recent Medusa
   //    orders (same window the admin page uses) — any paid order older than
-  //    that window has either been forwarded or is already lost. Joining
-  //    against the full `dropship_order_forwards` table (all statuses,
-  //    including dry_run) ensures we don't flag an order the founder
-  //    intentionally left in dry-run.
+  //    that window has either been forwarded or is already lost.
+  //
+  //    "Seen" must mean a REAL live forward exists — mirror the composite-lock
+  //    predicate (dry_run = false AND status IN ('sending','sent')). An order
+  //    whose ONLY forward rows are dry-runs or failed attempts (status='error')
+  //    is NOT handled: nothing shipped, so it must resurface as stuck. Counting
+  //    those rows as "seen" (the old all-statuses join) hid errored-only paid
+  //    orders forever.
   const stuck: StuckOrder[] = [];
   try {
     const { orders } = await medusa.getOrders({ limit: 50 });
@@ -160,7 +164,9 @@ export async function runAnomalyWatch(): Promise<AnomalyWatchResult> {
       const { rows: existing } = await db.query<{ medusa_order_id: string }>(
         `SELECT DISTINCT medusa_order_id
            FROM dropship_order_forwards
-          WHERE medusa_order_id IN (${placeholders})`,
+          WHERE medusa_order_id IN (${placeholders})
+            AND dry_run = false
+            AND status IN ('sending', 'sent')`,
         ids,
       );
       const seen = new Set(existing.map((r) => r.medusa_order_id));

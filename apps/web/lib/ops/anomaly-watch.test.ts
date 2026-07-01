@@ -138,6 +138,74 @@ describe('runAnomalyWatch — stranded query', () => {
     expect(result.warnings).toEqual([]);
   });
 
+  it('flags a paid order whose ONLY forward attempt errored as stuck (scan #2)', async () => {
+    // The order was paid on Stripe 5h ago (past the 4h cutoff) but its single
+    // forward row is status='error'. The "seen" join now filters on
+    // dry_run=false AND status IN ('sending','sent'), so this errored-only row
+    // is NOT counted as handled → the order must resurface as stuck. Before the
+    // fix the all-statuses join treated it as seen and hid it forever.
+    getOrdersMock.mockResolvedValue({
+      orders: [
+        {
+          id: 'ord_errored_only',
+          display_id: 4242,
+          email: 'buyer@example.com',
+          total: 3999,
+          currency_code: 'eur',
+          payment_status: 'captured',
+          created_at: new Date(Date.now() - 5 * 3_600_000).toISOString(),
+        },
+      ],
+      count: 1,
+    });
+
+    // The "seen" join (SELECT DISTINCT ... WHERE ... status IN ('sending','sent'))
+    // returns NO live-forward row for this order — its only row is an error.
+    setRows("status IN ('sending', 'sent')", []);
+
+    const { runAnomalyWatch } = await import('./anomaly-watch');
+    const result = await runAnomalyWatch();
+
+    // The seen-set join query must now require a real live forward.
+    const seenQuery = captured.find(
+      (q) => q.sql.includes('SELECT DISTINCT') && q.sql.includes('medusa_order_id IN'),
+    );
+    expect(seenQuery).toBeDefined();
+    expect(seenQuery!.sql).toMatch(/dry_run\s*=\s*false/);
+    expect(seenQuery!.sql).toMatch(/status\s+IN\s*\(\s*'sending'\s*,\s*'sent'\s*\)/);
+
+    // The errored-only paid order resurfaces in the stuck bucket.
+    expect(result.counts.stuck).toBe(1);
+    expect(result.stuck[0].medusa_order_id).toBe('ord_errored_only');
+    expect(result.stuck[0].age_hours).toBeGreaterThanOrEqual(4);
+  });
+
+  it('does NOT flag a paid order that has a real live forward (status=sent)', async () => {
+    // Same setup but the order DOES have a live 'sent' forward → it is handled,
+    // so scan #2 must leave it alone.
+    getOrdersMock.mockResolvedValue({
+      orders: [
+        {
+          id: 'ord_forwarded',
+          display_id: 4243,
+          email: 'buyer@example.com',
+          total: 3999,
+          currency_code: 'eur',
+          payment_status: 'captured',
+          created_at: new Date(Date.now() - 5 * 3_600_000).toISOString(),
+        },
+      ],
+      count: 1,
+    });
+
+    setRows("status IN ('sending', 'sent')", [{ medusa_order_id: 'ord_forwarded' }]);
+
+    const { runAnomalyWatch } = await import('./anomaly-watch');
+    const result = await runAnomalyWatch();
+
+    expect(result.counts.stuck).toBe(0);
+  });
+
   it('still reports SQL-only anomalies when Medusa is unreachable', async () => {
     setRows("status = 'error'", [
       {

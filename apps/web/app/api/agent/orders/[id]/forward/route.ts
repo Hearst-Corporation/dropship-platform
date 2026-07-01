@@ -55,7 +55,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       dryRun: body.dryRun,
       provinceOverride: body.provinceOverride,
     });
-    return NextResponse.json(result, { status: result.ok ? 200 : 422 });
+    // A partial send (>=1 leg sent, >=1 leg errored) really placed a supplier
+    // order — it is NOT a total failure, so return 200 with the full forwards[]
+    // body. Only return 422 when NO leg sent (every leg errored / hard gate).
+    // Dry-run and full success already have result.ok=true → 200.
+    const httpOk = result.ok || result.partial;
+    return NextResponse.json(result, { status: httpOk ? 200 : 422 });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Server error' },
