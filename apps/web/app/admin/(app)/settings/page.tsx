@@ -1,11 +1,26 @@
 import type { ReactNode } from 'react';
+import {
+  CheckIcon,
+  ExclamationTriangleIcon,
+  ArrowTopRightOnSquareIcon,
+} from '@heroicons/react/16/solid';
 import { getDbRead } from '@/lib/db';
-import { Heading, Subheading } from '@/components/catalyst/heading';
 import { Text, TextLink, Strong, Code } from '@/components/catalyst/text';
 import { Badge } from '@/components/catalyst/badge';
 import { Button } from '@/components/catalyst/button';
-import { DescriptionList, DescriptionTerm, DescriptionDetails } from '@/components/catalyst/description-list';
+import {
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableHeader,
+  TableCell,
+} from '@/components/catalyst/table';
 import { getSupplierPolicyView, type SupplierPolicyRow } from '@/lib/suppliers/policy-view';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import { AdminSection } from '@/components/admin/AdminSection';
+import { AdminDataTable } from '@/components/admin/AdminDataTable';
+import { AdminEmptyState } from '@/components/admin/AdminEmptyState';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,95 +67,147 @@ export default async function SettingsPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <Text className="text-xs/5 font-semibold uppercase tracking-wide text-zinc-500">
-          Production · Intégrations
-        </Text>
-        <Heading>Connexions fournisseurs</Heading>
-        <Text className="mt-2">
-          L&apos;agent a besoin de ces clés pour interroger AliExpress et CJ. Les jetons OAuth expirent — vérifie
-          l&apos;état avant chaque grosse session.
-        </Text>
-      </div>
+      <AdminPageHeader
+        title="Réglages"
+        subtitle="Connexions fournisseurs et politique dropshipping de la plateforme."
+        meta={
+          <>
+            <span>Production · Intégrations</span>
+            <span aria-hidden="true">·</span>
+            <span>{supplierRows.length} fournisseurs connus</span>
+          </>
+        }
+      />
 
-      <ProviderSection
-        name="AliExpress DS API"
-        meta="AppKey 531346 · App Category: Drop Shipping"
-        badge={<Badge color={aliColor}>{aliLabel}</Badge>}
-        first
+      {/* ── Identifiants fournisseurs ──────────────────────────────────────── */}
+      <AdminSection
+        title="Identifiants fournisseurs"
+        description="L'agent a besoin de ces clés pour interroger AliExpress et CJ. Les jetons OAuth expirent, vérifie l'état avant chaque grosse session."
       >
-        {isConnected ? (
-          <DescriptionList>
-            {aliNick?.value && (
-              <>
-                <DescriptionTerm>Compte</DescriptionTerm>
-                <DescriptionDetails>{aliNick.value}</DescriptionDetails>
-              </>
+        <div className="divide-y divide-zinc-950/10 dark:divide-white/10">
+          <IntegrationRow
+            name="AliExpress DS API"
+            meta="AppKey 531346 · App Category: Drop Shipping"
+            badge={<Badge color={aliColor}>{aliLabel}</Badge>}
+            action={
+              <Button href="/api/aliexpress/oauth/start" color="indigo">
+                {isConnected && !isExpired ? 'Ré-autoriser' : 'Connecter'}
+              </Button>
+            }
+          >
+            {isConnected ? (
+              <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-3">
+                <Field label="Compte" value={aliNick?.value || '—'} />
+                <Field
+                  label="Expire le"
+                  value={expiresAt ? fmtDate(expiresAt) : '—'}
+                  muted={isExpired}
+                />
+                <Field
+                  label="Dernière auth"
+                  value={aliToken?.updatedAt ? fmtDate(aliToken.updatedAt) : '—'}
+                />
+              </dl>
+            ) : (
+              <Text className="text-sm">
+                L&apos;agent a besoin d&apos;un <Code>access_token</Code> OAuth pour appeler{' '}
+                <Code>aliexpress.solution.product.list.get</Code>. Autorise l&apos;accès avec ton compte
+                AliExpress.
+              </Text>
             )}
-            {expiresAt && (
-              <>
-                <DescriptionTerm>Expire le</DescriptionTerm>
-                <DescriptionDetails>
-                  <span className={isExpired ? 'text-zinc-500' : undefined}>{fmtDate(expiresAt)}</span>
-                </DescriptionDetails>
-              </>
-            )}
-            {aliToken?.updatedAt && (
-              <>
-                <DescriptionTerm>Dernière auth</DescriptionTerm>
-                <DescriptionDetails>{fmtDate(aliToken.updatedAt)}</DescriptionDetails>
-              </>
-            )}
-          </DescriptionList>
-        ) : (
-          <Text>
-            L&apos;agent a besoin d&apos;un <Code>access_token</Code> OAuth pour appeler{' '}
-            <Code>aliexpress.solution.product.list.get</Code>. Autorise l&apos;accès avec ton compte AliExpress.
-          </Text>
-        )}
-        <div className="pt-2">
-          <Button href="/api/aliexpress/oauth/start" color="indigo">
-            {isConnected && !isExpired ? 'Re-autoriser AliExpress' : 'Connecter AliExpress'}
-          </Button>
+          </IntegrationRow>
+
+          <IntegrationRow
+            name="CJ Dropshipping API"
+            meta={cjMeta}
+            badge={<Badge color={cjColor}>{cjLabel}</Badge>}
+            action={
+              <Button href="https://cjdropshipping.com" target="_blank" outline>
+                Ouvrir CJ
+                <ArrowTopRightOnSquareIcon data-slot="icon" />
+              </Button>
+            }
+          >
+            <Text className="text-sm">
+              L&apos;authentification CJ nécessite une <Strong>API Key dédiée</Strong> (pas le mot de
+              passe du compte). Va sur{' '}
+              <TextLink href="https://cjdropshipping.com" target="_blank" rel="noreferrer">
+                cjdropshipping.com
+              </TextLink>{' '}
+              &#8594; Account Settings &#8594; Developer &#8594; copie l&apos;API Key et mets-la dans{' '}
+              <Code>CJ_DROPSHIPPING_API_KEY</Code>.
+            </Text>
+          </IntegrationRow>
         </div>
-      </ProviderSection>
+      </AdminSection>
 
-      <ProviderSection
-        name="CJ Dropshipping API"
-        meta={cjMeta}
-        badge={<Badge color={cjColor}>{cjLabel}</Badge>}
+      {/* ── Politique dropshipping ─────────────────────────────────────────── */}
+      <AdminSection
+        title="Politique dropshipping"
+        description="Vue en lecture seule de tous les fournisseurs connus, classée par statut. Les critères verts sont satisfaits, les icônes orange indiquent un critère manquant ou partiel."
+        flush
       >
-        <Text>
-          L&apos;authentification CJ nécessite une <Strong>API Key dédiée</Strong> (pas le mot de passe du compte). Va
-          sur <TextLink href="https://cjdropshipping.com" target="_blank" rel="noreferrer">cjdropshipping.com</TextLink>{' '}
-          &#8594; Account Settings &#8594; Developer &#8594; copie l&apos;API Key et mets-la dans{' '}
-          <Code>CJ_DROPSHIPPING_API_KEY</Code>.
-        </Text>
-      </ProviderSection>
-
-      {/* ── Fournisseurs policy view ────────────────────────────────────── */}
-      <div className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
-        <Text className="text-xs/5 font-semibold uppercase tracking-wide text-zinc-500">
-          Politique dropshipping
-        </Text>
-        <Heading>Fournisseurs</Heading>
-        <Text className="mt-2">
-          Vue en lecture seule de tous les fournisseurs connus, classee par statut. Les criteres
-          verts sont satisfaits ; les icones orange indiquent un critere manquant ou partiel.
-        </Text>
-      </div>
-
-      <SupplierPolicySection rows={supplierRows} />
+        <SupplierPolicyTable rows={supplierRows} />
+      </AdminSection>
     </div>
   );
 }
 
-// ── Supplier policy view components ──────────────────────────────────────────
+// ── Integration row (identifiants) ───────────────────────────────────────────
+
+function IntegrationRow({
+  name,
+  meta,
+  badge,
+  action,
+  children,
+}: {
+  name: string;
+  meta: string;
+  badge: ReactNode;
+  action: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div className="py-5 first:pt-0 last:pb-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-sm font-semibold text-zinc-950 dark:text-white">{name}</h3>
+            {badge}
+          </div>
+          <p className="mt-0.5 text-xs/5 text-zinc-500 dark:text-zinc-400">{meta}</p>
+        </div>
+        <div className="shrink-0">{action}</div>
+      </div>
+      <div className="mt-3">{children}</div>
+    </div>
+  );
+}
+
+function Field({ label, value, muted }: { label: string; value: ReactNode; muted?: boolean }) {
+  return (
+    <div>
+      <dt className="text-xs/5 text-zinc-500 dark:text-zinc-400">{label}</dt>
+      <dd
+        className={
+          muted
+            ? 'text-sm text-zinc-400 dark:text-zinc-500'
+            : 'text-sm text-zinc-950 dark:text-white'
+        }
+      >
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+// ── Supplier policy table ────────────────────────────────────────────────────
 
 const CAPABILITY_LABELS: Record<string, string> = {
   unitOrder: 'Commande unitaire',
   noStock: 'No-stock',
-  directShip: 'Expedition directe',
+  directShip: 'Expédition directe',
   neutralPackaging: 'Emballage neutre',
   stockPriceSync: 'Sync stock/prix',
   tracking: 'Tracking',
@@ -150,185 +217,114 @@ const CAPABILITY_LABELS: Record<string, string> = {
 
 const CAPABILITY_KEYS = Object.keys(CAPABILITY_LABELS);
 
+const STATUS_META: Record<string, { color: BadgeColor; label: string }> = {
+  active: { color: 'green', label: 'Actif' },
+  'feed-only': { color: 'amber', label: 'Feed seul' },
+  search_only: { color: 'amber', label: 'Sourcing seul' },
+  automation: { color: 'blue', label: 'Automatisation' },
+  excluded: { color: 'red', label: 'Exclu' },
+};
+
+function statusMeta(status: string): { color: BadgeColor; label: string } {
+  return STATUS_META[status] ?? { color: 'zinc', label: status };
+}
+
+const CONNECTION_META: Record<string, { color: BadgeColor; label: string }> = {
+  connected: { color: 'green', label: 'Connecté' },
+  error: { color: 'red', label: 'Erreur' },
+  'missing-key': { color: 'amber', label: 'Clé manquante' },
+  unknown: { color: 'zinc', label: 'Inconnu' },
+};
+
 function CapabilityIcon({ ok }: { ok: boolean }) {
   if (ok) {
     return (
-      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-        <svg className="h-2.5 w-2.5" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
-          <path
-            fillRule="evenodd"
-            d="M8.485 2.07a.75.75 0 0 1 .045 1.06l-4.5 4.875a.75.75 0 0 1-1.097.015L.97 5.486A.75.75 0 0 1 2.03 4.514l1.47 1.572L7.424 2.116a.75.75 0 0 1 1.06-.045Z"
-            clipRule="evenodd"
-          />
-        </svg>
+      <span
+        title="Satisfait"
+        className="inline-flex size-4 items-center justify-center rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+      >
+        <CheckIcon className="size-3" />
       </span>
     );
   }
   return (
-    <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-      <svg className="h-2.5 w-2.5" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
-        <path
-          fillRule="evenodd"
-          d="M5 1a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 5 1ZM5 8a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"
-          clipRule="evenodd"
-        />
-      </svg>
+    <span
+      title="Manquant ou partiel"
+      className="inline-flex size-4 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+    >
+      <ExclamationTriangleIcon className="size-3" />
     </span>
   );
 }
 
-function ConnectionBadge({ state }: { state: string }) {
-  const map: Record<string, { color: BadgeColor; label: string }> = {
-    connected: { color: 'green', label: 'Connecte' },
-    error: { color: 'red', label: 'Erreur' },
-    'missing-key': { color: 'amber', label: 'Cle manquante' },
-    unknown: { color: 'zinc', label: 'Inconnu' },
-  };
-  const { color, label } = map[state] ?? { color: 'zinc' as BadgeColor, label: state };
-  return <Badge color={color}>{label}</Badge>;
-}
-
-function ActiveSupplierCard({ row }: { row: SupplierPolicyRow }) {
-  const isLimitedSourcing = row.status === 'feed-only' || row.status === 'search_only';
-  return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="flex min-w-0 items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-zinc-900 dark:text-white">{row.label}</span>
-            {row.tier && (
-              <Badge color="indigo">{row.tier}</Badge>
-            )}
-            <ConnectionBadge state={row.connectionState} />
-          </div>
-          {isLimitedSourcing && (
-            <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-              Sourcing seul - pas d auto-forward
-            </p>
-          )}
-        </div>
+function SupplierPolicyTable({ rows }: { rows: SupplierPolicyRow[] }) {
+  if (!rows.length) {
+    return (
+      <div className="p-6">
+        <AdminEmptyState title="Aucun fournisseur" description="La politique fournisseurs est vide." />
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-4">
-        {CAPABILITY_KEYS.map((key) => (
-          <div key={key} className="flex items-center gap-1.5">
-            <CapabilityIcon ok={!!row.capabilities[key]} />
-            <span className="text-xs text-zinc-600 dark:text-zinc-400">{CAPABILITY_LABELS[key]}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function AutomationCard({ row }: { row: SupplierPolicyRow }) {
-  return (
-    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
-      <div className="flex items-center gap-3">
-        <div className="flex-1">
-          <span className="text-sm font-semibold text-zinc-900 dark:text-white">{row.label}</span>
-        </div>
-        <Badge color="blue">Automatisation</Badge>
-      </div>
-      <Text className="mt-1.5 text-xs text-zinc-500">
-        Couche d automatisation - pas un fournisseur valide
-      </Text>
-    </div>
-  );
-}
-
-function ExcludedRow({ row }: { row: SupplierPolicyRow }) {
-  return (
-    <div className="flex flex-col gap-1 rounded-lg border border-zinc-100 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900 sm:flex-row sm:items-start sm:gap-4">
-      <div className="flex shrink-0 items-center gap-2">
-        <Badge color="red">Exclu</Badge>
-        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{row.label}</span>
-      </div>
-      {row.exclusionNote && (
-        <Text className="text-xs text-zinc-500">{row.exclusionNote}</Text>
-      )}
-    </div>
-  );
-}
-
-function SupplierPolicySection({ rows }: { rows: SupplierPolicyRow[] }) {
-  const activeSourcing = rows.filter(
-    (r) => r.status === 'active' || r.status === 'feed-only' || r.status === 'search_only',
-  );
-  const automation = rows.filter((r) => r.status === 'automation');
-  const excluded = rows.filter((r) => r.status === 'excluded');
+    );
+  }
 
   return (
-    <div className="space-y-8">
-      {/* Block 1 — Fournisseurs actifs */}
-      {activeSourcing.length > 0 && (
-        <div className="space-y-3">
-          <Subheading>Fournisseurs actifs</Subheading>
-          <div className="space-y-3">
-            {activeSourcing.map((row) => (
-              <ActiveSupplierCard key={row.id} row={row} />
+    <AdminDataTable minWidth="min-w-[64rem]" className="border-0 bg-transparent dark:bg-transparent">
+      <Table dense>
+        <TableHead>
+          <TableRow>
+            <TableHeader>Fournisseur</TableHeader>
+            <TableHeader>Statut</TableHeader>
+            <TableHeader>Connexion</TableHeader>
+            {CAPABILITY_KEYS.map((key) => (
+              <TableHeader key={key} className="text-center">
+                <span className="inline-block whitespace-nowrap">{CAPABILITY_LABELS[key]}</span>
+              </TableHeader>
             ))}
-          </div>
-        </div>
-      )}
-
-      {/* Block 2 — Automatisation */}
-      {automation.length > 0 && (
-        <div className="space-y-3 border-t border-zinc-950/10 pt-6 dark:border-white/10">
-          <Subheading>Automatisation</Subheading>
-          <div className="space-y-3">
-            {automation.map((row) => (
-              <AutomationCard key={row.id} row={row} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Block 3 — Plateformes exclues */}
-      {excluded.length > 0 && (
-        <div className="space-y-3 border-t border-zinc-950/10 pt-6 dark:border-white/10">
-          <Subheading>Plateformes exclues</Subheading>
-          <div className="space-y-2">
-            {excluded.map((row) => (
-              <ExcludedRow key={row.id} row={row} />
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Legacy OAuth provider cards ───────────────────────────────────────────────
-
-function ProviderSection({
-  name,
-  meta,
-  badge,
-  first,
-  children,
-}: {
-  name: string;
-  meta: string;
-  badge: ReactNode;
-  first?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <section
-      className={
-        first
-          ? 'space-y-4'
-          : 'space-y-4 border-t border-zinc-950/10 pt-8 dark:border-white/10'
-      }
-    >
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <Subheading>{name}</Subheading>
-          <Text className="text-xs/5">{meta}</Text>
-        </div>
-        <div className="shrink-0">{badge}</div>
-      </div>
-      {children}
-    </section>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.map((row) => {
+            const sMeta = statusMeta(row.status);
+            const cMeta =
+              CONNECTION_META[row.connectionState] ?? {
+                color: 'zinc' as BadgeColor,
+                label: row.connectionState,
+              };
+            const hasCapabilities = Object.keys(row.capabilities).length > 0;
+            return (
+              <TableRow key={row.id}>
+                <TableCell>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-zinc-950 dark:text-white">{row.label}</span>
+                    {row.tier && <Badge color="indigo">{row.tier}</Badge>}
+                  </div>
+                  {row.exclusionNote && (
+                    <p className="mt-0.5 max-w-md text-xs text-zinc-500 dark:text-zinc-400">
+                      {row.exclusionNote}
+                    </p>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <Badge color={sMeta.color}>{sMeta.label}</Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge color={cMeta.color}>{cMeta.label}</Badge>
+                </TableCell>
+                {CAPABILITY_KEYS.map((key) => (
+                  <TableCell key={key} className="text-center">
+                    {hasCapabilities ? (
+                      <span className="inline-flex justify-center">
+                        <CapabilityIcon ok={!!row.capabilities[key]} />
+                      </span>
+                    ) : (
+                      <span className="text-zinc-400 dark:text-zinc-600">—</span>
+                    )}
+                  </TableCell>
+                ))}
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </AdminDataTable>
   );
 }
