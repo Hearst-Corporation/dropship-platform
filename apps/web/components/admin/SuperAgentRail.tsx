@@ -24,7 +24,7 @@ const RAIL_WIDTH = 'lg:w-96';
 function StepLine({ step }: { step: ChatStep }) {
   const icon =
     step.kind === 'thinking' ? null : step.kind === 'confirm' ? (
-      <SparklesIcon className="size-3.5 shrink-0 text-amber-400" aria-hidden />
+      <SparklesIcon className="size-3.5 shrink-0 text-zinc-400 dark:text-zinc-500" aria-hidden />
     ) : (
       <WrenchScrewdriverIcon className="size-3.5 shrink-0 text-indigo-400" aria-hidden />
     );
@@ -32,7 +32,7 @@ function StepLine({ step }: { step: ChatStep }) {
     <div
       className={cn(
         'flex items-start gap-1.5 rounded-md px-2 py-1 text-xs',
-        step.isError ? 'bg-rose-500/10 text-rose-300' : 'bg-white/5 text-zinc-400',
+        step.isError ? 'bg-white/10 text-zinc-300' : 'bg-white/5 text-zinc-400',
       )}
     >
       {icon}
@@ -123,7 +123,7 @@ function ChatBody() {
           messages.map((m, i) => <Bubble key={i} msg={m} />)
         )}
         {error && (
-          <div className="rounded-md bg-rose-500/10 px-3 py-2 text-xs text-rose-300 ring-1 ring-rose-500/20">
+          <div className="rounded-md bg-white/10 px-3 py-2 text-xs text-zinc-300 ring-1 ring-white/15">
             {error}
           </div>
         )}

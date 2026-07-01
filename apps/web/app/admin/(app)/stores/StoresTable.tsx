@@ -5,7 +5,6 @@ import Image from 'next/image';
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid';
 import { BuildingStorefrontIcon } from '@heroicons/react/24/outline';
 import { StoreAvatar } from '@/components/ui';
-import { Badge } from '@/components/catalyst/badge';
 import { Button } from '@/components/catalyst/button';
 import {
   Table,
@@ -16,11 +15,10 @@ import {
   TableCell,
 } from '@/components/catalyst/table';
 import { AdminDataTable } from '@/components/admin/AdminDataTable';
+import { AdminBadge } from '@/components/admin/AdminBadge';
 import { AdminToolbar } from '@/components/admin/AdminToolbar';
 import { AdminEmptyState } from '@/components/admin/AdminEmptyState';
 import { StoreActions } from './StoreActions';
-
-type StatusColor = 'green' | 'amber' | 'red';
 
 export interface StoresTableRow {
   id: string;
@@ -48,10 +46,10 @@ function bucketOf(status: string): Exclude<StatusFilter, 'all'> {
   return 'failed';
 }
 
-function statusOf(status: string): { color: StatusColor; label: string } {
-  if (status === 'active') return { color: 'green', label: 'En ligne' };
-  if (status === 'creating') return { color: 'amber', label: 'Création en cours' };
-  return { color: 'red', label: 'Erreur' };
+function statusLabel(status: string): string {
+  if (status === 'active') return 'En ligne';
+  if (status === 'creating') return 'Création en cours';
+  return 'Erreur';
 }
 
 const dateFmt = new Intl.DateTimeFormat('fr-FR', {
@@ -118,24 +116,22 @@ export function StoresTable({ rows, paginated = false }: StoresTableProps) {
           description="Ajuste la recherche ou le filtre de statut pour retrouver un store."
         />
       ) : (
-        <AdminDataTable minWidth="min-w-[56rem]">
+        <AdminDataTable minWidth="min-w-[38rem]">
           <Table dense>
             <TableHead>
               <TableRow>
                 <TableHeader>Store</TableHeader>
-                <TableHeader>Niche</TableHeader>
                 <TableHeader>Statut</TableHeader>
                 <TableHeader className="text-right">Produits</TableHeader>
-                <TableHeader className="text-right">Commandes 7 j</TableHeader>
-                <TableHeader className="text-right">Revenu 7 j</TableHeader>
-                <TableHeader>Créé le</TableHeader>
                 <TableHeader className="text-right">Actions</TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
               {filtered.map((store) => {
-                const s = statusOf(store.status);
                 const isFailed = store.status !== 'active' && store.status !== 'creating';
+                const subtext = [`/shop/${store.slug}`, store.niche || null, formatDate(store.created_at)]
+                  .filter(Boolean)
+                  .join(' · ');
                 return (
                   <TableRow key={store.id}>
                     <TableCell>
@@ -162,21 +158,21 @@ export function StoresTable({ rows, paginated = false }: StoresTableProps) {
                           <div className="truncate font-medium text-zinc-950 dark:text-white">
                             {store.name}
                           </div>
-                          <div className="truncate text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
-                            /shop/{store.slug}
+                          <div
+                            className="truncate text-xs text-zinc-500 dark:text-zinc-400"
+                            title={subtext}
+                          >
+                            {subtext}
                           </div>
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="text-zinc-500 dark:text-zinc-400">
-                      {store.niche || '—'}
-                    </TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-1">
-                        <Badge color={s.color}>{s.label}</Badge>
+                        <AdminBadge status={store.status}>{statusLabel(store.status)}</AdminBadge>
                         {isFailed && store.error_message ? (
                           <span
-                            className="max-w-[18rem] truncate text-xs text-red-600 dark:text-red-400"
+                            className="max-w-[18rem] truncate text-xs text-zinc-500 dark:text-zinc-400"
                             title={store.error_message}
                           >
                             {store.error_message}
@@ -186,15 +182,6 @@ export function StoresTable({ rows, paginated = false }: StoresTableProps) {
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-zinc-500 dark:text-zinc-400">
                       {store.product_count}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-zinc-500 dark:text-zinc-400">
-                      —
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-zinc-500 dark:text-zinc-400">
-                      —
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-zinc-500 dark:text-zinc-400">
-                      {formatDate(store.created_at)}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-2">

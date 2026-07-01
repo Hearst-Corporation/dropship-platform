@@ -22,18 +22,21 @@ export interface AdminStatCardProps {
   tone?: Tone
 }
 
+// Single-accent policy: the only hue allowed is the accent ('indigo').
+// `positive` gets a subtle indigo accent; `warning`/`danger` stay neutral
+// zinc (disambiguated by their label text, never by color). No forbidden hue.
 const toneValue: Record<Tone, string> = {
   default: 'text-zinc-950 dark:text-white',
-  positive: 'text-emerald-600 dark:text-emerald-400',
-  warning: 'text-amber-600 dark:text-amber-400',
-  danger: 'text-red-600 dark:text-red-400',
+  positive: 'text-indigo-600 dark:text-indigo-400',
+  warning: 'text-zinc-950 dark:text-white',
+  danger: 'text-zinc-950 dark:text-white',
 }
 
 const toneIcon: Record<Tone, string> = {
   default: 'text-zinc-400 dark:text-zinc-500',
-  positive: 'text-emerald-500 dark:text-emerald-400',
-  warning: 'text-amber-500 dark:text-amber-400',
-  danger: 'text-red-500 dark:text-red-400',
+  positive: 'text-indigo-500 dark:text-indigo-400',
+  warning: 'text-zinc-400 dark:text-zinc-500',
+  danger: 'text-zinc-400 dark:text-zinc-500',
 }
 
 export function AdminStatCard({ label, value, hint, delta, icon: Icon, tone = 'default' }: AdminStatCardProps) {
@@ -49,7 +52,9 @@ export function AdminStatCard({ label, value, hint, delta, icon: Icon, tone = 'd
           <span
             className={clsx(
               'inline-flex items-center gap-0.5 text-xs font-medium tabular-nums',
-              delta.positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
+              delta.positive
+                ? 'text-indigo-600 dark:text-indigo-400'
+                : 'text-zinc-500 dark:text-zinc-400',
             )}
           >
             {delta.positive ? (

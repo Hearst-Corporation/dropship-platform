@@ -75,7 +75,7 @@ export default async function TemplatePreviewPage({
         <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-500">
           {id}
         </span>
-        <span className="ml-auto rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+        <span className="ml-auto rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700">
           Apercu avec donnees fictives
         </span>
       </div>

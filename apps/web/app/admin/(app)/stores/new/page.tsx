@@ -345,12 +345,12 @@ function CreationScreen({
   if (result) {
     return (
       <div className="mx-auto w-full max-w-2xl rounded-lg p-8 text-center ring-1 ring-zinc-950/10 dark:ring-white/10">
-        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-green-500/10 ring-1 ring-green-500/20">
-          <CheckCircleIcon className="size-7 text-green-500 dark:text-green-400" aria-hidden="true" />
+        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-white/5 ring-1 ring-white/10">
+          <CheckCircleIcon className="size-7 text-zinc-400 dark:text-zinc-500" aria-hidden="true" />
         </div>
         <Heading className="mt-4">{result.storeName}</Heading>
         <div className="mt-2 flex items-center justify-center gap-2">
-          <Badge color="green">Prêt à vendre</Badge>
+          <Badge color="indigo">Prêt à vendre</Badge>
           <Text>
             {result.productCount} produit{result.productCount > 1 ? 's' : ''} importé
             {result.productCount > 1 ? 's' : ''}
@@ -378,7 +378,7 @@ function CreationScreen({
         {/* Header */}
         <div className="flex items-center justify-between gap-4 border-b border-zinc-950/10 px-5 py-3 dark:border-white/10">
           <div className="flex min-w-0 items-center gap-3">
-            <Badge color={running ? 'indigo' : 'red'}>{running ? 'En cours' : 'Erreur'}</Badge>
+            <Badge color={running ? 'indigo' : 'zinc'}>{running ? 'En cours' : 'Erreur'}</Badge>
             <Subheading className="truncate">
               {running ? `Construction de « ${storeName} »` : `Erreur — « ${storeName} »`}
             </Subheading>
@@ -419,12 +419,12 @@ function CreationScreen({
 
         {/* Error banner */}
         {error && (
-          <div className="border-b border-red-500/20 bg-red-500/10 px-5 py-3">
-            <Text className="flex items-center gap-1.5 font-medium text-red-600! dark:text-red-400!">
+          <div className="border-b border-white/10 bg-white/5 px-5 py-3">
+            <Text className="flex items-center gap-1.5 font-medium text-zinc-700! dark:text-zinc-300!">
               <ExclamationTriangleIcon className="size-4" aria-hidden="true" />
               Erreur de création
             </Text>
-            <Text className="mt-1 whitespace-pre-wrap text-red-600/80! dark:text-red-400/80!">{error}</Text>
+            <Text className="mt-1 whitespace-pre-wrap text-zinc-600/80! dark:text-zinc-400/80!">{error}</Text>
           </div>
         )}
 
@@ -436,9 +436,9 @@ function CreationScreen({
               <span
                 className={
                   l.type === 'error'
-                    ? 'text-red-600 dark:text-red-400'
+                    ? 'text-zinc-600 dark:text-zinc-400'
                     : l.type === 'success'
-                      ? 'text-green-600 dark:text-green-400'
+                      ? 'text-indigo-600 dark:text-indigo-400'
                       : l.type === 'step'
                         ? 'font-medium text-zinc-950 dark:text-white'
                         : 'text-zinc-500 dark:text-zinc-400'

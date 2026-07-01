@@ -12,10 +12,10 @@ import {
   TableHeader,
   TableCell,
 } from '@/components/catalyst/table'
+import { Badge } from '@/components/catalyst/badge'
 import { AdminToolbar } from '@/components/admin/AdminToolbar'
 import { AdminDataTable } from '@/components/admin/AdminDataTable'
 import { AdminAssetCell } from '@/components/admin/AdminAssetCell'
-import { AdminBadge } from '@/components/admin/AdminBadge'
 import { AdminActionMenu } from '@/components/admin/AdminActionMenu'
 import { AdminEmptyState } from '@/components/admin/AdminEmptyState'
 
@@ -36,6 +36,14 @@ const STATUS_OPTIONS: Array<{ label: string; value: string }> = [
   { label: 'Proposé', value: 'proposed' },
   { label: 'Rejeté', value: 'rejected' },
 ]
+
+/**
+ * Single-accent status color: only the "published" state carries the accent
+ * hue (indigo); every other state is neutral zinc, disambiguated by its label.
+ */
+function statusBadgeColor(status: MedusaProduct['status']): 'indigo' | 'zinc' {
+  return status === 'published' ? 'indigo' : 'zinc'
+}
 
 /** Cheapest real price across a product's variants, in minor units + currency. */
 function minPrice(p: MedusaProduct): { amount: number; currency: string } | null {
@@ -63,22 +71,32 @@ function formatMoney(amount: number, currency: string): string {
   }
 }
 
-/** Sum of per-variant inventory_quantity (real field; often 0 since manage_inventory=false). */
-function totalInventory(p: MedusaProduct): number {
-  return (p.variants ?? []).reduce((sum, v) => sum + (v.inventory_quantity ?? 0), 0)
-}
-
 const dateFmt = new Intl.DateTimeFormat('fr-FR', {
   day: '2-digit',
   month: 'short',
   year: 'numeric',
 })
 
-function formatDate(iso?: string): string {
-  if (!iso) return DASH
+function formatDate(iso?: string): string | null {
+  if (!iso) return null
   const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return DASH
+  if (Number.isNaN(d.getTime())) return null
   return dateFmt.format(d)
+}
+
+/**
+ * Compact secondary line folded into the product cell: variant count, the
+ * supplier reference when present, and the last-sync date. Secondary/placeholder
+ * data lives here instead of in dead standalone columns.
+ */
+function buildDetails(p: MedusaProduct): string {
+  const parts: string[] = []
+  const variantCount = p.variants?.length ?? 0
+  parts.push(`${variantCount} variante${variantCount > 1 ? 's' : ''}`)
+  if (p.external_id) parts.push(`réf. ${p.external_id}`)
+  const synced = formatDate(p.updated_at)
+  if (synced) parts.push(`sync ${synced}`)
+  return parts.join(' · ')
 }
 
 export function CatalogTable({ products }: { products: MedusaProduct[] }) {
@@ -128,20 +146,13 @@ export function CatalogTable({ products }: { products: MedusaProduct[] }) {
           />
         </AdminDataTable>
       ) : (
-        <AdminDataTable minWidth="min-w-[64rem]">
+        <AdminDataTable minWidth="min-w-[40rem]">
           <Table dense>
             <TableHead>
               <TableRow>
                 <TableHeader>Produit</TableHeader>
-                <TableHeader>Store</TableHeader>
-                <TableHeader>Fournisseur</TableHeader>
                 <TableHeader className="text-right">Prix</TableHeader>
-                <TableHeader className="text-right">Coût</TableHeader>
-                <TableHeader className="text-right">Marge</TableHeader>
-                <TableHeader className="text-right">Inventaire</TableHeader>
-                <TableHeader className="text-right">Variantes</TableHeader>
                 <TableHeader>Statut</TableHeader>
-                <TableHeader>Dernier sync</TableHeader>
                 <TableHeader className="w-12 text-right">
                   <span className="sr-only">Actions</span>
                 </TableHeader>
@@ -150,28 +161,15 @@ export function CatalogTable({ products }: { products: MedusaProduct[] }) {
             <TableBody>
               {filtered.map((p) => {
                 const price = minPrice(p)
-                const inventory = totalInventory(p)
-                const variantCount = p.variants?.length ?? 0
                 return (
                   <TableRow key={p.id}>
                     <TableCell>
                       <AdminAssetCell
                         imageUrl={p.thumbnail}
                         title={p.title}
-                        subtitle={p.subtitle || p.categories?.[0]?.name || undefined}
+                        subtitle={buildDetails(p)}
                         handle={p.handle}
                       />
-                    </TableCell>
-                    {/* Store: no sales-channel attribution on MedusaProduct here. */}
-                    <TableCell className="text-zinc-400 dark:text-zinc-500">{DASH}</TableCell>
-                    <TableCell>
-                      {p.external_id ? (
-                        <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
-                          {p.external_id}
-                        </span>
-                      ) : (
-                        <span className="text-zinc-400 dark:text-zinc-500">{DASH}</span>
-                      )}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {price ? (
@@ -180,27 +178,8 @@ export function CatalogTable({ products }: { products: MedusaProduct[] }) {
                         <span className="text-zinc-400 dark:text-zinc-500">{DASH}</span>
                       )}
                     </TableCell>
-                    {/* Coût: no cost/COGS field on MedusaProduct. */}
-                    <TableCell className="text-right tabular-nums text-zinc-400 dark:text-zinc-500">
-                      {DASH}
-                    </TableCell>
-                    {/* Marge: requires cost, not available. */}
-                    <TableCell className="text-right tabular-nums text-zinc-400 dark:text-zinc-500">
-                      {DASH}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {inventory > 0 ? (
-                        inventory
-                      ) : (
-                        <span className="text-zinc-400 dark:text-zinc-500">{DASH}</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">{variantCount}</TableCell>
                     <TableCell>
-                      <AdminBadge status={p.status}>{STATUS_LABELS[p.status]}</AdminBadge>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-zinc-500 dark:text-zinc-400">
-                      {formatDate(p.updated_at)}
+                      <Badge color={statusBadgeColor(p.status)}>{STATUS_LABELS[p.status]}</Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <AdminActionMenu

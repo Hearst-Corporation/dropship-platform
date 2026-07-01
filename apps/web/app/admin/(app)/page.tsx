@@ -267,7 +267,6 @@ export default async function PortfolioDashboard() {
           label="Taux d'erreur agent 30j"
           value={`${errorRate.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`}
           hint={`${cost.errors.toLocaleString('fr-FR')} erreurs`}
-          tone={errorRate > 5 ? 'danger' : 'default'}
           icon={errorRate > 5 ? ExclamationTriangleIcon : CheckCircleIcon}
         />
       </AdminStatsGrid>
@@ -380,8 +379,8 @@ export default async function PortfolioDashboard() {
                   <TableCell className="text-zinc-500 dark:text-zinc-400">Taux d&apos;erreur</TableCell>
                   <TableCell className="text-right tabular-nums">
                     {errorRate > 5 ? (
-                      <Badge color="amber">
-                        {errorRate.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %
+                      <Badge color="zinc">
+                        {errorRate.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} % · élevé
                       </Badge>
                     ) : (
                       <span>
@@ -400,8 +399,8 @@ export default async function PortfolioDashboard() {
           description="Signaux nécessitant une attention immédiate."
         >
           {errorRate > 5 ? (
-            <div className="flex items-start gap-3 rounded-lg border border-red-500/20 bg-red-500/5 p-4">
-              <ExclamationTriangleIcon className="size-5 shrink-0 text-red-500 dark:text-red-400" />
+            <div className="flex items-start gap-3 rounded-lg border border-zinc-950/10 bg-zinc-950/[0.02] p-4 dark:border-white/10 dark:bg-white/[0.02]">
+              <ExclamationTriangleIcon className="size-5 shrink-0 text-zinc-400 dark:text-zinc-500" />
               <div className="min-w-0">
                 <p className="text-sm font-medium text-zinc-950 dark:text-white">
                   Taux d&apos;erreur agent élevé

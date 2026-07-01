@@ -157,7 +157,7 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
                   p.cost_cents > 0
                     ? Math.round(((p.price_cents - p.cost_cents) / p.cost_cents) * 100)
                     : 0;
-                const supplierColor = p.supplier === 'ai-generated' ? 'zinc' : 'green';
+                const supplierColor = 'zinc';
                 return (
                   <TableRow key={p.id}>
                     <TableCell>
@@ -208,7 +208,7 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
                     </TableCell>
                     <TableCell className="text-right">
                       {p.medusa_product_id ? (
-                        <Badge color="green">Live</Badge>
+                        <Badge color="indigo">Live</Badge>
                       ) : (
                         <Badge color="zinc">En attente</Badge>
                       )}

@@ -105,19 +105,9 @@ export default async function StoresPage({
       />
 
       <AdminStatsGrid>
-        <AdminStatCard
-          label="En ligne"
-          value={active.length}
-          icon={CheckCircleIcon}
-          tone={active.length > 0 ? 'positive' : 'default'}
-        />
-        <AdminStatCard label="En création" value={creating.length} icon={ClockIcon} tone="warning" />
-        <AdminStatCard
-          label="En erreur"
-          value={failed.length}
-          icon={ExclamationTriangleIcon}
-          tone={failed.length > 0 ? 'danger' : 'default'}
-        />
+        <AdminStatCard label="En ligne" value={active.length} icon={CheckCircleIcon} />
+        <AdminStatCard label="En création" value={creating.length} icon={ClockIcon} />
+        <AdminStatCard label="En erreur" value={failed.length} icon={ExclamationTriangleIcon} />
         <AdminStatCard label="Produits publiés" value={totalProducts} icon={CubeIcon} />
       </AdminStatsGrid>
 

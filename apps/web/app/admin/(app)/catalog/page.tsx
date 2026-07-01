@@ -49,9 +49,9 @@ export default async function CatalogPage() {
       />
 
       {error ? (
-        <div className="rounded-xl border border-red-500/20 bg-red-50 p-5 dark:bg-red-500/10">
+        <div className="rounded-xl border border-zinc-950/10 bg-white p-5 dark:border-white/10 dark:bg-zinc-900">
           <Subheading level={2}>
-            <Badge color="red">Erreur Medusa</Badge>
+            <Badge color="zinc">Erreur Medusa</Badge>
           </Subheading>
           <Text className="mt-2">{error}</Text>
         </div>

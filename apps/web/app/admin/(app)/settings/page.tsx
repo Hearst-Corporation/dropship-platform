@@ -1,9 +1,5 @@
 import type { ReactNode } from 'react';
-import {
-  CheckIcon,
-  ExclamationTriangleIcon,
-  ArrowTopRightOnSquareIcon,
-} from '@heroicons/react/16/solid';
+import { ArrowTopRightOnSquareIcon } from '@heroicons/react/16/solid';
 import { getDbRead } from '@/lib/db';
 import { Text, TextLink, Strong, Code } from '@/components/catalyst/text';
 import { Badge } from '@/components/catalyst/badge';
@@ -24,7 +20,9 @@ import { AdminEmptyState } from '@/components/admin/AdminEmptyState';
 
 export const dynamic = 'force-dynamic';
 
-type BadgeColor = 'zinc' | 'green' | 'amber' | 'red' | 'indigo' | 'blue';
+// Single accent (indigo) + neutral (zinc) only. Every non-positive state is zinc,
+// disambiguated by its label text, never by hue.
+type BadgeColor = 'zinc' | 'indigo';
 
 async function getSettings() {
   const db = getDbRead();
@@ -56,13 +54,13 @@ export default async function SettingsPage() {
   const expiresAt = aliExpires?.value ? new Date(parseInt(aliExpires.value)) : null;
   const isExpired = expiresAt ? Date.now() > expiresAt.getTime() : false;
 
-  const aliColor: BadgeColor = isConnected && !isExpired ? 'green' : isConnected ? 'amber' : 'zinc';
+  const aliColor: BadgeColor = isConnected && !isExpired ? 'indigo' : 'zinc';
   const aliLabel = isConnected && !isExpired ? 'Connecté' : isConnected ? 'Token expiré' : 'Non connecté';
 
   const cjEmail = (process.env.CJ_DROPSHIPPING_EMAIL || '').trim();
   const cjKeySet = !!(process.env.CJ_DROPSHIPPING_API_KEY || '').trim();
   const cjMeta = cjEmail ? `Compte : ${cjEmail}` : 'Compte non lié';
-  const cjColor: BadgeColor = cjKeySet ? 'green' : 'zinc';
+  const cjColor: BadgeColor = cjKeySet ? 'indigo' : 'zinc';
   const cjLabel = cjKeySet ? 'API Key configurée' : 'API Key manquante';
 
   return (
@@ -144,7 +142,7 @@ export default async function SettingsPage() {
       {/* ── Politique dropshipping ─────────────────────────────────────────── */}
       <AdminSection
         title="Politique dropshipping"
-        description="Vue en lecture seule de tous les fournisseurs connus, classée par statut. Les critères verts sont satisfaits, les icônes orange indiquent un critère manquant ou partiel."
+        description="Vue en lecture seule de tous les fournisseurs connus, classée par statut. La colonne Capacités récapitule chaque critère : un point plein signale un critère satisfait, un point atténué un critère manquant ou partiel."
         flush
       >
         <SupplierPolicyTable rows={supplierRows} />
@@ -217,43 +215,63 @@ const CAPABILITY_LABELS: Record<string, string> = {
 
 const CAPABILITY_KEYS = Object.keys(CAPABILITY_LABELS);
 
+// Only the "active" state carries the accent (indigo). Every other status is
+// neutral zinc, disambiguated by its label text.
 const STATUS_META: Record<string, { color: BadgeColor; label: string }> = {
-  active: { color: 'green', label: 'Actif' },
-  'feed-only': { color: 'amber', label: 'Feed seul' },
-  search_only: { color: 'amber', label: 'Sourcing seul' },
-  automation: { color: 'blue', label: 'Automatisation' },
-  excluded: { color: 'red', label: 'Exclu' },
+  active: { color: 'indigo', label: 'Actif' },
+  'feed-only': { color: 'zinc', label: 'Feed seul' },
+  search_only: { color: 'zinc', label: 'Sourcing seul' },
+  automation: { color: 'zinc', label: 'Automatisation' },
+  excluded: { color: 'zinc', label: 'Exclu' },
 };
 
 function statusMeta(status: string): { color: BadgeColor; label: string } {
   return STATUS_META[status] ?? { color: 'zinc', label: status };
 }
 
+// Only "connected" carries the accent; error / missing-key / unknown are zinc.
 const CONNECTION_META: Record<string, { color: BadgeColor; label: string }> = {
-  connected: { color: 'green', label: 'Connecté' },
-  error: { color: 'red', label: 'Erreur' },
-  'missing-key': { color: 'amber', label: 'Clé manquante' },
+  connected: { color: 'indigo', label: 'Connecté' },
+  error: { color: 'zinc', label: 'Erreur' },
+  'missing-key': { color: 'zinc', label: 'Clé manquante' },
   unknown: { color: 'zinc', label: 'Inconnu' },
 };
 
-function CapabilityIcon({ ok }: { ok: boolean }) {
-  if (ok) {
-    return (
-      <span
-        title="Satisfait"
-        className="inline-flex size-4 items-center justify-center rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-      >
-        <CheckIcon className="size-3" />
-      </span>
-    );
+/**
+ * Compact inline capability group. Renders one small dot per capability:
+ * satisfied = filled accent (indigo) dot, missing/partial = faint zinc dot.
+ * Each dot carries a native title tooltip ("Critère · Satisfait|Manquant").
+ * Neutral palette only: indigo for present, zinc for absent.
+ */
+function CapabilityDots({
+  capabilities,
+  hasData,
+}: {
+  capabilities: Record<string, boolean>;
+  hasData: boolean;
+}) {
+  if (!hasData) {
+    return <span className="text-xs text-zinc-400 dark:text-zinc-600">—</span>;
   }
   return (
-    <span
-      title="Manquant ou partiel"
-      className="inline-flex size-4 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-    >
-      <ExclamationTriangleIcon className="size-3" />
-    </span>
+    <div className="flex flex-wrap items-center gap-1.5">
+      {CAPABILITY_KEYS.map((key) => {
+        const ok = !!capabilities[key];
+        const label = CAPABILITY_LABELS[key];
+        return (
+          <span
+            key={key}
+            title={`${label} · ${ok ? 'Satisfait' : 'Manquant ou partiel'}`}
+            aria-label={`${label} : ${ok ? 'satisfait' : 'manquant ou partiel'}`}
+            className={
+              ok
+                ? 'size-2 rounded-full bg-indigo-500 dark:bg-indigo-400'
+                : 'size-2 rounded-full bg-zinc-300 dark:bg-zinc-700'
+            }
+          />
+        );
+      })}
+    </div>
   );
 }
 
@@ -267,18 +285,14 @@ function SupplierPolicyTable({ rows }: { rows: SupplierPolicyRow[] }) {
   }
 
   return (
-    <AdminDataTable minWidth="min-w-[64rem]" className="border-0 bg-transparent dark:bg-transparent">
+    <AdminDataTable minWidth="min-w-[36rem]" className="border-0 bg-transparent dark:bg-transparent">
       <Table dense>
         <TableHead>
           <TableRow>
             <TableHeader>Fournisseur</TableHeader>
             <TableHeader>Statut</TableHeader>
             <TableHeader>Connexion</TableHeader>
-            {CAPABILITY_KEYS.map((key) => (
-              <TableHeader key={key} className="text-center">
-                <span className="inline-block whitespace-nowrap">{CAPABILITY_LABELS[key]}</span>
-              </TableHeader>
-            ))}
+            <TableHeader>Capacités</TableHeader>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -309,17 +323,9 @@ function SupplierPolicyTable({ rows }: { rows: SupplierPolicyRow[] }) {
                 <TableCell>
                   <Badge color={cMeta.color}>{cMeta.label}</Badge>
                 </TableCell>
-                {CAPABILITY_KEYS.map((key) => (
-                  <TableCell key={key} className="text-center">
-                    {hasCapabilities ? (
-                      <span className="inline-flex justify-center">
-                        <CapabilityIcon ok={!!row.capabilities[key]} />
-                      </span>
-                    ) : (
-                      <span className="text-zinc-400 dark:text-zinc-600">—</span>
-                    )}
-                  </TableCell>
-                ))}
+                <TableCell>
+                  <CapabilityDots capabilities={row.capabilities} hasData={hasCapabilities} />
+                </TableCell>
               </TableRow>
             );
           })}

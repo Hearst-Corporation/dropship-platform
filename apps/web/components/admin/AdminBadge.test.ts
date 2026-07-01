@@ -1,7 +1,9 @@
 /**
  * Unit test — statusColor() maps semantic status strings (FR + EN,
- * case-insensitive) to the expected Catalyst <Badge> colors, and falls back to
- * 'zinc' for anything unknown.
+ * case-insensitive) to a Catalyst <Badge> color under the SINGLE-ACCENT policy:
+ * the only hue allowed in the admin is the accent 'indigo' (for positive/active
+ * states); every other state falls back to neutral 'zinc'. Error/warning states
+ * are disambiguated by their label text, never by color.
  *
  * Pure function, no DOM: safe under vitest's node environment. We import only
  * the helper (not the JSX component) so nothing React-renders here.
@@ -10,28 +12,33 @@
 import { describe, it, expect } from 'vitest';
 import { statusColor } from '@/components/admin/AdminBadge';
 
-describe('statusColor', () => {
-  it('maps positive/live statuses to lime', () => {
+describe('statusColor (single-accent policy)', () => {
+  it('maps positive/active/connected statuses to the accent (indigo)', () => {
     for (const s of [
       'active',
       'actif',
       'online',
+      'en ligne',
       'published',
       'publié',
       'live',
-      'paid',
-      'payé',
+      'ready',
+      'prêt',
       'success',
       'succès',
       'completed',
       'connected',
+      'connecté',
+      'paid',
+      'payé',
     ]) {
-      expect(statusColor(s)).toBe('lime');
+      expect(statusColor(s)).toBe('indigo');
     }
   });
 
-  it('maps pending/in-progress statuses to amber', () => {
+  it('maps every non-positive state (pending, error, warning, paused, unknown) to neutral zinc', () => {
     for (const s of [
+      // pending / in-progress
       'draft',
       'brouillon',
       'pending',
@@ -39,46 +46,24 @@ describe('statusColor', () => {
       'creating',
       'création',
       'processing',
-      'en cours',
       'running',
-      'queued',
       'warning',
-      'partial',
-    ]) {
-      expect(statusColor(s)).toBe('amber');
-    }
-  });
-
-  it('maps error/cancelled/refunded statuses to red', () => {
-    for (const s of [
+      // error / cancelled
       'error',
       'erreur',
       'failed',
-      'failure',
       'échec',
       'cancelled',
-      'canceled',
       'annulé',
       'refunded',
-      'remboursé',
       'rejected',
-    ]) {
-      expect(statusColor(s)).toBe('red');
-    }
-  });
-
-  it('maps paused/offline/inactive/archived and any unknown value to zinc', () => {
-    for (const s of [
+      // paused / offline / archived
       'paused',
-      'en pause',
       'offline',
       'inactive',
-      'inactif',
       'archived',
-      'archivé',
+      // genuinely unknown
       'unknown',
-      'inconnu',
-      // Genuinely unknown values fall through to the zinc default.
       'wibble',
       'HTTP-418',
       '',
@@ -88,16 +73,16 @@ describe('statusColor', () => {
   });
 
   it('is case-insensitive and trims surrounding whitespace', () => {
-    expect(statusColor('ACTIVE')).toBe('lime');
-    expect(statusColor('  Published  ')).toBe('lime');
-    expect(statusColor('Pending')).toBe('amber');
-    expect(statusColor('  FAILED')).toBe('red');
+    expect(statusColor('ACTIVE')).toBe('indigo');
+    expect(statusColor('  Published  ')).toBe('indigo');
+    expect(statusColor('Pending')).toBe('zinc');
+    expect(statusColor('  FAILED')).toBe('zinc');
     expect(statusColor('Archived  ')).toBe('zinc');
   });
 
-  it('always returns one of the four Catalyst colors we use', () => {
-    const allowed = new Set(['lime', 'amber', 'red', 'zinc']);
-    for (const s of ['active', 'pending', 'error', 'paused', 'anything-else']) {
+  it('only ever returns the accent (indigo) or neutral (zinc) — no other hue', () => {
+    const allowed = new Set(['indigo', 'zinc']);
+    for (const s of ['active', 'pending', 'error', 'paused', 'anything-else', '']) {
       expect(allowed.has(statusColor(s) as string)).toBe(true);
     }
   });
