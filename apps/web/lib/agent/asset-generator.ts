@@ -156,7 +156,7 @@ async function buildPromptsWithClaude(input: AssetGenInput): Promise<PromptBundl
       promo: luxuryVideoPrompt(ctx),
     };
   }
-  if (!process.env.ANTHROPIC_API_KEY) return FALLBACK_PROMPTS;
+  if (!process.env.OPENAI_API_KEY) return FALLBACK_PROMPTS;
 
   try {
     const res = await trackedMessage({ step: 'asset-prompts' }, {

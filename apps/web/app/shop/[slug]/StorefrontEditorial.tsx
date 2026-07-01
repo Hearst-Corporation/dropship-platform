@@ -35,7 +35,7 @@ export function StorefrontEditorial({
               <span>{store.name}</span>
             </Link>
             <Link
-              href={`/shop/${store.slug}/cart`}
+              href="/cart"
               className="flex items-center gap-1.5 text-sm text-zinc-600 hover:text-zinc-900 transition-colors"
               aria-label="Panier"
             >

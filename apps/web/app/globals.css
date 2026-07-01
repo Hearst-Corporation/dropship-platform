@@ -36,6 +36,17 @@
   --radius-admin-xl: var(--admin-radius-xl);
 
   --shadow-admin-card: var(--admin-shadow-card);
+
+  /* Storefront-facing type/spacing utilities kept from the storefront primitives
+     (used by app/cart, app/checkout, app/products, app/error, app/not-found and
+     the shop templates). Restored here after the cockpit-shell Tailwind config
+     was purged so `text-kicker`, `tracking-*` and `shadow-cta` resolve again. */
+  --text-kicker: 0.6875rem;
+  --text-kicker--line-height: 1rem;
+  --tracking-cta: 0.12em;
+  --tracking-kicker: 0.2em;
+  --tracking-label: 0.16em;
+  --shadow-cta: 0 12px 24px -8px rgb(0 0 0 / 0.18), 0 6px 10px -6px rgb(0 0 0 / 0.12);
 }
 
 /*
@@ -59,14 +70,13 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    DESIGN SYSTEM — Light SaaS B2B (Tailwind Plus foundation)
    ---------------------------------------------------------------------------
-   The admin/cockpit UI is built EXCLUSIVELY from Tailwind Plus blocks + the
-   primitives in components/tw/. No bespoke dark design system anymore.
+   The admin UI is built from the Catalyst kit (components/catalyst/*) + the
+   storefront primitives (components/ui/*). No bespoke dark design system anymore.
    Tokens below drive the few CSS-var references that survive in shared,
-   storefront-facing code (StoreShell, components/ui/* used by the 24 store
+   storefront-facing code (StoreShell, components/ui/* used by the store
    templates we keep). They are aliases onto the light palette so the kept
    storefront primitives render correctly without the deleted cockpit-shell
    tokens.css.
-   See DESIGN-SYSTEM.md for the full reference.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 @layer base {
@@ -158,5 +168,27 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+  }
+}
+
+/* Storefront-facing component classes kept from the storefront primitives.
+   Restored after the cockpit-shell CSS was purged (they were referenced by
+   app/cart, app/checkout, app/products, app/legal but no longer defined),
+   so those page headings/cards render styled instead of browser-default. */
+@layer components {
+  .ct-title {
+    font-size: clamp(1.75rem, 1.35rem + 1.6vw, 2.25rem);
+    line-height: 1.15;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  .ct-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--admin-radius-xl);
+    padding: 2rem;
+    box-shadow: var(--ct-shadow-depth);
   }
 }

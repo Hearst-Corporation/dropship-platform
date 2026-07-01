@@ -37,7 +37,7 @@ export function StorefrontBold({
               <span>{store.name}</span>
             </Link>
             <Link
-              href={`/shop/${store.slug}/cart`}
+              href="/cart"
               className="flex items-center gap-1.5 text-sm font-medium text-white/70 hover:text-white transition-colors"
               aria-label="Panier"
             >

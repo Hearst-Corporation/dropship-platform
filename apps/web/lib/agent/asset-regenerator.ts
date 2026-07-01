@@ -150,7 +150,7 @@ async function buildSingleAssetPromptWithClaude(args: {
   niche: string;
   product: ProductRow;
 }): Promise<string> {
-  if (!process.env.ANTHROPIC_API_KEY) return fallbackPromptFor(args.kind);
+  if (!process.env.OPENAI_API_KEY) return fallbackPromptFor(args.kind);
 
   const slotDescription = (() => {
     if (args.kind === 'hero') {

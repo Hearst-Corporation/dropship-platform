@@ -223,8 +223,6 @@ export const config = {
     '/api/aliexpress/oauth/refresh',
     '/api/aliexpress/test-search',
     '/api/aliexpress/probe-order',
-    '/api/cockpit-chat',
-    '/api/cockpit-chat/:path*',
     '/api/medusa/setup',
     '/api/medusa/introspect',
     '/api/medusa/health',

@@ -97,7 +97,7 @@ const FALLBACK: LandingContent = {
 export async function writeLandingContent(
   input: LandingWriterInput,
 ): Promise<LandingContent> {
-  if (!process.env.ANTHROPIC_API_KEY) return FALLBACK;
+  if (!process.env.OPENAI_API_KEY) return FALLBACK;
 
   // Luxury path: when the template is in the luxury register, we run a
   // SECOND Claude call with the maison voice prompt and stash the output
