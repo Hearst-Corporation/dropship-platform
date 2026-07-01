@@ -8,7 +8,7 @@ import { apiFetch } from '@/lib/client-fetch';
  * read the same `{type, message}` event shape as `/admin/stores/new`.
  */
 
-import { useEffect, useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { AssetKind } from '@/lib/agent/asset-regenerator';
 import { Subheading } from '@/components/catalyst/heading';
@@ -108,7 +108,7 @@ export function AssetRegenerator({
   const [running, setRunning] = useState(false);
   const [logs, setLogs] = useState<LogLine[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [pendingSet, startSetTransition] = useTransition();
+  const [pendingSetId, setPendingSetId] = useState<string | null>(null);
   const counterRef = useRef(0);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
@@ -184,22 +184,23 @@ export function AssetRegenerator({
     }
   };
 
-  const setAsCurrent = (runId: string) => {
+  const setAsCurrent = async (runId: string) => {
     setError(null);
-    startSetTransition(async () => {
-      try {
-        const res = await apiFetch(`/api/agent/stores/${storeId}/assets`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ runId, kind }),
-        });
-        const data = (await res.json()) as { ok?: boolean; error?: string };
-        if (!res.ok || !data.ok) throw new Error(data.error || 'Erreur');
-        router.refresh();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Erreur');
-      }
-    });
+    setPendingSetId(runId);
+    try {
+      const res = await apiFetch(`/api/agent/stores/${storeId}/assets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ runId, kind }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Erreur');
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur');
+    } finally {
+      setPendingSetId(null);
+    }
   };
 
   const successRuns = runs.filter((r) => r.status === 'success' && r.resultUrl);
@@ -212,15 +213,23 @@ export function AssetRegenerator({
           <Subheading>{label.title}</Subheading>
           <Text className="text-xs">{label.hint}</Text>
         </div>
-        <Button
-          type="button"
-          color="indigo"
-          onClick={() => setPanelOpen((v) => !v)}
-          disabled={running || !referenceImageUrl}
-          className="shrink-0"
-        >
-          {panelOpen ? 'Fermer' : 'Régénérer'}
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          {!referenceImageUrl && (
+            <Text className="max-w-[16rem] text-right text-xs text-amber-400">
+              Génère d&apos;abord un cutout produit
+            </Text>
+          )}
+          <Button
+            type="button"
+            color="indigo"
+            onClick={() => setPanelOpen((v) => !v)}
+            disabled={running || !referenceImageUrl}
+            title={!referenceImageUrl ? 'Génère d’abord un cutout produit' : undefined}
+            className="shrink-0"
+          >
+            {panelOpen ? 'Fermer' : 'Régénérer'}
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-5">
@@ -391,10 +400,11 @@ export function AssetRegenerator({
                           type="button"
                           plain
                           onClick={() => setAsCurrent(r.id)}
-                          disabled={pendingSet}
+                          disabled={pendingSetId !== null}
+                          aria-busy={pendingSetId === r.id}
                           className="w-full"
                         >
-                          {pendingSet ? '…' : 'Définir comme courant'}
+                          {pendingSetId === r.id ? '…' : 'Définir comme courant'}
                         </Button>
                       )}
                     </div>

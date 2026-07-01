@@ -41,6 +41,8 @@ export function DryRunPendingButton() {
       <button
         onClick={run}
         disabled={busy}
+        aria-label="Pré-calculer les dry-runs des commandes payées en attente"
+        aria-busy={busy}
         className="rounded-lg bg-white/10 px-4 py-2 text-xs font-medium uppercase tracking-wider text-white ring-1 ring-inset ring-white/10 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {busy ? 'Pré-calcul…' : 'Pré-calculer les dry-runs'}

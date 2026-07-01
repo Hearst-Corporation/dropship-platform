@@ -79,11 +79,11 @@ export function StorefrontMinimal({
                   )}
                   {heroHeadline ? (
                     <h1
-                      className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl"
+                      className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl"
                       dangerouslySetInnerHTML={{ __html: sanitizeRichText(heroHeadline) }}
                     />
                   ) : (
-                    <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
+                    <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl">
                       {store.name}
                     </h1>
                   )}
@@ -160,7 +160,7 @@ export function StorefrontMinimal({
 
             {/* Grille produits restants */}
             {rest.length > 0 && (
-              <section className="border-t border-gray-100 bg-gray-50 py-16">
+              <section className="border-t border-zinc-100 bg-zinc-50 py-16">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                   <h2 className="mb-8 text-xl font-bold text-gray-900">
                     Toute la collection

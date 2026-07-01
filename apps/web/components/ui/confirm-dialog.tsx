@@ -31,6 +31,14 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const confirmRef = useRef<HTMLButtonElement>(null);
   const [confirming, setConfirming] = useState(false);
+  const confirmingRef = useRef(false);
+
+  // Keep the ref in sync with state without mutating during render
+  // (avoids react-hooks/refs). The ref lets the keydown handler read the
+  // latest busy status without re-subscribing on every state change.
+  useEffect(() => {
+    confirmingRef.current = confirming;
+  }, [confirming]);
 
   useEffect(() => {
     if (!open) {
@@ -39,7 +47,8 @@ export function ConfirmDialog({
     }
     confirmRef.current?.focus();
     const runConfirm = async () => {
-      if (confirming) return;
+      if (confirmingRef.current) return;
+      confirmingRef.current = true;
       setConfirming(true);
       try {
         await onConfirm();
@@ -48,7 +57,7 @@ export function ConfirmDialog({
       }
     };
     const onKey = (e: KeyboardEvent) => {
-      if (confirming) return;
+      if (confirmingRef.current) return;
       if (e.key === 'Escape') onCancel();
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -61,12 +70,13 @@ export function ConfirmDialog({
       window.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
     };
-  }, [open, onCancel, onConfirm, confirming]);
+  }, [open, onCancel, onConfirm]);
 
   if (!open) return null;
 
   const handleConfirm = async () => {
-    if (confirming) return;
+    if (confirmingRef.current) return;
+    confirmingRef.current = true;
     setConfirming(true);
     try {
       await onConfirm();

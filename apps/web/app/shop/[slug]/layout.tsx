@@ -48,33 +48,10 @@ export default async function ShopLayout({
       <style dangerouslySetInnerHTML={{ __html: design.cssVars }} />
       <StoreAnalytics ids={publicAnalytics(store)} consent={consent} />
       <CookieBanner />
-      <header className="absolute top-0 left-0 right-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            <Link
-              href={`/shop/${slug}`}
-              className="hover:opacity-90 transition-opacity"
-              aria-label={`${store.name} accueil`}
-            >
-              <BrandLogo
-                name={store.name}
-                accentColor={store.accentColor}
-                tone="inverse"
-                size="header"
-              />
-            </Link>
-            <nav className="flex items-center gap-8 text-sm font-medium text-white">
-              <Link href={`/shop/${slug}`} className="hover:opacity-75 transition-opacity uppercase tracking-wider text-xs">
-                Boutique
-              </Link>
-              <Link href="/cart" className="hover:opacity-75 transition-opacity uppercase tracking-wider text-xs">
-                Panier
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
-
+      {/* No layout-level header: each storefront template renders its own
+          theme-matched nav, and the generic page renders its own hero. A layout
+          header here would double up with those and, being position:absolute,
+          overlap the content underneath it. */}
       <main>{children}</main>
 
       <footer className="bg-zinc-950 text-white py-14">

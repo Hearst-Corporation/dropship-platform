@@ -59,9 +59,6 @@ export function listSuppliers(filter?: {
     return true;
   });
 }
-export function forwardableSuppliers(): SupplierClient[] {
-  return listSuppliers({ forwardable: true });
-}
 /** Suppliers allowed as PRODUCT SOURCES (pass the dropship-pur criteria gate). */
 export function activeSourcingSuppliers(): SupplierClient[] {
   return Object.values(SUPPLIERS).filter((s) => evaluateDropshipPure(s).ok);

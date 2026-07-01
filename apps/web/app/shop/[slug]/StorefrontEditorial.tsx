@@ -111,7 +111,7 @@ export function StorefrontEditorial({
                       .slice(0, 3)
                       .map((url, idx) => (
                         <div key={idx} className="grid shrink-0 grid-cols-1 gap-y-6 lg:gap-y-8">
-                          <div className="h-64 w-44 overflow-hidden rounded-lg">
+                          <div className="aspect-[3/4] w-44 overflow-hidden rounded-lg">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               alt=""

@@ -75,19 +75,26 @@ export async function DELETE(
     'SELECT medusa_product_id FROM dropship_store_products WHERE store_id = $1 AND medusa_product_id IS NOT NULL',
     [storeId],
   );
-  const deleteResults = await Promise.allSettled(
-    products.map(({ medusa_product_id }) => medusa.deleteProduct(medusa_product_id)),
-  );
-  deleteResults.forEach((result, idx) => {
-    if (result.status === 'fulfilled') {
-      report.medusa_products += 1;
-    } else {
-      console.error(
-        `[delete-store] medusa.deleteProduct(${products[idx].medusa_product_id}) failed:`,
-        result.reason,
-      );
-    }
-  });
+  // Delete in chunks of 20 so a store with up to 500 products doesn't fire 500
+  // concurrent Medusa HTTP calls at once (best-effort delete, behavior
+  // unchanged: each failure is logged and the store row is still removed).
+  const DELETE_CHUNK = 20;
+  for (let start = 0; start < products.length; start += DELETE_CHUNK) {
+    const chunk = products.slice(start, start + DELETE_CHUNK);
+    const deleteResults = await Promise.allSettled(
+      chunk.map(({ medusa_product_id }) => medusa.deleteProduct(medusa_product_id)),
+    );
+    deleteResults.forEach((result, idx) => {
+      if (result.status === 'fulfilled') {
+        report.medusa_products += 1;
+      } else {
+        console.error(
+          `[delete-store] medusa.deleteProduct(${chunk[idx].medusa_product_id}) failed:`,
+          result.reason,
+        );
+      }
+    });
+  }
 
   // 2. Medusa sales channel
   if (medusa_sales_channel_id) {

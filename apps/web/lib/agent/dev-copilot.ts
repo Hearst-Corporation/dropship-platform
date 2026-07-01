@@ -37,6 +37,7 @@
  * injected option if needed.
  */
 
+import 'server-only';
 import type Anthropic from '@anthropic-ai/sdk';
 import { exec as execCallback } from 'node:child_process';
 import { promisify } from 'node:util';

@@ -596,12 +596,14 @@ export async function forwardOrder(medusaOrderId: string, opts: ForwardOptions):
     };
   }
 
-  // Forward each supplier group as its own row. Sequential (not parallel) so the
-  // per-supplier lock semantics stay simple and deterministic.
-  const forwards: ForwardLeg[] = [];
-  for (const group of groups) {
-    forwards.push(await forwardSupplierGroup(medusaOrderId, group, address, opts, attr));
-  }
+  // Forward each supplier group as its own row, in parallel. Each group targets
+  // a DISTINCT supplier (mapItemsToSupplier groups by supplier), and the only
+  // lock is the DB unique partial index on (medusa_order_id, supplier) — it is
+  // per-supplier, so two groups never contend for the same lock. There is no
+  // shared mutable JS state across the loop body, so full parallelism is safe.
+  const forwards: ForwardLeg[] = await Promise.all(
+    groups.map((group) => forwardSupplierGroup(medusaOrderId, group, address, opts, attr)),
+  );
 
   const allSent = forwards.every((f) => f.status === 'sent');
   const allDryRun = forwards.every((f) => f.status === 'dry_run');

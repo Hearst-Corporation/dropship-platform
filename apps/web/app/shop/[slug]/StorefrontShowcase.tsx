@@ -98,8 +98,8 @@ export function StorefrontShowcase({
 
               {/* Hero principal */}
               <div className="relative">
-                <div aria-hidden="true" className="absolute inset-0 hidden h-full w-1/2 lg:block" style={{ backgroundColor: store.primaryColor + '14' }} />
-                <div className="relative" style={{ backgroundColor: store.primaryColor + '14' }}>
+                <div aria-hidden="true" className="absolute inset-0 hidden h-full w-1/2 lg:block" style={{ backgroundColor: `color-mix(in srgb, ${store.primaryColor} 8%, transparent)` }} />
+                <div className="relative" style={{ backgroundColor: `color-mix(in srgb, ${store.primaryColor} 8%, transparent)` }}>
                   <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:grid lg:grid-cols-2 lg:px-8">
                     <div className="mx-auto max-w-2xl py-20 lg:max-w-none lg:py-32">
                       <div className="lg:pr-16">
@@ -326,7 +326,7 @@ export function StorefrontShowcase({
             {store.landingContent?.trust_promises && store.landingContent.trust_promises.length > 0 && (
               <section
                 className="py-16"
-                style={{ backgroundColor: store.primaryColor + '0d' }}
+                style={{ backgroundColor: `color-mix(in srgb, ${store.primaryColor} 5%, transparent)` }}
               >
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                   <h2 className="text-2xl font-bold tracking-tight text-gray-900">

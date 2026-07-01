@@ -26,6 +26,12 @@ interface Variant {
 
 // All values are flat or gradient — only #000, white, and the blue scale
 // allowed. Order is irrelevant; the slug hash picks deterministically.
+//
+// Hex ↔ Tailwind scale (default palette), for reference only — these are
+// inline styles (gradients + hash-picked bg), not classes, so they stay as
+// literals. Do not change the values.
+//   #0a0a0a → neutral-950   #ffffff → white
+//   #2563eb → blue-600      #1e3a8a → blue-900      #3b82f6 → blue-500
 const VARIANTS: Variant[] = [
   // 1. Solid black
   { bg: '#0a0a0a',                                                              fg: '#ffffff' },

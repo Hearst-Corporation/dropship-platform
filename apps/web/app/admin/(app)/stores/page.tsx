@@ -143,7 +143,7 @@ export default async function StoresPage({
                       <div className="flex items-center gap-3">
                         <div className="relative size-9 shrink-0 overflow-hidden rounded-lg bg-zinc-100 ring-1 ring-zinc-950/10 dark:bg-white/5 dark:ring-white/10">
                           {cover ? (
-                            <Image src={cover} alt="" fill sizes="36px" className="object-cover" />
+                            <Image src={cover} alt={store.name} fill sizes="36px" className="object-cover" />
                           ) : (
                             <StoreAvatar
                               slug={store.slug}

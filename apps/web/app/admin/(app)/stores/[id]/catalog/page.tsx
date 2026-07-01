@@ -165,7 +165,13 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
                         <div className="size-10 shrink-0 overflow-hidden rounded-lg bg-zinc-100 ring-1 ring-zinc-950/5 dark:bg-white/5 dark:ring-white/10">
                           {p.image_url ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={p.image_url} alt="" className="size-full object-cover" />
+                            <img
+                              src={p.image_url}
+                              alt={p.enriched_title || 'Produit'}
+                              loading="lazy"
+                              decoding="async"
+                              className="size-full object-cover"
+                            />
                           ) : (
                             <div className="flex size-full items-center justify-center text-lg">
                               {store.logo_emoji}

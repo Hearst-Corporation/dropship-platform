@@ -47,10 +47,20 @@ function roas(revenue: number, spent: number): string {
 }
 
 export default async function ObservabilityPage() {
-  const [campaigns, connections] = await Promise.all([
-    getAllCampaigns(),
-    Promise.resolve(getChannelConnections()),
-  ]);
+  // Fail-soft : une erreur DB ne doit pas crasher la page. On retombe sur des
+  // données vides et on affiche une bannière ambre pour le signaler.
+  let campaigns: Awaited<ReturnType<typeof getAllCampaigns>> = [];
+  let connections: ReturnType<typeof getChannelConnections> = [];
+  let dataError = false;
+  try {
+    [campaigns, connections] = await Promise.all([
+      getAllCampaigns(),
+      Promise.resolve(getChannelConnections()),
+    ]);
+  } catch (err) {
+    console.error('[observability] chargement campagnes/connexions échoué:', err);
+    dataError = true;
+  }
 
   const totalSpent = campaigns.reduce((s, c) => s + c.spentEur, 0);
   const totalRevenue = campaigns.reduce((s, c) => s + c.revenueEur, 0);
@@ -83,6 +93,12 @@ export default async function ObservabilityPage() {
           </Text>
         </div>
       </div>
+
+      {dataError && (
+        <div className="rounded-md border border-amber-500/30 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-300">
+          Données temporairement indisponibles. Réessaie dans un instant.
+        </div>
+      )}
 
       {/* KPIs globaux — réels */}
       <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">

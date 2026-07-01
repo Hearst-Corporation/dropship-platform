@@ -108,7 +108,7 @@ export function CheckoutForm({ cart, shippingOptions, shippingError, stripeEnabl
 
   return (
     <div className="space-y-6">
-      <ol className="flex text-xs gap-2 text-zinc-500">
+      <ol aria-label="Etapes du paiement" className="flex text-xs gap-2 text-zinc-500">
         <Step n={1} active={step === 'address'} done={step !== 'address'}>Adresse</Step>
         <Step n={2} active={step === 'shipping'} done={step === 'payment'}>Livraison</Step>
         <Step n={3} active={step === 'payment'} done={false}>Paiement</Step>
@@ -116,24 +116,25 @@ export function CheckoutForm({ cart, shippingOptions, shippingError, stripeEnabl
 
       {step === 'address' && (
         <div className="space-y-3">
-          <Input label="Email" value={form.email} onChange={(v) => setField('email', v)} type="email" />
+          <Input label="Email" value={form.email} onChange={(v) => setField('email', v)} type="email" autoComplete="email" />
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Prénom" value={form.first_name} onChange={(v) => setField('first_name', v)} />
-            <Input label="Nom" value={form.last_name} onChange={(v) => setField('last_name', v)} />
+            <Input label="Prénom" value={form.first_name} onChange={(v) => setField('first_name', v)} autoComplete="given-name" />
+            <Input label="Nom" value={form.last_name} onChange={(v) => setField('last_name', v)} autoComplete="family-name" />
           </div>
-          <Input label="Adresse" value={form.address_1} onChange={(v) => setField('address_1', v)} />
+          <Input label="Adresse" value={form.address_1} onChange={(v) => setField('address_1', v)} autoComplete="address-line1" />
           <div className="grid grid-cols-3 gap-3">
-            <Input label="Code postal" value={form.postal_code} onChange={(v) => setField('postal_code', v)} />
-            <Input label="Ville" value={form.city} onChange={(v) => setField('city', v)} />
-            <Select label="Pays" value={form.country_code} onChange={(v) => setField('country_code', v)} options={COUNTRIES.map((c) => ({ value: c.code, label: c.name }))} />
+            <Input label="Code postal" value={form.postal_code} onChange={(v) => setField('postal_code', v)} autoComplete="postal-code" />
+            <Input label="Ville" value={form.city} onChange={(v) => setField('city', v)} autoComplete="address-level2" />
+            <Select label="Pays" value={form.country_code} onChange={(v) => setField('country_code', v)} options={COUNTRIES.map((c) => ({ value: c.code, label: c.name }))} autoComplete="country" />
           </div>
-          <Input label="Téléphone" value={form.phone} onChange={(v) => setField('phone', v)} />
+          <Input label="Téléphone" value={form.phone} onChange={(v) => setField('phone', v)} autoComplete="tel" />
           <button
             onClick={submitAddress}
             disabled={pending || !form.email || !form.first_name || !form.address_1}
+            aria-busy={pending}
             className="bg-black text-white px-6 py-3 rounded-md hover:bg-zinc-800 disabled:opacity-60"
           >
-            {pending ? '…' : 'Continuer'}
+            {pending ? <span aria-live="polite">…</span> : 'Continuer'}
           </button>
         </div>
       )}
@@ -158,7 +159,7 @@ export function CheckoutForm({ cart, shippingOptions, shippingError, stripeEnabl
               <span>{formatMoney(opt.amount, cart.currency_code)}</span>
             </button>
           ))}
-          <button onClick={() => setStep('address')} className="text-sm underline text-zinc-600">Modifier l’adresse</button>
+          <button onClick={() => setStep('address')} className="text-sm underline text-zinc-600 focus-visible:outline-2 focus-visible:outline-offset-2">Modifier l’adresse</button>
         </div>
       )}
 
@@ -179,13 +180,14 @@ export function CheckoutForm({ cart, shippingOptions, shippingError, stripeEnabl
               <button
                 onClick={complete}
                 disabled={pending}
+                aria-busy={pending}
                 className="bg-black text-white px-6 py-3 rounded-md hover:bg-zinc-800 disabled:opacity-60 w-full"
               >
-                {pending ? '…' : `Confirmer la commande (${formatMoney(cart.total, cart.currency_code)})`}
+                {pending ? <span aria-live="polite">…</span> : `Confirmer la commande (${formatMoney(cart.total, cart.currency_code)})`}
               </button>
             </>
           )}
-          <button onClick={() => setStep('shipping')} className="text-sm underline text-zinc-600">Modifier la livraison</button>
+          <button onClick={() => setStep('shipping')} className="text-sm underline text-zinc-600 focus-visible:outline-2 focus-visible:outline-offset-2">Modifier la livraison</button>
         </div>
       )}
 
@@ -196,27 +198,27 @@ export function CheckoutForm({ cart, shippingOptions, shippingError, stripeEnabl
 
 function Step({ n, active, done, children }: { n: number; active: boolean; done: boolean; children: React.ReactNode }) {
   return (
-    <li className={`flex items-center gap-2 ${active ? 'text-black font-medium' : done ? 'text-green-700' : ''}`}>
+    <li aria-current={active ? 'step' : undefined} className={`flex items-center gap-2 ${active ? 'text-black font-medium' : done ? 'text-green-700' : ''}`}>
       <span className={`w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] ${active ? 'bg-black text-white' : done ? 'bg-green-600 text-white' : 'bg-zinc-200'}`}>{n}</span>
       {children}
     </li>
   );
 }
 
-function Input({ label, value, onChange, type = 'text' }: { label: string; value: string; onChange: (v: string) => void; type?: string }) {
+function Input({ label, value, onChange, type = 'text', autoComplete }: { label: string; value: string; onChange: (v: string) => void; type?: string; autoComplete?: string }) {
   return (
     <label className="block text-sm">
       <span className="block mb-1 text-zinc-700">{label}</span>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="w-full border rounded px-3 py-2" />
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} autoComplete={autoComplete} className="w-full border rounded px-3 py-2" />
     </label>
   );
 }
 
-function Select({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
+function Select({ label, value, onChange, options, autoComplete }: { label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[]; autoComplete?: string }) {
   return (
     <label className="block text-sm">
       <span className="block mb-1 text-zinc-700">{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full border rounded px-3 py-2 bg-white">
+      <select value={value} onChange={(e) => onChange(e.target.value)} autoComplete={autoComplete} className="w-full border rounded px-3 py-2 bg-white">
         {options.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>
         ))}

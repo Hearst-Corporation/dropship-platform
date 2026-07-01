@@ -129,7 +129,15 @@ export async function storeFetch<T>(path: string, init: StoreFetchInit = {}): Pr
     } catch {}
     throw new Error(`[Medusa Store] ${res.status} ${path} — ${detail}`);
   }
-  if (!text) return undefined as unknown as T;
+  // Empty body: Medusa returns 200/204 with no payload on some mutations
+  // (e.g. DELETE line-item variants). Callers of storeFetch here always hit
+  // endpoints that DO return a JSON envelope ({ cart }, { products }, ...),
+  // so this branch is effectively unreachable for them. Widening the return
+  // to `T | undefined` would ripple through ~13 in-file callers plus an
+  // out-of-file caller (app/api/checkout/payment/route.ts) that does property
+  // access on the result, so we keep the `T` signature and cast the empty
+  // sentinel. See skipped note in the fix report.
+  if (!text) return undefined as T;
   return JSON.parse(text) as T;
 }
 
