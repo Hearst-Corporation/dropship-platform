@@ -16,6 +16,7 @@ import { assertDropshipPure, canAutoForward } from '@/lib/suppliers/policy';
 import type { PlaceOrderInput, SupplierOrderItem, SupplierAddress } from '@/lib/suppliers/types';
 import { getDb } from '@/lib/db';
 import { retry } from '@/lib/retry';
+import { routeOrderViaAutoDS } from '@/lib/automation/autods';
 
 interface OrderAttribution {
   /** Visitor session id — joins dropship_funnel_events.session_id. */
@@ -41,15 +42,34 @@ interface ForwardOptions {
   attribution?: OrderAttribution;
 }
 
-interface ForwardResult {
-  ok: boolean;
+/** One forwarded leg = one row in dropship_order_forwards for a single supplier. */
+interface ForwardLeg {
+  supplier: SupplierId;
   status: 'dry_run' | 'sent' | 'error';
   forwardId: string;            // dropship_order_forwards.id
   supplierOrderId?: string;
   payload: PlaceOrderInput;
   error?: string;
+}
+
+interface ForwardResult {
+  /** True when every attempted leg succeeded (dry_run counts as ok). */
+  ok: boolean;
+  /**
+   * Per-supplier legs. A mixed cart forwards one row PER distinct forwardable
+   * supplier (the composite lock on (medusa_order_id, supplier) allows this) —
+   * no forwardable leg is silently dropped anymore.
+   */
+  forwards: ForwardLeg[];
   /** Items the agent could not map to a forwardable supplier — always to be reviewed. */
   unmappedItems: { itemId: string; title: string; reason: string }[];
+  /**
+   * Aggregate status kept for legacy readers (dry-run-pending route, admin UI):
+   * 'sent' if every leg is sent, 'dry_run' if every leg is dry_run, else 'error'.
+   */
+  status: 'dry_run' | 'sent' | 'error';
+  /** First error across legs (or the hard-gate error), for legacy readers. */
+  error?: string;
 }
 
 function digitsOnly(s: string | undefined | null): string {
@@ -134,31 +154,40 @@ interface ProductMapping {
   supplier: string;
 }
 
+/** A group of forwardable items sharing one supplier — becomes one forward row. */
+interface SupplierGroup {
+  supplier: SupplierId;
+  items: SupplierOrderItem[];
+  storeId?: string;
+}
+
 /**
- * Resolve Medusa order items to supplier items, applying registry/policy gates.
+ * Resolve Medusa order items to supplier items, applying registry/policy gates,
+ * then GROUP the forwardable items by supplier so each distinct forwardable
+ * supplier's leg is forwarded as its own dropship_order_forwards row.
  *
  * Rules:
  * 1. Items with no row in dropship_store_products → unmapped ("No row in ...").
  * 2. Items whose supplier is not in the registry (e.g. 'ai-generated') → unmapped.
- * 3. Items whose supplier is search_only (e.g. CJ) → unmapped ("not auto-forwardable").
- * 4. Items whose supplier differs from the first-seen forwardable supplier →
- *    unmapped ("mixed-supplier order — supplier=X deferred") — we only forward
- *    one supplier leg per call to preserve the existing single-lock behaviour.
- * 5. Invalid quantity → unmapped.
+ * 3. Items whose supplier is NOT auto-forwardable (search_only like Spocket,
+ *    feed-only like Syncee) → unmapped ("not auto-forwardable"). CJ/Zendrop/
+ *    BigBuy are `active` + forwardable, so their items are forwarded, not deferred.
+ * 4. Invalid quantity → unmapped.
+ *
+ * Every distinct forwardable supplier gets its OWN group → its own forward row.
+ * A mixed cart no longer silently drops the non-first supplier's paid legs.
  */
 async function mapItemsToSupplier(order: MedusaOrder): Promise<{
-  items: SupplierOrderItem[];
+  groups: SupplierGroup[];
   unmapped: { itemId: string; title: string; reason: string }[];
-  storeId?: string;
-  forwardSupplier?: SupplierId;
 }> {
   const orderItems = order.items ?? [];
-  if (orderItems.length === 0) return { items: [], unmapped: [], storeId: undefined };
+  if (orderItems.length === 0) return { groups: [], unmapped: [] };
 
   const productIds = Array.from(new Set(orderItems.map((i) => i.product_id).filter(Boolean)));
   if (productIds.length === 0) {
     return {
-      items: [],
+      groups: [],
       unmapped: orderItems.map((i) => ({ itemId: i.id, title: i.title, reason: 'Medusa item has no product_id' })),
     };
   }
@@ -173,10 +202,8 @@ async function mapItemsToSupplier(order: MedusaOrder): Promise<{
 
   const byMedusaId = new Map(rows.map((r) => [r.medusa_product_id, r]));
 
-  const items: SupplierOrderItem[] = [];
+  const groupsBySupplier = new Map<SupplierId, SupplierGroup>();
   const unmapped: { itemId: string; title: string; reason: string }[] = [];
-  let storeId: string | undefined;
-  let forwardSupplier: SupplierId | undefined;
 
   for (const item of orderItems) {
     const mapping = byMedusaId.get(item.product_id);
@@ -195,7 +222,8 @@ async function mapItemsToSupplier(order: MedusaOrder): Promise<{
       continue;
     }
 
-    // Gate 2: supplier must support automated order placement.
+    // Gate 2: supplier must support automated order placement (active + placeOrder).
+    // Rejects search_only (Spocket) and feed-only (Syncee); CJ/Zendrop/BigBuy pass.
     const client = getSupplier(mapping.supplier);
     if (!canAutoForward(client)) {
       unmapped.push({
@@ -205,21 +233,6 @@ async function mapItemsToSupplier(order: MedusaOrder): Promise<{
       });
       continue;
     }
-
-    // Gate 3: all forwardable items in one call must share the same supplier.
-    // If this item's supplier differs from the first-seen one, defer it.
-    if (forwardSupplier === undefined) {
-      forwardSupplier = mapping.supplier;
-    } else if (mapping.supplier !== forwardSupplier) {
-      unmapped.push({
-        itemId: item.id,
-        title: item.title,
-        reason: `mixed-supplier order — supplier=${mapping.supplier} deferred`,
-      });
-      continue;
-    }
-
-    storeId = mapping.store_id;
 
     if (!item.quantity || item.quantity <= 0) {
       unmapped.push({ itemId: item.id, title: item.title, reason: `Invalid quantity ${item.quantity}` });
@@ -231,14 +244,19 @@ async function mapItemsToSupplier(order: MedusaOrder): Promise<{
     const sku = item.variant?.sku;
     const shapedSku = sku && /^\d+:\d+(;\d+:\d+)*$/.test(sku) ? sku : undefined;
 
-    items.push({
+    let group = groupsBySupplier.get(mapping.supplier);
+    if (!group) {
+      group = { supplier: mapping.supplier, items: [], storeId: mapping.store_id };
+      groupsBySupplier.set(mapping.supplier, group);
+    }
+    group.items.push({
       externalId: mapping.external_id,
       quantity: item.quantity,
       ...(shapedSku ? { skuAttr: shapedSku } : {}),
     });
   }
 
-  return { items, unmapped, storeId, forwardSupplier };
+  return { groups: Array.from(groupsBySupplier.values()), unmapped };
 }
 
 /**
@@ -295,67 +313,39 @@ async function loadAttributionForOrder(medusaOrderId: string): Promise<OrderAttr
   }
 }
 
-/**
- * Forward a single Medusa order. Persists the attempt — dry-run or live —
- * to `dropship_order_forwards`.
- */
-export async function forwardOrder(medusaOrderId: string, opts: ForwardOptions): Promise<ForwardResult> {
-  const order = await medusa.getOrder(medusaOrderId);
-  const { items, unmapped, storeId, forwardSupplier } = await mapItemsToSupplier(order);
-  const { address, missing } = buildSupplierAddress(order, opts.provinceOverride);
+/** Attribution values shared by every leg of one order. */
+interface AttributionColumns {
+  attributionJson: string | null;
+  sessionId: string | null;
+  eventId: string | null;
+}
 
+// Retry supplier placeOrder on 5xx and network errors.
+// placeOrder must never throw for application errors — it returns
+// { success: false, error }. We promote transient failures to thrown errors
+// so retry() can catch and back-off them.
+const isTransientSupplierError = (errMsg: string | undefined): boolean =>
+  /HTTP\s+5\d\d|network|timeout|abort|fetch|econnreset|etimedout/i.test(errMsg ?? '');
+
+/**
+ * Forward ONE supplier's leg: dry-run inserts a `dry_run` row; live claims the
+ * `(medusa_order_id, supplier)` lock (23505 handling), re-asserts the fail-closed
+ * dropship-pur gate, and sends via the supplier client (or AutoDS when gated on).
+ */
+async function forwardSupplierGroup(
+  medusaOrderId: string,
+  group: SupplierGroup,
+  address: SupplierAddress,
+  opts: ForwardOptions,
+  attr: AttributionColumns,
+): Promise<ForwardLeg> {
+  const db = getDb();
+  const supplier = group.supplier;
   const payload: PlaceOrderInput = {
     outOrderId: medusaOrderId,
     address,
-    items,
+    items: group.items,
   };
-
-  // Hydrate attribution context. Caller-provided wins; otherwise we look
-  // it up from the funnel log. Result may have any subset of fields —
-  // unknown fields stay NULL in the insert.
-  const attributionCtx = opts.attribution ?? (await loadAttributionForOrder(medusaOrderId));
-  const attributionJson = attributionCtx.attribution ? JSON.stringify(attributionCtx.attribution) : null;
-  const sessionId = attributionCtx.session_id ?? null;
-  const eventId = attributionCtx.event_id ?? null;
-
-  const db = getDb();
-
-  // Hard gates: nothing to ship, missing address, or all items unmapped.
-  const hardError =
-    items.length === 0
-      ? `No mappable items (unmapped: ${unmapped.length})`
-      : missing.length > 0
-        ? `Missing required address fields: ${missing.join(', ')}`
-        : null;
-
-  if (hardError) {
-    const { rows } = await db.query<{ id: string }>(
-      `INSERT INTO dropship_order_forwards
-         (medusa_order_id, store_id, payload, status, error_message, dry_run,
-          attribution_json, session_id, event_id, supplier)
-       VALUES ($1, $2, $3, 'error', $4, $5, $6, $7, $8, $9)
-       RETURNING id`,
-      [
-        medusaOrderId,
-        storeId ?? null,
-        JSON.stringify(payload),
-        hardError,
-        opts.dryRun,
-        attributionJson,
-        sessionId,
-        eventId,
-        forwardSupplier ?? 'aliexpress',
-      ],
-    );
-    return {
-      ok: false,
-      status: 'error',
-      forwardId: rows[0]!.id,
-      payload,
-      unmappedItems: unmapped,
-      error: hardError,
-    };
-  }
 
   if (opts.dryRun) {
     const { rows } = await db.query<{ id: string }>(
@@ -366,21 +356,15 @@ export async function forwardOrder(medusaOrderId: string, opts: ForwardOptions):
        RETURNING id`,
       [
         medusaOrderId,
-        storeId ?? null,
+        group.storeId ?? null,
         JSON.stringify(payload),
-        attributionJson,
-        sessionId,
-        eventId,
-        forwardSupplier!,
+        attr.attributionJson,
+        attr.sessionId,
+        attr.eventId,
+        supplier,
       ],
     );
-    return {
-      ok: true,
-      status: 'dry_run',
-      forwardId: rows[0]!.id,
-      payload,
-      unmappedItems: unmapped,
-    };
+    return { supplier, status: 'dry_run', forwardId: rows[0]!.id, payload };
   }
 
   // Live: claim the slot first so a concurrent click can't place a second
@@ -398,25 +382,24 @@ export async function forwardOrder(medusaOrderId: string, opts: ForwardOptions):
        RETURNING id`,
       [
         medusaOrderId,
-        storeId ?? null,
+        group.storeId ?? null,
         JSON.stringify(payload),
-        attributionJson,
-        sessionId,
-        eventId,
-        forwardSupplier!,
+        attr.attributionJson,
+        attr.sessionId,
+        attr.eventId,
+        supplier,
       ],
     );
     lockId = rows[0]!.id;
   } catch (e) {
     const code = (e as { code?: string }).code;
     if (code === '23505') {
-      console.warn('[order-forwarder] live send already in-flight or completed', { medusaOrderId, forwardSupplier });
+      console.warn('[order-forwarder] live send already in-flight or completed', { medusaOrderId, supplier });
       return {
-        ok: false,
+        supplier,
         status: 'error',
         forwardId: '',
         payload,
-        unmappedItems: unmapped,
         error: 'Another live forward is already in-flight or completed for this order.',
       };
     }
@@ -425,39 +408,69 @@ export async function forwardOrder(medusaOrderId: string, opts: ForwardOptions):
 
   // Fail-closed guard: re-assert the supplier is auto-forwardable immediately
   // before we send (catches any runtime state mismatch).
-  const client = getSupplier(forwardSupplier!);
+  const client = getSupplier(supplier);
   try {
     assertDropshipPure(client);
   } catch (e) {
     const errMsg = e instanceof Error ? e.message : 'assertDropshipPure failed';
-    console.error('[order-forwarder] assertDropshipPure rejected', { medusaOrderId, forwardSupplier, error: errMsg });
+    console.error('[order-forwarder] assertDropshipPure rejected', { medusaOrderId, supplier, error: errMsg });
     await db.query(
       `UPDATE dropship_order_forwards
           SET response = $1, status = 'error', error_message = $2
         WHERE id = $3`,
       [null, errMsg, lockId],
     );
-    return {
-      ok: false,
-      status: 'error',
-      forwardId: lockId,
-      payload,
-      unmappedItems: unmapped,
-      error: errMsg,
-    };
+    return { supplier, status: 'error', forwardId: lockId, payload, error: errMsg };
   }
 
-  // Retry supplier placeOrder on 5xx and network errors.
-  // placeOrder must never throw for application errors — it returns
-  // { success: false, error }. We promote transient failures to thrown errors
-  // so retry() can catch and back-off them.
-  const isTransient = (errMsg: string | undefined): boolean =>
-    /HTTP\s+5\d\d|network|timeout|abort|fetch|econnreset|etimedout/i.test(errMsg ?? '');
+  // ---------------------------------------------------------------------------
+  // AutoDS routing gate (default OFF — set AUTODS_ROUTING_ENABLED=1 to enable)
+  // ---------------------------------------------------------------------------
+  // When enabled, the order is routed through AutoDS automation layer instead
+  // of being dispatched directly to the supplier. The underlying supplier must
+  // still pass the dropship-pur policy gate (assertDropshipPure above); AutoDS
+  // is transport only, not a policy exemption.
+  if (process.env.AUTODS_ROUTING_ENABLED === '1') {
+    // assertDropshipPure already passed above — AutoDS is transport only, not a policy exemption.
+    const autodsResult = await routeOrderViaAutoDS({
+      outOrderId: medusaOrderId,
+      underlyingSupplier: supplier,
+      address: payload.address,
+      items: payload.items,
+    });
+    if (autodsResult.success) {
+      // The AutoDS order id is NOT an AliExpress order number — it must never be
+      // written into ae_order_id (it breaks aliExpressOrderUrl + the AE stranded
+      // scan). Persist supplier + supplier_order_id only; leave ae_order_id NULL.
+      await db.query(
+        `UPDATE dropship_order_forwards
+            SET supplier_order_id = $1, response = $2, status = 'sent'
+          WHERE id = $3`,
+        [autodsResult.autodsOrderId ?? null, JSON.stringify(autodsResult.raw), lockId],
+      );
+      return {
+        supplier,
+        status: 'sent',
+        forwardId: lockId,
+        supplierOrderId: autodsResult.autodsOrderId,
+        payload,
+      };
+    }
+    // AutoDS failure — persist the error.
+    console.error('[order-forwarder] AutoDS routing failed', { medusaOrderId, supplier, error: autodsResult.error });
+    await db.query(
+      `UPDATE dropship_order_forwards
+          SET response = $1, status = 'error', error_message = $2
+        WHERE id = $3`,
+      [JSON.stringify(autodsResult.raw), autodsResult.error ?? 'AutoDS unknown error', lockId],
+    );
+    return { supplier, status: 'error', forwardId: lockId, payload, error: autodsResult.error };
+  }
 
   const res = await retry(
     async () => {
       const r = await client.placeOrder!(payload);
-      if (!r.success && isTransient(r.error)) {
+      if (!r.success && isTransientSupplierError(r.error)) {
         // Promote to a thrown Error so retry() can back-off and retry.
         throw new Error(r.error ?? 'Supplier transient error');
       }
@@ -470,7 +483,7 @@ export async function forwardOrder(medusaOrderId: string, opts: ForwardOptions):
       backoffMultiplier: 2,
       jitter: true,
       // Only retry on the transient errors we just promoted to throws.
-      isRetryable: (e) => e instanceof Error && isTransient(e.message),
+      isRetryable: (e) => e instanceof Error && isTransientSupplierError(e.message),
     },
   ).catch((e: unknown) => {
     // All retries exhausted — return a failure result so the forwarder can
@@ -482,41 +495,111 @@ export async function forwardOrder(medusaOrderId: string, opts: ForwardOptions):
   if (res.success) {
     // Back-compat: ae_order_id column is kept for legacy readers (admin UI,
     // anomaly-watch, orders route). Write it only for AliExpress rows.
-    const aeOrderId = forwardSupplier === 'aliexpress' ? (res.supplierOrderId ?? null) : null;
+    const aeOrderId = supplier === 'aliexpress' ? (res.supplierOrderId ?? null) : null;
     await db.query(
       `UPDATE dropship_order_forwards
           SET supplier_order_id = $1, ae_order_id = $2, response = $3, status = 'sent'
         WHERE id = $4`,
       [res.supplierOrderId ?? null, aeOrderId, JSON.stringify(res.raw), lockId],
     );
-    return {
-      ok: true,
-      status: 'sent',
-      forwardId: lockId,
-      supplierOrderId: res.supplierOrderId,
-      payload,
-      unmappedItems: unmapped,
-    };
+    return { supplier, status: 'sent', forwardId: lockId, supplierOrderId: res.supplierOrderId, payload };
   }
 
-  console.error('[order-forwarder] supplier placeOrder failed', {
-    medusaOrderId,
-    forwardSupplier,
-    error: res.error,
-  });
+  console.error('[order-forwarder] supplier placeOrder failed', { medusaOrderId, supplier, error: res.error });
   await db.query(
     `UPDATE dropship_order_forwards
         SET response = $1, status = 'error', error_message = $2
       WHERE id = $3`,
     [JSON.stringify(res.raw), res.error ?? 'unknown error', lockId],
   );
+  return { supplier, status: 'error', forwardId: lockId, payload, error: res.error };
+}
+
+/**
+ * Forward a single Medusa order. Persists each supplier leg — dry-run or live —
+ * as its OWN row in `dropship_order_forwards`. A mixed cart forwards EACH
+ * distinct forwardable supplier's items; no forwardable leg is silently dropped.
+ */
+export async function forwardOrder(medusaOrderId: string, opts: ForwardOptions): Promise<ForwardResult> {
+  const order = await medusa.getOrder(medusaOrderId);
+  const { groups, unmapped } = await mapItemsToSupplier(order);
+  const { address, missing } = buildSupplierAddress(order, opts.provinceOverride);
+
+  // Hydrate attribution context. Caller-provided wins; otherwise we look
+  // it up from the funnel log. Result may have any subset of fields —
+  // unknown fields stay NULL in the insert.
+  const attributionCtx = opts.attribution ?? (await loadAttributionForOrder(medusaOrderId));
+  const attr: AttributionColumns = {
+    attributionJson: attributionCtx.attribution ? JSON.stringify(attributionCtx.attribution) : null,
+    sessionId: attributionCtx.session_id ?? null,
+    eventId: attributionCtx.event_id ?? null,
+  };
+
+  const db = getDb();
+
+  // Hard gates: nothing forwardable to ship, or a missing address. Record ONE
+  // error row so the founder sees the failure in the admin/anomaly-watch views.
+  const hardError =
+    groups.length === 0
+      ? `No mappable items (unmapped: ${unmapped.length})`
+      : missing.length > 0
+        ? `Missing required address fields: ${missing.join(', ')}`
+        : null;
+
+  if (hardError) {
+    const firstSupplier = groups[0]?.supplier ?? 'aliexpress';
+    const errorPayload: PlaceOrderInput = {
+      outOrderId: medusaOrderId,
+      address,
+      items: groups.flatMap((g) => g.items),
+    };
+    const { rows } = await db.query<{ id: string }>(
+      `INSERT INTO dropship_order_forwards
+         (medusa_order_id, store_id, payload, status, error_message, dry_run,
+          attribution_json, session_id, event_id, supplier)
+       VALUES ($1, $2, $3, 'error', $4, $5, $6, $7, $8, $9)
+       RETURNING id`,
+      [
+        medusaOrderId,
+        groups[0]?.storeId ?? null,
+        JSON.stringify(errorPayload),
+        hardError,
+        opts.dryRun,
+        attr.attributionJson,
+        attr.sessionId,
+        attr.eventId,
+        firstSupplier,
+      ],
+    );
+    return {
+      ok: false,
+      status: 'error',
+      error: hardError,
+      forwards: [
+        { supplier: firstSupplier, status: 'error', forwardId: rows[0]!.id, payload: errorPayload, error: hardError },
+      ],
+      unmappedItems: unmapped,
+    };
+  }
+
+  // Forward each supplier group as its own row. Sequential (not parallel) so the
+  // per-supplier lock semantics stay simple and deterministic.
+  const forwards: ForwardLeg[] = [];
+  for (const group of groups) {
+    forwards.push(await forwardSupplierGroup(medusaOrderId, group, address, opts, attr));
+  }
+
+  const allSent = forwards.every((f) => f.status === 'sent');
+  const allDryRun = forwards.every((f) => f.status === 'dry_run');
+  const aggregateStatus: ForwardResult['status'] = allSent ? 'sent' : allDryRun ? 'dry_run' : 'error';
+  const firstError = forwards.find((f) => f.status === 'error')?.error;
+
   return {
-    ok: false,
-    status: 'error',
-    forwardId: lockId,
-    payload,
+    ok: forwards.every((f) => f.status !== 'error'),
+    status: aggregateStatus,
+    error: firstError,
+    forwards,
     unmappedItems: unmapped,
-    error: res.error,
   };
 }
 

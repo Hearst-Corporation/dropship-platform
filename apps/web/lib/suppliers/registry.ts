@@ -3,14 +3,30 @@ import type { RawProduct, SupplierClient, SupplierSearchParams } from './types';
 import { evaluateDropshipPure, isExcludedPlatform } from './policy';
 import { aliexpressClient } from './aliexpress';
 import { cjClient } from './cj';
+import { zendropClient } from './zendrop';
+import { spocketClient } from './spocket';
+import { synceeClient } from './syncee';
+import { bigbuyClient } from './bigbuy';
+import { wholesale2bClient } from './wholesale2b';
+import { dobaClient } from './doba';
+import { inventorySourceClient } from './inventory-source';
 
 /**
  * THE registry. Adding a supplier = write its client file + add ONE line here
  * + add its MSW handler. Nothing else in lib/ or app/ changes.
  */
 export const SUPPLIERS = {
+  // v1 suppliers
   aliexpress: aliexpressClient,
   cj: cjClient,
+  zendrop: zendropClient,
+  spocket: spocketClient,
+  syncee: synceeClient,
+  // v2 suppliers
+  bigbuy: bigbuyClient,
+  'wholesale2b': wholesale2bClient,
+  doba: dobaClient,
+  'inventory-source': inventorySourceClient,
 } as const satisfies Record<string, SupplierClient>;
 
 export type SupplierId = keyof typeof SUPPLIERS;

@@ -65,10 +65,12 @@ afterEach(() => {
 });
 
 describe('runAnomalyWatch — stranded query', () => {
-  it('targets sent + unpaid + live forwards older than 15 days', async () => {
+  it('targets sent + unpaid + live forwards older than 15 days (AliExpress row keeps ae_order_id)', async () => {
     setRows('paid_at IS NULL', [
       {
         medusa_order_id: 'ord_01',
+        supplier: 'aliexpress',
+        supplier_order_id: 'ae_99',
         ae_order_id: 'ae_99',
         // 17 days ago — past the 15-day threshold.
         created_at: new Date(Date.now() - 17 * 24 * 3_600_000).toISOString(),
@@ -79,19 +81,48 @@ describe('runAnomalyWatch — stranded query', () => {
     const { runAnomalyWatch } = await import('./anomaly-watch');
     const result = await runAnomalyWatch();
 
-    // SQL shape: every required guard must appear in the stranded query.
+    // SQL shape: every required guard must appear in the stranded query. The scan
+    // is now supplier-agnostic — it filters on supplier_order_id, not ae_order_id.
     const strandedQuery = captured.find((q) => q.sql.includes('paid_at IS NULL'));
     expect(strandedQuery).toBeDefined();
     expect(strandedQuery!.sql).toMatch(/status\s*=\s*'sent'/);
     expect(strandedQuery!.sql).toMatch(/dry_run\s*=\s*false/);
+    expect(strandedQuery!.sql).toMatch(/supplier_order_id\s+IS\s+NOT\s+NULL/);
+    expect(strandedQuery!.sql).not.toMatch(/ae_order_id\s+IS\s+NOT\s+NULL/);
     expect(strandedQuery!.sql).toMatch(/created_at\s*<\s*now\(\)\s*-\s*interval\s*'15 days'/);
 
     expect(result.ok).toBe(true);
     expect(result.counts.stranded).toBe(1);
     expect(result.stranded[0].medusa_order_id).toBe('ord_01');
+    expect(result.stranded[0].supplier).toBe('aliexpress');
+    expect(result.stranded[0].supplier_order_id).toBe('ae_99');
     expect(result.stranded[0].ae_order_id).toBe('ae_99');
     expect(result.stranded[0].age_days).toBeGreaterThanOrEqual(15);
     expect(result.total).toBe(1);
+  });
+
+  it('surfaces a stranded non-AliExpress (CJ) forward — ae_order_id NULL, deep-link suppressed', async () => {
+    setRows('paid_at IS NULL', [
+      {
+        medusa_order_id: 'ord_cj_02',
+        supplier: 'cj',
+        supplier_order_id: 'CJ_ORDER_555',
+        ae_order_id: null, // live CJ forwards never write ae_order_id
+        created_at: new Date(Date.now() - 20 * 24 * 3_600_000).toISOString(),
+      },
+    ]);
+    getOrdersMock.mockResolvedValue({ orders: [], count: 0 });
+
+    const { runAnomalyWatch } = await import('./anomaly-watch');
+    const result = await runAnomalyWatch();
+
+    // Previously invisible to ops (filter was ae_order_id IS NOT NULL). Now seen.
+    expect(result.counts.stranded).toBe(1);
+    expect(result.stranded[0].medusa_order_id).toBe('ord_cj_02');
+    expect(result.stranded[0].supplier).toBe('cj');
+    expect(result.stranded[0].supplier_order_id).toBe('CJ_ORDER_555');
+    // No AE deep-link for a non-AliExpress supplier.
+    expect(result.stranded[0].ae_order_id).toBeNull();
   });
 
   it('returns total=0 with empty buckets when no anomalies match', async () => {
