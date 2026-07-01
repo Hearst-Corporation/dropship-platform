@@ -1226,7 +1226,9 @@ export async function* runSuperAgentTurn(
 
     if (assistantText) {
       messages.push({ role: 'assistant', content: assistantText });
-      yield { type: 'thinking', text: assistantText };
+      // Only emit the final answer as a `message` (the assistant bubble).
+      // It used to also be yielded as `thinking`, which the panel renders as a
+      // second (mono) block -> the same answer appeared twice in the rail.
       yield { type: 'message', text: assistantText };
       if (options.sessionId) {
         try {
