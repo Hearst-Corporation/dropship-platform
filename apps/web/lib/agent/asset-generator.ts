@@ -716,19 +716,17 @@ export async function generateCollectionHero(args: {
   onProgress?: (msg: string) => void;
 }): Promise<CollectionHeroResult> {
   const prompt = buildCollectionHeroPrompt(args);
-  if (!isFalConfigured()) {
+  if (!isComfyConfigured() && !isFalConfigured()) {
     return {
       heroUrl: null,
       runId: null,
-      error: 'FAL_KEY non configuré — hero de marque non généré',
+      error: 'Aucun provider visuel configuré (ni ComfyUI ni FAL_KEY) — hero de marque non généré',
       providerConfigured: false,
       prompt,
     };
   }
 
-  try {
-    args.onProgress?.('Génération du hero de marque (fal.ai flux-pro ultra)...');
-    const bytes = await falGenerateImage({ prompt, quality: 'hero' });
+  const persistHero = async (bytes: Buffer) => {
     const runDirName = buildRunDirName();
     const heroUrl = await persistAsset({
       storeSlug: args.storeSlug,
@@ -736,12 +734,48 @@ export async function generateCollectionHero(args: {
       filename: 'hero.png',
       bytes,
     });
-    return { heroUrl, runId: runDirName, error: null, providerConfigured: true, prompt };
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : 'erreur inconnue';
-    console.error('[asset-generator] collection hero failed', { slug: args.storeSlug, error: msg });
-    return { heroUrl: null, runId: null, error: msg, providerConfigured: true, prompt };
+    return { heroUrl, runId: runDirName };
+  };
+
+  // ComfyUI self-hosted first (GPU1/GPU2 via COMFYUI_URL — free), fal.ai as
+  // the paid fallback. Both failing degrades to the queued-prompt report.
+  let lastError = 'erreur inconnue';
+  if (isComfyConfigured()) {
+    try {
+      args.onProgress?.('Génération du hero de marque (ComfyUI GPU self-hosted)...');
+      const result = await runWorkflow({
+        deploymentId: process.env.COMFY_DEPLOYMENT_HERO || process.env.COMFY_DEPLOYMENT_IDS || 'local',
+        inputs: {
+          prompt,
+          negative_prompt: 'text, watermark, logo, label, badge, price, discount, sale, signage, lettering, typography, people, face',
+        },
+      });
+      if (result.images[0]) {
+        const { heroUrl, runId } = await persistHero(result.images[0]);
+        return { heroUrl, runId, error: null, providerConfigured: true, prompt };
+      }
+      lastError = 'ComfyUI: aucune image retournée';
+      args.onProgress?.(`⚠ ${lastError}`);
+    } catch (e) {
+      lastError = `ComfyUI: ${e instanceof Error ? e.message : 'erreur inconnue'}`;
+      console.error('[asset-generator] collection hero (comfy) failed', { slug: args.storeSlug, error: lastError });
+      args.onProgress?.(`⚠ ${lastError} — bascule sur fal.ai`);
+    }
   }
+
+  if (isFalConfigured()) {
+    try {
+      args.onProgress?.('Génération du hero de marque (fal.ai flux-pro ultra)...');
+      const bytes = await falGenerateImage({ prompt, quality: 'hero' });
+      const { heroUrl, runId } = await persistHero(bytes);
+      return { heroUrl, runId, error: null, providerConfigured: true, prompt };
+    } catch (e) {
+      lastError = `fal.ai: ${e instanceof Error ? e.message : 'erreur inconnue'}`;
+      console.error('[asset-generator] collection hero (fal) failed', { slug: args.storeSlug, error: lastError });
+    }
+  }
+
+  return { heroUrl: null, runId: null, error: lastError, providerConfigured: true, prompt };
 }
 
 /*

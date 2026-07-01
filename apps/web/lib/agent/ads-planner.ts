@@ -48,12 +48,21 @@ const GoogleAdsPlanSchema = z.object({
 
 export type GoogleAdsPlan = z.infer<typeof GoogleAdsPlanSchema>;
 
+/** Strip stray years (19xx/20xx) — dated ad copy kills credibility over time. */
+function stripAdYears(text: string): string {
+  return text
+    .replace(/\s*[·|–-]?\s*\b(19|20)\d{2}\b/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 /** Google RSA hard limits: headlines 30 chars, descriptions 90 chars. */
 function clampRsa(plan: GoogleAdsPlan): GoogleAdsPlan {
   return {
     ...plan,
-    headlines: plan.headlines.map((h) => h.slice(0, 30).trim()).filter(Boolean).slice(0, 15),
-    descriptions: plan.descriptions.map((d) => d.slice(0, 90).trim()).filter(Boolean).slice(0, 6),
+    campaignName: stripAdYears(plan.campaignName) || plan.campaignName,
+    headlines: plan.headlines.map((h) => stripAdYears(h).slice(0, 30).trim()).filter(Boolean).slice(0, 15),
+    descriptions: plan.descriptions.map((d) => stripAdYears(d).slice(0, 90).trim()).filter(Boolean).slice(0, 6),
   };
 }
 
@@ -144,6 +153,8 @@ ${langNote}
 Build ONE launch-ready Google Ads Search campaign proposal. Respect Google policy:
 no medical/health claims, no regulated-product wording, no superlative guarantees.
 Headlines max 30 characters each, descriptions max 90 characters each.
+Never mention any year, date or vintage anywhere (campaign name, headlines,
+descriptions) — the copy must read timeless.
 
 Return ONLY a JSON object with EXACTLY these keys:
 {

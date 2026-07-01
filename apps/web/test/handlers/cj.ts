@@ -24,7 +24,10 @@ export const cjHandlers = [
       );
     },
   ),
-  http.post(
+  // Product search is a GET with query params (productNameEn, pageNum,
+  // pageSize) — POSTing to it returns code 16900202 "Request method 'POST'
+  // not supported" on the real API.
+  http.get(
     'https://developers.cjdropshipping.com/api2.0/v1/product/list',
     () => {
       // Should be unreachable when auth fails first, but defensive coverage in

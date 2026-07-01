@@ -49,6 +49,15 @@ function nextRpcId(): number {
   return ++_idCounter;
 }
 
+/** Operator hint appended to every auth-related error message. */
+const OAUTH_HINT = 'lancer le flux OAuth Zendrop dans Réglages (/api/zendrop/oauth/start)';
+
+/** Collapse whitespace and truncate a response body for error messages. */
+function excerpt(s: string, max = 300): string {
+  const t = s.replace(/\s+/g, ' ').trim();
+  return t.length > max ? `${t.slice(0, max)}…` : t;
+}
+
 interface RpcResponse<T = unknown> {
   jsonrpc: '2.0';
   id: number;
@@ -66,26 +75,43 @@ async function rpc<T = unknown>(
   args: Record<string, unknown>,
 ): Promise<RpcResponse<T>> {
   const id = nextRpcId();
-  const res = await fetch(mcpUrl(), {
-    method: 'POST',
-    signal: AbortSignal.timeout(20_000),
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id,
-      method: 'tools/call',
-      params: { name: toolName, arguments: args },
-    }),
-  });
+  const url = mcpUrl();
 
-  if (!res.ok) {
-    throw new Error(`Zendrop MCP HTTP ${res.status}: ${await res.text().catch(() => '')}`);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      signal: AbortSignal.timeout(20_000),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id,
+        method: 'tools/call',
+        params: { name: toolName, arguments: args },
+      }),
+    });
+  } catch (e) {
+    // Network-level failure (DNS, refused, timeout) — surface the real cause.
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new Error(`Zendrop MCP injoignable (${url}): ${msg}`);
   }
 
-  return res.json() as Promise<RpcResponse<T>>;
+  const text = await res.text().catch(() => '');
+
+  if (!res.ok) {
+    throw new Error(`Zendrop MCP HTTP ${res.status} sur ${url}: ${excerpt(text) || '(corps vide)'}`);
+  }
+
+  try {
+    return JSON.parse(text) as RpcResponse<T>;
+  } catch {
+    throw new Error(
+      `Zendrop MCP: réponse inattendue (HTTP ${res.status}, non-JSON) sur ${url}: ${excerpt(text) || '(corps vide)'}`,
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -98,7 +124,7 @@ interface ZendropTokens {
   expiresAt: number; // epoch ms
 }
 
-async function loadTokens(): Promise<ZendropTokens | null> {
+async function loadTokens(): Promise<{ tokens: ZendropTokens | null; dbError: string | null }> {
   try {
     const db = getDb();
     const { rows } = await db.query<{
@@ -111,15 +137,15 @@ async function loadTokens(): Promise<ZendropTokens | null> {
        FROM platform_settings
        WHERE key IN ('zendrop_access_token','zendrop_refresh_token','zendrop_token_expires')`,
     );
-    if (rows.length === 0) return null;
+    if (rows.length === 0) return { tokens: null, dbError: null };
 
     const byKey = Object.fromEntries(rows.map((r) => [r.key, r]));
 
     const atRow = byKey['zendrop_access_token'];
-    if (!atRow) return null;
+    if (!atRow) return { tokens: null, dbError: null };
     const accessToken =
       tryDecryptSecret(atRow.value_enc, atRow.value_nonce) ?? atRow.value ?? null;
-    if (!accessToken) return null;
+    if (!accessToken) return { tokens: null, dbError: null };
 
     const rtRow = byKey['zendrop_refresh_token'];
     const refreshToken: string | undefined = rtRow
@@ -129,9 +155,9 @@ async function loadTokens(): Promise<ZendropTokens | null> {
     const expiresStr = byKey['zendrop_token_expires']?.value;
     const expiresAt = expiresStr ? parseInt(expiresStr, 10) : 0;
 
-    return { accessToken, refreshToken, expiresAt };
-  } catch {
-    return null;
+    return { tokens: { accessToken, refreshToken, expiresAt }, dbError: null };
+  } catch (e) {
+    return { tokens: null, dbError: e instanceof Error ? e.message : String(e) };
   }
 }
 
@@ -167,12 +193,20 @@ async function saveTokens(tokens: {
 
 /**
  * Attempt to refresh the access token using the stored refresh token.
- * Returns the new access token on success, null otherwise.
+ * Returns the new access token on success, or a failure detail describing
+ * exactly why the refresh could not happen.
  */
-async function refreshAccessToken(refreshToken: string): Promise<string | null> {
+async function refreshAccessToken(
+  refreshToken: string,
+): Promise<{ token: string; detail?: undefined } | { token: null; detail: string }> {
   const id = clientId();
   const secret = clientSecret();
-  if (!id || !secret) return null;
+  if (!id || !secret) {
+    return {
+      token: null,
+      detail: 'SUPPLIER_ZENDROP_CLIENT_ID / SUPPLIER_ZENDROP_CLIENT_SECRET non configurés',
+    };
+  }
   try {
     const res = await fetch(ZENDROP_TOKEN_URL, {
       method: 'POST',
@@ -185,13 +219,21 @@ async function refreshAccessToken(refreshToken: string): Promise<string | null> 
         client_secret: secret,
       }).toString(),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      return {
+        token: null,
+        detail: `token endpoint HTTP ${res.status}: ${excerpt(body, 120) || '(corps vide)'}`,
+      };
+    }
     const data = await res.json() as {
       access_token?: string;
       refresh_token?: string;
       expires_in?: number;
     };
-    if (!data.access_token) return null;
+    if (!data.access_token) {
+      return { token: null, detail: 'réponse du token endpoint sans access_token' };
+    }
 
     const expiresAt = Date.now() + (data.expires_in ?? 3600) * 1000;
     await saveTokens({
@@ -199,31 +241,55 @@ async function refreshAccessToken(refreshToken: string): Promise<string | null> 
       refreshToken: data.refresh_token ?? refreshToken,
       expiresAt,
     });
-    return data.access_token;
-  } catch {
-    return null;
+    return { token: data.access_token };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { token: null, detail: `token endpoint injoignable: ${msg}` };
   }
 }
 
 /**
- * Returns a valid access token (refreshing if expired), or null when not
- * authenticated. The SupplierClient.ensureAuth() caller must redirect to
- * /api/zendrop/oauth/start when this returns null.
+ * Returns a valid access token (refreshing if expired), or an actionable
+ * error message explaining why not — the message is surfaced verbatim to the
+ * operator by the supplier registry (`zendrop: <error>`).
  */
-async function getAccessToken(): Promise<string | null> {
-  const tokens = await loadTokens();
-  if (!tokens) return null;
+async function getAccessTokenDetailed(): Promise<
+  { token: string; error?: undefined } | { token: null; error: string }
+> {
+  const { tokens, dbError } = await loadTokens();
+
+  if (dbError) {
+    return {
+      token: null,
+      error: `Zendrop: lecture du token OAuth impossible (platform_settings): ${dbError}`,
+    };
+  }
+
+  if (!tokens) {
+    return {
+      token: null,
+      error: `Zendrop non connecté: aucun token OAuth dans platform_settings — ${OAUTH_HINT}`,
+    };
+  }
 
   // Token still valid (with 5-min buffer)
   if (tokens.expiresAt === 0 || Date.now() < tokens.expiresAt - 300_000) {
-    return tokens.accessToken;
+    return { token: tokens.accessToken };
   }
 
-  // Try refresh
-  if (tokens.refreshToken) {
-    return refreshAccessToken(tokens.refreshToken);
+  // Expired — try refresh
+  if (!tokens.refreshToken) {
+    return {
+      token: null,
+      error: `Zendrop: token OAuth expiré (aucun refresh token stocké) — ${OAUTH_HINT}`,
+    };
   }
-  return null;
+  const refreshed = await refreshAccessToken(tokens.refreshToken);
+  if (refreshed.token) return { token: refreshed.token };
+  return {
+    token: null,
+    error: `Zendrop: token OAuth expiré et rafraîchissement échoué (${refreshed.detail}) — ${OAUTH_HINT}`,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -247,15 +313,16 @@ export const zendropClient: SupplierClient = {
   },
 
   async ensureAuth(): Promise<boolean> {
-    const token = await getAccessToken();
-    return token !== null;
+    const auth = await getAccessTokenDetailed();
+    return auth.token !== null;
   },
 
   async searchProducts(params): Promise<SupplierSearchResult> {
-    const token = await getAccessToken();
-    if (!token) {
-      return { success: false, products: [], needsAuth: true };
+    const auth = await getAccessTokenDetailed();
+    if (!auth.token) {
+      return { success: false, products: [], needsAuth: true, error: auth.error };
     }
+    const token = auth.token;
 
     try {
       // // CONFIRM: tool name. Alternatives: 'catalog_search', 'search_products',
@@ -307,16 +374,17 @@ export const zendropClient: SupplierClient = {
       return {
         success: false,
         products: [],
-        error: e instanceof Error ? e.message : 'Unknown error',
+        error: e instanceof Error ? e.message : `Zendrop: erreur inattendue: ${String(e)}`,
       };
     }
   },
 
   async placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResult> {
-    const token = await getAccessToken();
-    if (!token) {
-      return { success: false, raw: null, error: 'Zendrop: not authenticated — visit /api/zendrop/oauth/start' };
+    const auth = await getAccessTokenDetailed();
+    if (!auth.token) {
+      return { success: false, raw: null, error: auth.error };
     }
+    const token = auth.token;
 
     try {
       // // CONFIRM: tool name for order placement. Alternatives: 'create_order',
@@ -368,20 +436,17 @@ export const zendropClient: SupplierClient = {
       return {
         success: false,
         raw: null,
-        error: e instanceof Error ? e.message : 'Unknown error',
+        error: e instanceof Error ? e.message : `Zendrop: erreur inattendue: ${String(e)}`,
       };
     }
   },
 
   async getTracking(supplierOrderId: string): Promise<TrackingResult> {
-    const token = await getAccessToken();
-    if (!token) {
-      return {
-        success: false,
-        raw: null,
-        error: 'Zendrop: not authenticated — visit /api/zendrop/oauth/start',
-      };
+    const auth = await getAccessTokenDetailed();
+    if (!auth.token) {
+      return { success: false, raw: null, error: auth.error };
     }
+    const token = auth.token;
 
     try {
       // // CONFIRM: tool name. Alternatives: 'get_order', 'order_status',
@@ -412,7 +477,7 @@ export const zendropClient: SupplierClient = {
       return {
         success: false,
         raw: null,
-        error: e instanceof Error ? e.message : 'Unknown error',
+        error: e instanceof Error ? e.message : `Zendrop: erreur inattendue: ${String(e)}`,
       };
     }
   },

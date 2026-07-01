@@ -70,6 +70,12 @@ interface WorkflowResult {
 type ComfyBackend = 'deploy' | 'local' | 'none';
 
 function detectBackend(): ComfyBackend {
+  // Explicit override first — the header doc always promised this, the code
+  // now honors it. Lets a config with both COMFY_DEPLOY_API_KEY and
+  // COMFYUI_URL pin the backend deterministically.
+  const forced = process.env.COMFY_BACKEND?.trim().toLowerCase();
+  if (forced === 'deploy') return process.env.COMFY_DEPLOY_API_KEY ? 'deploy' : 'none';
+  if (forced === 'local') return process.env.COMFYUI_URL ? 'local' : 'none';
   if (process.env.COMFY_DEPLOY_API_KEY) return 'deploy';
   if (process.env.COMFYUI_URL) return 'local';
   return 'none';
@@ -261,10 +267,110 @@ async function deployRun(deploymentId: string, inputs: WorkflowInputs): Promise<
 /* ============================================================
  * Local ComfyUI (/prompt + /history + /view)
  * ============================================================
- * Used when you point COMFYUI_URL at a raw ComfyUI server. Inputs is a full
- * graph (`prompt` JSON in ComfyUI parlance) — the asset-generator builds it
- * from a workflow template + the dynamic prompt/image_url.
+ * Used when you point COMFYUI_URL at a raw ComfyUI server (LAN, Tailscale,
+ * or the Cloudflare tunnel https://comfy.hearst.app → GPU2). Two ways in:
+ *
+ *  - `graph`: a full ComfyUI prompt-JSON, sent verbatim. Escape hatch for
+ *    bespoke workflows.
+ *  - `inputs.prompt`: when no graph is given, runWorkflow builds a FLUX
+ *    txt2img graph inline ({@link buildFluxTxt2ImgGraph}) from the same
+ *    named slots the deploy backend uses (prompt / negative_prompt /
+ *    width / height / seed). This keeps asset-generator backend-agnostic:
+ *    it always passes `inputs`, and the local backend synthesizes the graph.
+ *
+ * Note: the local txt2img path ignores `reference_image` / `source_image`
+ * slots (a stock ComfyUI has no load-image-from-URL node). Image-to-image
+ * and video callers on the local backend get a fresh txt2img render from
+ * the prompt alone — acceptable for hero/lifestyle assets, and runVideo's
+ * "no video returned" guard fails loudly rather than silently.
  */
+
+/** Models verified present on comfy.hearst.app (ComfyUI 0.18.1, GPU2 4x4090). */
+const DEFAULT_FLUX_CHECKPOINT = 'FLUX1/flux1-dev-fp8.safetensors';
+/** Full-bleed 16:9 hero default; both dims are multiples of 16 as FLUX requires. */
+const DEFAULT_WIDTH = 1344;
+const DEFAULT_HEIGHT = 768;
+/** flux1-dev sweet spot. Schnell checkpoints only need 4 — tune via COMFYUI_STEPS. */
+const DEFAULT_STEPS = 20;
+
+export interface FluxTxt2ImgOptions {
+  prompt: string;
+  /** FLUX largely ignores negatives at cfg=1 but the slot is wired anyway. */
+  negativePrompt?: string;
+  width?: number;
+  height?: number;
+  /** Random per call when omitted, so retries don't replay the same image. */
+  seed?: number;
+  /** Defaults to COMFYUI_CHECKPOINT env, then the verified FLUX dev fp8. */
+  checkpoint?: string;
+  steps?: number;
+}
+
+/**
+ * Build a ComfyUI prompt-JSON graph for FLUX txt2img via an all-in-one
+ * checkpoint (CheckpointLoaderSimple → CLIPTextEncode ×2 →
+ * EmptySD3LatentImage → KSampler(cfg=1) → VAEDecode → SaveImage).
+ *
+ * Matches the stock "flux dev checkpoint" workflow that ships with ComfyUI:
+ * cfg pinned to 1.0 (FLUX guidance is baked into the distilled checkpoint),
+ * euler/simple sampler-scheduler pair, SD3-class 16-channel empty latent.
+ * Node classes used (CheckpointLoaderSimple, CLIPTextEncode,
+ * EmptySD3LatentImage, KSampler, VAEDecode, SaveImage) are all core nodes,
+ * verified against comfy.hearst.app 0.18.1 /object_info.
+ */
+export function buildFluxTxt2ImgGraph(opts: FluxTxt2ImgOptions): Record<string, object> {
+  const checkpoint =
+    opts.checkpoint || process.env.COMFYUI_CHECKPOINT?.trim() || DEFAULT_FLUX_CHECKPOINT;
+  const stepsEnv = Number.parseInt(process.env.COMFYUI_STEPS || '', 10);
+  const steps = opts.steps ?? (Number.isFinite(stepsEnv) && stepsEnv > 0 ? stepsEnv : DEFAULT_STEPS);
+  // Snap dims to the /16 grid FLUX latents require; bad inputs 400 otherwise.
+  const snap16 = (n: number) => Math.max(16, Math.round(n / 16) * 16);
+  const width = snap16(opts.width ?? DEFAULT_WIDTH);
+  const height = snap16(opts.height ?? DEFAULT_HEIGHT);
+  const seed = opts.seed ?? Math.floor(Math.random() * 0xffff_ffff);
+
+  return {
+    '1': {
+      class_type: 'CheckpointLoaderSimple',
+      inputs: { ckpt_name: checkpoint },
+    },
+    '2': {
+      class_type: 'CLIPTextEncode',
+      inputs: { text: opts.prompt, clip: ['1', 1] },
+    },
+    '3': {
+      class_type: 'CLIPTextEncode',
+      inputs: { text: opts.negativePrompt ?? '', clip: ['1', 1] },
+    },
+    '4': {
+      class_type: 'EmptySD3LatentImage',
+      inputs: { width, height, batch_size: 1 },
+    },
+    '5': {
+      class_type: 'KSampler',
+      inputs: {
+        seed,
+        steps,
+        cfg: 1.0,
+        sampler_name: 'euler',
+        scheduler: 'simple',
+        denoise: 1.0,
+        model: ['1', 0],
+        positive: ['2', 0],
+        negative: ['3', 0],
+        latent_image: ['4', 0],
+      },
+    },
+    '6': {
+      class_type: 'VAEDecode',
+      inputs: { samples: ['5', 0], vae: ['1', 2] },
+    },
+    '7': {
+      class_type: 'SaveImage',
+      inputs: { filename_prefix: 'dropship-asset', images: ['6', 0] },
+    },
+  };
+}
 
 interface LocalQueueResponse {
   prompt_id: string;
@@ -380,8 +486,23 @@ export async function runWorkflow(opts: RunOptions): Promise<WorkflowResult> {
     return deployRun(chosen, opts.inputs || {});
   }
   if (backend === 'local') {
-    if (!opts.graph) throw new Error('graph required for local comfy backend');
-    return localRun(opts.graph);
+    // Explicit graph wins. Otherwise synthesize a FLUX txt2img graph from
+    // the deploy-style input slots so callers stay backend-agnostic.
+    if (opts.graph) return localRun(opts.graph);
+    const prompt = opts.inputs?.prompt;
+    if (typeof prompt === 'string' && prompt.trim()) {
+      const { negative_prompt, width, height, seed } = opts.inputs || {};
+      return localRun(
+        buildFluxTxt2ImgGraph({
+          prompt,
+          negativePrompt: typeof negative_prompt === 'string' ? negative_prompt : undefined,
+          width: typeof width === 'number' ? width : undefined,
+          height: typeof height === 'number' ? height : undefined,
+          seed: typeof seed === 'number' ? seed : undefined,
+        }),
+      );
+    }
+    throw new Error('graph or inputs.prompt required for local comfy backend');
   }
   throw new Error('No ComfyUI backend configured (set COMFY_DEPLOY_API_KEY or COMFYUI_URL)');
 }

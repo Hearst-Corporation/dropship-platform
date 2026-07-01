@@ -123,7 +123,7 @@ export async function writeLandingContent(
     );
     const text = res.content[0]?.type === 'text' ? res.content[0].text : '';
     const parsed = extractJson<LandingContent>(text);
-    standard = parsed ? { ...FALLBACK, ...parsed } : FALLBACK;
+    standard = parsed ? sanitizeLandingContent({ ...FALLBACK, ...parsed }) : FALLBACK;
   } catch (err) {
     console.warn('[landing-writer] generation failed, using fallback', err);
     standard = FALLBACK;
@@ -140,7 +140,11 @@ export async function writeLandingContent(
       {
         model: 'gpt-4o',
         max_tokens: 1500,
-        system: luxuryCopySystemPrompt(),
+        // Timelessness guard appended here (single-owner file): the shared
+        // luxury system prompt lives in luxury-prompts.ts, but the "no year"
+        // constraint is a landing-writer concern — a hardcoded "2023"/"2024"
+        // in the copy dates the storefront instantly.
+        system: `${luxuryCopySystemPrompt()} Never mention any year, date or vintage ("2023", "2024", "depuis 2025", ...) anywhere in the copy — it must read timeless.`,
         messages: [
           {
             role: 'user',
@@ -160,7 +164,7 @@ export async function writeLandingContent(
     const text = res.content[0]?.type === 'text' ? res.content[0].text : '';
     const luxe = extractJson<LuxuryCopyOutput>(text);
     if (!luxe) return standard;
-    return {
+    return sanitizeLandingContent({
       ...standard,
       luxury_copy: luxe,
       // Mirror atelier_pillars into selling_points so templates that read
@@ -168,11 +172,121 @@ export async function writeLandingContent(
       selling_points: luxe.atelier_pillars?.length
         ? luxe.atelier_pillars.map((p) => ({ title: p.title, body: p.body }))
         : standard.selling_points,
-    };
+    });
   } catch (err) {
     console.warn('[landing-writer] luxury copy failed, falling back to standard', err);
     return standard;
   }
+}
+
+// ── year sanitisation ────────────────────────────────────────────────────
+//
+// The prompt forbids years, but LLMs still leak stale ones ("NOUVEAU · 2023"
+// was observed in QA). This deterministic post-parse pass guarantees the
+// stored landing_content is timeless regardless of what the model returned.
+
+/** Standalone 19xx/20xx year, but never digits belonging to a numeric HTML
+ *  entity (`&#2024;`) — the `(?<!&#)` guard keeps legitimate entities intact. */
+const YEAR_RE = /(?<!&#)\b(?:19|20)\d{2}\b/;
+
+/**
+ * Remove standalone 19xx/20xx years from a piece of copy and tidy up what
+ * they leave behind (orphan separators, dangling prepositions, double
+ * spaces, empty <em></em>). Pure and idempotent; returns the input
+ * untouched when it contains no year.
+ *
+ *   "NOUVEAU · 2023"              → "NOUVEAU"
+ *   "Depuis 2024, la précision"   → "La précision"
+ *   "Pensé pour 2025 et après"    → "Pensé et après"
+ *   "Édition &#2024; limitée"     → unchanged (HTML entity)
+ */
+export function stripYears(text: string): string {
+  if (!text || !YEAR_RE.test(text)) return text;
+
+  let out = text
+    // Preposition + year phrases: drop the whole phrase so we never leave a
+    // dangling "depuis"/"en"/"pour" behind.
+    .replace(/\b(?:depuis|dès|en|pour|de|d'|since|in)\s*(?:19|20)\d{2}\b/gi, '')
+    // Remaining standalone years.
+    .replace(new RegExp(YEAR_RE.source, 'g'), '')
+    // Emphasis tags left empty by a removed year.
+    .replace(/<(em|strong|b|i)>\s*<\/\1>/gi, '');
+
+  // Orphan separators: collapse doubled ones, drop leading/trailing ones.
+  // Mid-string separators between two surviving segments ("Nouveau · Édition")
+  // are legitimate and kept.
+  out = out
+    .replace(/\s*[·|,;:/–—-]\s*(?=[·|,;:/–—-])/g, ' ')
+    .replace(/^\s*[·|,;:/–—-]\s*/, '')
+    .replace(/\s*[·|,;:/–—-]\s*$/, '')
+    .replace(/\s+([,;:.!?])/g, '$1')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
+  // If the removal beheaded the sentence ("Depuis 2024, la…" → "la…"),
+  // restore the leading capital the original had.
+  if (/^[a-zà-öø-ÿ]/.test(out) && /^[^a-zà-öø-ÿ]/.test(text.trim())) {
+    out = out.charAt(0).toUpperCase() + out.slice(1);
+  }
+  return out;
+}
+
+type HeroBlock = { kicker?: string; headline_html?: string; lede?: string };
+
+function stripBlock<T extends HeroBlock | undefined>(block: T): T {
+  if (!block) return block;
+  const out: HeroBlock = { ...block };
+  if (out.kicker !== undefined) out.kicker = stripYears(out.kicker);
+  if (out.headline_html !== undefined) out.headline_html = stripYears(out.headline_html);
+  if (out.lede !== undefined) out.lede = stripYears(out.lede);
+  return out as T;
+}
+
+function stripPairs<T extends Array<{ title: string; body: string }> | undefined>(
+  items: T,
+): T {
+  if (!items) return items;
+  return items.map((p) => ({
+    ...p,
+    title: stripYears(p.title),
+    body: stripYears(p.body),
+  })) as T;
+}
+
+/**
+ * Apply {@link stripYears} to every user-visible text field of a parsed
+ * LandingContent (hero/showcase/beach_moment/final_cta blocks, selling
+ * points, trust promises, and the luxury copy when present). Pure — returns
+ * a new object, never mutates the input.
+ */
+export function sanitizeLandingContent(content: LandingContent): LandingContent {
+  const out: LandingContent = {
+    ...content,
+    hero: stripBlock(content.hero),
+    showcase: stripBlock(content.showcase),
+    beach_moment: stripBlock(content.beach_moment),
+    final_cta: stripBlock(content.final_cta),
+    selling_points: stripPairs(content.selling_points),
+    trust_promises: stripPairs(content.trust_promises),
+  };
+
+  if (content.luxury_copy) {
+    const lux = content.luxury_copy;
+    out.luxury_copy = {
+      ...lux,
+      hero_eyebrow: stripYears(lux.hero_eyebrow),
+      hero_lede: stripYears(lux.hero_lede),
+      story_headline: stripYears(lux.story_headline),
+      story_body: lux.story_body?.map((s) => stripYears(s)) as [string, string],
+      atelier_pillars: stripPairs(lux.atelier_pillars),
+      price_rationale: stripYears(lux.price_rationale),
+      packaging_headline: stripYears(lux.packaging_headline),
+      packaging_body: stripYears(lux.packaging_body),
+      final_cta_note: stripYears(lux.final_cta_note),
+    };
+  }
+
+  return out;
 }
 
 function buildPrompt(i: LandingWriterInput): string {
@@ -182,6 +296,7 @@ CONTRAINTES NON NÉGOCIABLES :
 - Toute la copie doit être SPÉCIFIQUE au produit ci-dessous. Aucune mention de ventilateurs, climatiseurs, masques LED, veilleuses, ou tout autre produit que tu connaîtrais par ailleurs si ce n'est PAS celui-ci.
 - Français concret, pas de em-dash, pas de triade rythmée. Chiffres et faits là où c'est possible.
 - Tutoiement neutre. Pas d'emojis.
+- INTERDIT ABSOLU : aucune année, aucune date, aucun millésime ("2023", "2024", "depuis 2025", "édition 2026"...) nulle part — ni dans le kicker, ni dans les headlines, ni dans les ledes, ni dans les sections. La copie doit être intemporelle.
 - "headline_html" peut contenir UN <em>...</em> pour souligner un mot clé, rien d'autre.
 
 CONTEXTE STORE :
@@ -198,7 +313,7 @@ PRODUIT HÉRO :
 Retourne UNIQUEMENT ce JSON, sans préambule :
 {
   "hero": {
-    "kicker": "Mini badge en haut, 1-3 mots (ex: 'Nouveau · ${new Date().getFullYear()}')",
+    "kicker": "Mini badge en haut, 1-3 mots (ex: 'Nouveau', 'Édition atelier') — jamais d'année ni de date",
     "headline_html": "Phrase d'accroche courte (8-14 mots), UN <em></em> sur le mot fort",
     "lede": "1-2 phrases factuelles qui décrivent l'usage et le bénéfice principal"
   },

@@ -7,9 +7,12 @@
  * Test inventory:
  *   1. JSON-RPC envelope shape — correct jsonrpc/method/params.name on the wire
  *   2. searchProducts: catalog tool → RawProduct mapping (USD→EUR conversion)
- *   3. searchProducts: missing token → needsAuth:true
+ *   3. searchProducts: missing token → needsAuth:true + actionable error message
  *   4. placeOrder: maps address + items, returns supplierOrderId
- *   5. Token refresh: expired token triggers POST to token URL, new token used
+ *   5. Token refresh: expired token triggers POST to token URL, new token used;
+ *      refresh failure yields an explicit "token expiré" error with the cause
+ *   6. Transport errors: HTTP non-2xx (status + body excerpt), unreachable
+ *      endpoint (network message), non-JSON 200 (unexpected response)
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
@@ -227,6 +230,44 @@ describe('zendropClient.searchProducts', () => {
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/Tool not found/);
   });
+
+  it('returns HTTP status + body excerpt when MCP endpoint answers non-2xx', async () => {
+    server.use(
+      http.post(MCP_URL, () =>
+        HttpResponse.text('{"message":"Internal Server Error at Zendrop"}', { status: 500 }),
+      ),
+    );
+
+    const result = await zendropClient.searchProducts({ keywords: 'test' });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/Zendrop MCP HTTP 500/);
+    expect(result.error).toMatch(/Internal Server Error at Zendrop/);
+    expect(result.error).toContain(MCP_URL);
+  });
+
+  it('returns an explicit network message when MCP endpoint is unreachable', async () => {
+    server.use(http.post(MCP_URL, () => HttpResponse.error()));
+
+    const result = await zendropClient.searchProducts({ keywords: 'test' });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/Zendrop MCP injoignable/);
+    expect(result.error).toContain(MCP_URL);
+  });
+
+  it('returns an explicit message when MCP endpoint answers 200 with non-JSON body', async () => {
+    server.use(
+      http.post(MCP_URL, () => HttpResponse.text('<html>Cloudflare challenge</html>', { status: 200 })),
+    );
+
+    const result = await zendropClient.searchProducts({ keywords: 'test' });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/réponse inattendue/);
+    expect(result.error).toMatch(/non-JSON/);
+    expect(result.error).toMatch(/Cloudflare challenge/);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -242,6 +283,20 @@ describe('zendropClient — missing token', () => {
     expect(result.success).toBe(false);
     expect(result.needsAuth).toBe(true);
     expect(result.products).toHaveLength(0);
+  });
+
+  it('searchProducts returns an actionable error message when no token in DB (no more "unknown")', async () => {
+    dbScenario = 'noToken';
+
+    const result = await zendropClient.searchProducts({ keywords: 'anything' });
+
+    // The registry renders `zendrop: ${error ?? 'unknown'}` — error MUST be set
+    // and tell the operator exactly what to do.
+    expect(result.error).toBeDefined();
+    expect(result.error).toMatch(/Zendrop non connecté/);
+    expect(result.error).toMatch(/platform_settings/);
+    expect(result.error).toMatch(/OAuth/);
+    expect(result.error).toContain('/api/zendrop/oauth/start');
   });
 
   it('placeOrder returns error when no token', async () => {
@@ -264,7 +319,8 @@ describe('zendropClient — missing token', () => {
     });
 
     expect(result.success).toBe(false);
-    expect(result.error).toMatch(/not authenticated/i);
+    expect(result.error).toMatch(/Zendrop non connecté/);
+    expect(result.error).toContain('/api/zendrop/oauth/start');
   });
 
   it('ensureAuth returns false when no token', async () => {
@@ -422,6 +478,34 @@ describe('zendropClient — token refresh', () => {
     expect(result.success).toBe(false);
     expect(result.needsAuth).toBe(true);
   });
+
+  it('explains WHY the refresh failed (expired token + token endpoint status)', async () => {
+    dbScenario = 'expiredToken';
+
+    server.use(
+      http.post(TOKEN_URL, () => HttpResponse.json({ error: 'invalid_grant' }, { status: 400 })),
+    );
+
+    const result = await zendropClient.searchProducts({ keywords: 'refresh fail' });
+
+    expect(result.error).toBeDefined();
+    expect(result.error).toMatch(/token OAuth expiré/);
+    expect(result.error).toMatch(/token endpoint HTTP 400/);
+    expect(result.error).toContain('/api/zendrop/oauth/start');
+  });
+
+  it('explains missing OAuth client credentials when refresh is needed without them', async () => {
+    dbScenario = 'expiredToken';
+    vi.stubEnv('SUPPLIER_ZENDROP_CLIENT_ID', '');
+    vi.stubEnv('SUPPLIER_ZENDROP_CLIENT_SECRET', '');
+
+    const result = await zendropClient.searchProducts({ keywords: 'no creds' });
+
+    expect(result.success).toBe(false);
+    expect(result.needsAuth).toBe(true);
+    expect(result.error).toMatch(/SUPPLIER_ZENDROP_CLIENT_ID/);
+    expect(result.error).toMatch(/token OAuth expiré/);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -460,7 +544,8 @@ describe('zendropClient.getTracking', () => {
     dbScenario = 'noToken';
     const result = await zendropClient.getTracking!('any');
     expect(result.success).toBe(false);
-    expect(result.error).toMatch(/not authenticated/i);
+    expect(result.error).toMatch(/Zendrop non connecté/);
+    expect(result.error).toContain('/api/zendrop/oauth/start');
   });
 });
 

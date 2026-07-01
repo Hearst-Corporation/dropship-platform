@@ -3,7 +3,7 @@ import { MegaphoneIcon } from '@heroicons/react/24/outline';
 import { getDbRead } from '@/lib/db';
 import { resolveStoreId } from '@/lib/resolve-store';
 import { loadStoreReport } from '@/lib/agent/store-report';
-import type { GoogleAdsPlan } from '@/lib/agent/ads-planner';
+import { getChannelConnections } from '@/lib/ads/all-campaigns';
 import { Heading, Subheading } from '@/components/catalyst/heading';
 import { Text } from '@/components/catalyst/text';
 import { Badge } from '@/components/catalyst/badge';
@@ -22,14 +22,70 @@ import {
   DescriptionDetails,
 } from '@/components/catalyst/description-list';
 import { AdminSection } from '@/components/admin/AdminSection';
-import { AdminStatsGrid } from '@/components/admin/AdminStatsGrid';
-import { AdminStatCard } from '@/components/admin/AdminStatCard';
 import { AdminDataTable } from '@/components/admin/AdminDataTable';
 import { AdminBadge } from '@/components/admin/AdminBadge';
 import { AdminEmptyState } from '@/components/admin/AdminEmptyState';
-import { CampaignCharts } from './CampaignCharts';
+import { PlatformSplitDonut, KpiComparisonChart } from './CampaignCharts';
+import { GoogleAdsLogo, InstagramLogo, TikTokLogo } from './PlatformLogos';
+import { ValidateButton } from './ValidateButton';
 
 export const dynamic = 'force-dynamic';
+
+// ── Hypothèses et règles déterministes (affichées telles quelles) ─────────────
+
+/** Répartition du budget quotidien: Google 50%, Instagram 30%, TikTok 20%. */
+const SPLIT_RULE = { google: 0.5, instagram: 0.3, tiktok: 0.2 } as const;
+const CPC_EUR = 0.45;
+const CVR = 0.025;
+
+/**
+ * Couleurs de marque des plateformes, autorisées sur cette page uniquement
+ * (exception opérateur à la règle single-accent). L'admin est rendu en dark
+ * forcé, donc TikTok (#010101) est affiché en blanc dans le graphe.
+ */
+const PLATFORM_CHART_COLORS = {
+  google: '#4285F4',
+  instagram: '#E4405F',
+  tiktok: '#ffffff',
+} as const;
+
+const CAMPAIGN_STATUS_LABEL: Record<string, string> = {
+  draft: 'Draft non envoyé',
+  queued: 'En file d attente',
+  live: 'En ligne',
+  paused: 'En pause',
+  error: 'Erreur de push',
+};
+
+const MILESTONES = [
+  {
+    day: 'J1',
+    action: 'Activation des campagnes au budget validé, diffusion France uniquement.',
+    criteria: 'Les campagnes sont actives et dépensent au budget du plan.',
+  },
+  {
+    day: 'J2 à J3',
+    action: 'Vérification du tracking et lecture des premières données.',
+    criteria: 'Les événements view_content et purchase remontent avec les bons UTM.',
+  },
+  {
+    day: 'J7',
+    action: 'Revue des requêtes, ajout des mots-clés négatifs, coupe des annonces faibles.',
+    criteria: 'Liste de négatifs mise à jour, annonces sous la moyenne mises en pause.',
+  },
+  {
+    day: 'J14',
+    action: 'Scaling de 20% du budget si le ROAS dépasse le seuil cible.',
+    criteria: 'ROAS au-dessus du seuil sur 7 jours glissants avant toute hausse.',
+  },
+  {
+    day: 'J30',
+    action: 'Bilan complet et réallocation du budget entre plateformes.',
+    criteria: 'Rapport 30 jours produit, nouvelle répartition décidée.',
+  },
+] as const;
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface StoreRow {
   id: string;
@@ -42,92 +98,43 @@ interface CampaignRow {
   status: string;
   daily_budget_eur: string | number | null;
   created_at: string;
+  pushed_at: string | null;
   channel: string;
   headline: string | null;
 }
 
-const CAMPAIGN_STATUS_LABEL: Record<string, string> = {
-  draft: 'Draft non envoyé',
-  queued: 'En file d attente',
-  live: 'En ligne',
-  paused: 'En pause',
-  error: 'Erreur de push',
-};
-
-interface Phase {
-  id: string;
-  period: string;
-  title: string;
-  actions: string[];
-  deliverable: string;
-  planNotes: Array<{ label: string; items: string[] }>;
+interface ValidationState {
+  budgetValidatedAt?: string;
+  calendarValidatedAt?: string;
 }
 
-/**
- * Build the 4-phase launch timeline and fold the plan's nextSteps,
- * trackingNotes and policyRisks into the matching phases:
- * risks -> validation, tracking notes -> tracking, remaining steps spread
- * validation / tracking / launch / optimisation in order.
- */
-function buildPhases(plan: GoogleAdsPlan): Phase[] {
-  const steps = plan.nextSteps;
-  return [
-    {
-      id: 'validation',
-      period: 'Semaine 1',
-      title: 'Validation',
-      actions: [
-        'Valider le plan de campagne et les créatives (titres, descriptions).',
-        'Créer la campagne en pause dans Google Ads, sans aucune diffusion.',
-        ...(steps[0] ? [steps[0]] : []),
-      ],
-      deliverable: 'Campagne draft prête dans Google Ads, en pause.',
-      planNotes: plan.policyRisks.length
-        ? [{ label: 'Points de vigilance policy', items: plan.policyRisks }]
-        : [],
-    },
-    {
-      id: 'tracking',
-      period: 'Semaine 1 à 2',
-      title: 'Tracking',
-      actions: [
-        'Brancher le tag de conversion Google Ads sur le storefront.',
-        'Réaliser un achat test et vérifier que la conversion remonte.',
-        'Contrôler les UTM sur toutes les URL finales.',
-        ...(steps[1] ? [steps[1]] : []),
-      ],
-      deliverable: 'Conversion vérifiée de bout en bout, UTM propres.',
-      planNotes: plan.trackingNotes.length
-        ? [{ label: 'Notes tracking du plan', items: plan.trackingNotes }]
-        : [],
-    },
-    {
-      id: 'launch',
-      period: 'Semaine 2 à 3',
-      title: 'Lancement',
-      actions: [
-        `Activer la campagne au budget proposé de ${plan.dailyBudgetEur.toLocaleString('fr-FR')} € par jour.`,
-        `Diffusion limitée aux pays ciblés: ${plan.countries.join(', ')}.`,
-        ...(steps[2] ? [steps[2]] : []),
-      ],
-      deliverable: 'Campagne active qui dépense sur les pays ciblés.',
-      planNotes: [],
-    },
-    {
-      id: 'optimisation',
-      period: 'Semaine 3 à 4 et plus',
-      title: 'Optimisation',
-      actions: [
-        'Revue des termes de recherche à J+3 après activation.',
-        'Ajout des mots-clés négatifs sur les requêtes hors cible.',
-        'Ajustement des enchères selon le coût par conversion observé.',
-        ...steps.slice(3),
-      ],
-      deliverable: 'Premier cycle d optimisation documenté, budget maîtrisé.',
-      planNotes: [],
-    },
-  ];
+interface FunnelRealsRow {
+  traffic: string | number;
+  purchases: string | number;
+  revenue_cents: string | number;
 }
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function eur(n: number): string {
+  return `${n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} €`;
+}
+
+function frDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function frDateTime(iso: string): string {
+  return new Date(iso).toLocaleString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function StoreCampaignPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -135,13 +142,13 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
   if (!storeId) notFound();
   const db = getDbRead();
 
-  const [storeRes, campaignRes, report] = await Promise.all([
+  const [storeRes, campaignRes, report, validationRes] = await Promise.all([
     db.query<StoreRow>(
       `SELECT id, slug, name FROM dropship_stores WHERE id = $1 LIMIT 1`,
       [storeId],
     ),
     db.query<CampaignRow>(
-      `SELECT c.id, c.status, c.daily_budget_eur, c.created_at, c.channel, v.headline
+      `SELECT c.id, c.status, c.daily_budget_eur, c.created_at, c.pushed_at, c.channel, v.headline
          FROM dropship_ad_campaigns c
          JOIN dropship_ad_variants v ON v.id = c.variant_id
         WHERE c.store_id = $1
@@ -150,6 +157,10 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
       [storeId],
     ),
     loadStoreReport(db, storeId),
+    db.query<{ value: string }>(
+      `SELECT value FROM platform_settings WHERE key = $1 LIMIT 1`,
+      [`campaign_validation:${storeId}`],
+    ),
   ]);
 
   const store = storeRes.rows[0];
@@ -158,6 +169,7 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
   const plan = report?.adsPlan ?? null;
   const campaign = campaignRes.rows[0] ?? null;
 
+  // État vide legacy: pas de plan dans le rapport de run.
   if (!plan) {
     return (
       <div className="space-y-8">
@@ -177,25 +189,116 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
     );
   }
 
-  const phases = buildPhases(plan);
-  const campaignStatus = campaign?.status ?? 'draft';
-  const campaignStatusLabel = CAMPAIGN_STATUS_LABEL[campaignStatus] ?? campaignStatus;
+  // ── Validations persistées (platform_settings, sans migration) ─────────────
+  let validation: ValidationState = {};
+  const rawValidation = validationRes.rows[0]?.value;
+  if (rawValidation) {
+    try {
+      const parsed = JSON.parse(rawValidation) as unknown;
+      if (parsed && typeof parsed === 'object') validation = parsed as ValidationState;
+    } catch {
+      // Valeur illisible: on repart des boutons.
+    }
+  }
+
+  // ── Budget et répartition plateforme (France uniquement) ───────────────────
   const dailyBudget = plan.dailyBudgetEur;
   const monthlyBudget = dailyBudget * 30;
-  const stagedAt = campaign
-    ? new Date(campaign.created_at).toLocaleDateString('fr-FR', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      })
-    : null;
+  const googleDaily = Math.round(dailyBudget * SPLIT_RULE.google * 100) / 100;
+  const instagramDaily = Math.round(dailyBudget * SPLIT_RULE.instagram * 100) / 100;
+  const tiktokDaily = Math.round((dailyBudget - googleDaily - instagramDaily) * 100) / 100;
+  const otherZones = plan.countries.filter((c) => c.toUpperCase() !== 'FR');
+
+  const connections = getChannelConnections();
+  const isConnected = (channel: 'google' | 'meta' | 'tiktok') =>
+    connections.find((c) => c.channel === channel)?.connected ?? false;
+
+  const platforms = [
+    {
+      id: 'google',
+      name: 'Google Ads',
+      Logo: GoogleAdsLogo,
+      dailyEur: googleDaily,
+      pct: Math.round(SPLIT_RULE.google * 100),
+      connected: isConnected('google'),
+      hasDraft: Boolean(campaign),
+    },
+    {
+      id: 'instagram',
+      name: 'Instagram',
+      Logo: InstagramLogo,
+      dailyEur: instagramDaily,
+      pct: Math.round(SPLIT_RULE.instagram * 100),
+      connected: isConnected('meta'),
+      hasDraft: false,
+    },
+    {
+      id: 'tiktok',
+      name: 'TikTok',
+      Logo: TikTokLogo,
+      dailyEur: tiktokDaily,
+      pct: Math.round(SPLIT_RULE.tiktok * 100),
+      connected: isConnected('tiktok'),
+      hasDraft: false,
+    },
+  ] as const;
+
+  // ── Projeté vs réel depuis le lancement ─────────────────────────────────────
+  const launched = Boolean(
+    campaign && (campaign.pushed_at || campaign.status === 'live' || campaign.status === 'paused'),
+  );
+  const sinceIso = campaign ? (campaign.pushed_at ?? campaign.created_at) : null;
+
+  let daysElapsed = 0;
+  let spendProjected = 0;
+  let clicksProjected = 0;
+  let convProjected = 0;
+  let realTraffic = 0;
+  let realConversions = 0;
+  let realRevenue = 0;
+
+  if (launched && sinceIso) {
+    daysElapsed = Math.max(1, Math.ceil((Date.now() - new Date(sinceIso).getTime()) / 86_400_000));
+    spendProjected = Math.round(dailyBudget * daysElapsed * 100) / 100;
+    clicksProjected = Math.round(spendProjected / CPC_EUR);
+    convProjected = Math.round(clicksProjected * CVR * 10) / 10;
+
+    const realsRes = await db.query<FunnelRealsRow>(
+      `SELECT
+         COUNT(*) FILTER (WHERE event_name = 'view_content')::int AS traffic,
+         COUNT(*) FILTER (WHERE event_name = 'purchase')::int AS purchases,
+         COALESCE(SUM(value_minor) FILTER (WHERE event_name = 'purchase'), 0)::bigint AS revenue_cents
+       FROM dropship_funnel_events
+       WHERE store_slug = $1 AND created_at > $2`,
+      [store.slug, sinceIso],
+    );
+    const reals = realsRes.rows[0];
+    realTraffic = Number(reals?.traffic) || 0;
+    realConversions = Number(reals?.purchases) || 0;
+    realRevenue = (Number(reals?.revenue_cents) || 0) / 100;
+  }
+
+  const kpiChartData = [
+    { metric: 'Trafic (clics)', projete: clicksProjected, reel: realTraffic },
+    { metric: 'Conversions', projete: convProjected, reel: realConversions },
+  ];
+
+  const kpiRows = [
+    { label: 'Dépense publicitaire', projete: eur(spendProjected), reel: 'n/d' },
+    { label: 'Trafic (clics)', projete: clicksProjected.toLocaleString('fr-FR'), reel: realTraffic.toLocaleString('fr-FR') },
+    { label: 'Conversions', projete: convProjected.toLocaleString('fr-FR'), reel: realConversions.toLocaleString('fr-FR') },
+    { label: 'Revenus', projete: 'n/d', reel: eur(realRevenue) },
+  ];
+
+  const campaignStatus = campaign?.status ?? 'draft';
+  const campaignStatusLabel = CAMPAIGN_STATUS_LABEL[campaignStatus] ?? campaignStatus;
 
   return (
     <div className="space-y-8">
-      {/* En-tête */}
+      {/* En-tête compact */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <Text className="text-xs/5 uppercase tracking-wide">Campagne Google Ads</Text>
+          <Text className="text-xs/5 uppercase tracking-wide">Campagne</Text>
           <Heading className="mt-1">{plan.campaignName}</Heading>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <AdminBadge status={campaignStatus}>{campaignStatusLabel}</AdminBadge>
@@ -204,134 +307,97 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
             ) : (
               <Badge color="zinc">Plan de secours</Badge>
             )}
-            <Badge color="zinc">{plan.countries.join(' · ')}</Badge>
+            <Badge color="zinc">Zone: France</Badge>
           </div>
-          <Text className="mt-3 max-w-3xl">{plan.objective}</Text>
+          {otherZones.length > 0 ? (
+            <p className="mt-2 text-xs/5 text-zinc-500 dark:text-zinc-400">
+              Autres zones ({otherZones.join(', ')}) : phase ultérieure.
+            </p>
+          ) : null}
+        </div>
+        <div className="shrink-0 text-right">
+          <p className="text-xs/5 font-medium text-zinc-500 dark:text-zinc-400">Budget quotidien</p>
+          <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums text-zinc-950 dark:text-white">
+            {eur(dailyBudget)}
+          </p>
+          <p className="mt-0.5 text-xs/5 text-zinc-500 dark:text-zinc-400">{eur(monthlyBudget)} sur 30 jours</p>
         </div>
       </div>
 
-      <AdminStatsGrid cols={4}>
-        <AdminStatCard
-          label="Budget / jour"
-          value={`${dailyBudget.toLocaleString('fr-FR')} €`}
-          tone="positive"
-          hint="Proposé par le plan, campagne créée en pause"
-        />
-        <AdminStatCard
-          label="Budget sur 30 jours"
-          value={`${monthlyBudget.toLocaleString('fr-FR')} €`}
-          hint="Si le budget quotidien est dépensé en entier"
-        />
-        <AdminStatCard
-          label="Pays ciblés"
-          value={plan.countries.length.toString()}
-          hint={plan.countries.join(', ')}
-        />
-        <AdminStatCard
-          label="Mots-clés"
-          value={plan.keywords.length.toString()}
-          hint={`${plan.negativeKeywords.length} négatifs prévus`}
-        />
-      </AdminStatsGrid>
-
-      <AdminSection title="Ciblage et diffusion" description="Ce que le plan propose avant tout envoi vers Google Ads.">
-        <DescriptionList>
-          <DescriptionTerm>Audience</DescriptionTerm>
-          <DescriptionDetails>{plan.audience}</DescriptionDetails>
-          <DescriptionTerm>Landing page</DescriptionTerm>
-          <DescriptionDetails className="break-all">{plan.landingPage}</DescriptionDetails>
-          {campaign ? (
-            <>
-              <DescriptionTerm>Draft en base</DescriptionTerm>
-              <DescriptionDetails>
-                Stagé le {stagedAt} sur le canal {campaign.channel}
-                {campaign.headline ? <> avec le titre principal «{campaign.headline}»</> : null}.
-              </DescriptionDetails>
-            </>
-          ) : (
-            <>
-              <DescriptionTerm>Draft en base</DescriptionTerm>
-              <DescriptionDetails>
-                Aucune ligne stagée dans les tables de campagne pour ce store. Le plan reste consultable ici.
-              </DescriptionDetails>
-            </>
-          )}
-        </DescriptionList>
-      </AdminSection>
-
-      {/* Déroulé pédagogique */}
+      {/* Plan média par plateforme */}
       <AdminSection
-        title="Comment ça va se passer"
-        description="Le déroulé du lancement en 4 phases, du plan validé à la campagne optimisée. Rien n'est envoyé à Google sans validation."
+        title="Plan média par plateforme"
+        description="Répartition du budget quotidien sur les trois plateformes de diffusion. France uniquement pour cette phase."
       >
-        <ol className="relative space-y-8 border-l border-zinc-950/10 pl-6 dark:border-white/10">
-          {phases.map((phase, index) => (
-            <li key={phase.id} className="relative">
-              <span
-                aria-hidden
-                className="absolute -left-[31px] top-0.5 flex size-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-semibold text-white dark:bg-indigo-500"
-              >
-                {index + 1}
-              </span>
-              <div className="flex flex-wrap items-baseline gap-2">
-                <Subheading level={3}>{phase.title}</Subheading>
-                <Badge color="zinc">{phase.period}</Badge>
-              </div>
-              <ul className="mt-2 list-disc space-y-1 pl-4 text-sm/6 text-zinc-600 dark:text-zinc-300">
-                {phase.actions.map((action, i) => (
-                  <li key={i}>{action}</li>
-                ))}
-              </ul>
-              {phase.planNotes.map((note) => (
-                <div
-                  key={note.label}
-                  className="mt-3 rounded-lg border border-zinc-950/10 bg-zinc-50 p-3 dark:border-white/10 dark:bg-white/5"
-                >
-                  <p className="text-xs/5 font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                    {note.label}
-                  </p>
-                  <ul className="mt-1 list-disc space-y-1 pl-4 text-sm/6 text-zinc-600 dark:text-zinc-300">
-                    {note.items.map((item, i) => (
-                      <li key={i}>{item}</li>
-                    ))}
-                  </ul>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {platforms.map((p) => (
+            <div
+              key={p.id}
+              className="rounded-xl border border-zinc-950/10 bg-zinc-50 p-5 dark:border-white/10 dark:bg-white/5"
+            >
+              <div className="flex items-center gap-3">
+                <p.Logo className="size-8 shrink-0" />
+                <div className="min-w-0">
+                  <p className="truncate text-sm/6 font-semibold text-zinc-950 dark:text-white">{p.name}</p>
+                  <p className="text-xs/5 text-zinc-500 dark:text-zinc-400">{p.pct}% du budget</p>
                 </div>
-              ))}
-              <p className="mt-2 text-xs/5 text-zinc-500 dark:text-zinc-400">
-                Livrable: {phase.deliverable}
+              </div>
+              <p className="mt-4 text-3xl font-semibold tracking-tight tabular-nums text-zinc-950 dark:text-white">
+                {eur(p.dailyEur)}
+                <span className="ml-1 text-sm font-normal text-zinc-500 dark:text-zinc-400">/ jour</span>
               </p>
-            </li>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {p.connected ? (
+                  <Badge color="indigo">Connecté</Badge>
+                ) : (
+                  <Badge color="zinc">À connecter</Badge>
+                )}
+                {p.hasDraft ? <Badge color="zinc">Draft stagé</Badge> : null}
+              </div>
+            </div>
           ))}
-        </ol>
+        </div>
       </AdminSection>
 
-      {/* Calendrier */}
+      {/* Répartition du budget */}
+      <AdminSection
+        title="Répartition du budget quotidien"
+        description="Règle appliquée: Google Ads 50%, Instagram 30%, TikTok 20% du budget quotidien du plan."
+      >
+        <PlatformSplitDonut
+          totalDailyEur={dailyBudget}
+          splits={platforms.map((p) => ({
+            name: p.name,
+            color: PLATFORM_CHART_COLORS[p.id],
+            pct: p.pct,
+            dailyEur: p.dailyEur,
+          }))}
+        />
+      </AdminSection>
+
+      {/* Calendrier de lancement jour 1 */}
       <div className="space-y-3">
         <div>
           <Subheading>Calendrier de lancement</Subheading>
-          <Text className="mt-1">Les 4 phases résumées, avec la période et le livrable attendu.</Text>
+          <Text className="mt-1">
+            La publicité démarre au jour 1, dès que le site est terminé. Pas de phase de mise en place du site.
+          </Text>
         </div>
         <AdminDataTable minWidth="min-w-2xl">
           <Table dense>
             <TableHead>
               <TableRow>
-                <TableHeader>Phase</TableHeader>
-                <TableHeader>Période</TableHeader>
-                <TableHeader>Actions</TableHeader>
-                <TableHeader>Livrable</TableHeader>
+                <TableHeader>Jour</TableHeader>
+                <TableHeader>Action</TableHeader>
+                <TableHeader>Critère de validation</TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
-              {phases.map((phase) => (
-                <TableRow key={phase.id}>
-                  <TableCell className="font-medium">{phase.title}</TableCell>
-                  <TableCell className="text-zinc-500 dark:text-zinc-400">{phase.period}</TableCell>
-                  <TableCell className="whitespace-normal text-zinc-600 dark:text-zinc-300">
-                    {phase.actions.join(' ')}
-                  </TableCell>
-                  <TableCell className="whitespace-normal text-zinc-500 dark:text-zinc-400">
-                    {phase.deliverable}
-                  </TableCell>
+              {MILESTONES.map((m) => (
+                <TableRow key={m.day}>
+                  <TableCell className="font-medium tabular-nums">{m.day}</TableCell>
+                  <TableCell className="whitespace-normal text-zinc-600 dark:text-zinc-300">{m.action}</TableCell>
+                  <TableCell className="whitespace-normal text-zinc-500 dark:text-zinc-400">{m.criteria}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -339,15 +405,104 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
         </AdminDataTable>
       </div>
 
-      {/* Projections */}
+      {/* Validations opérateur */}
       <AdminSection
-        title="Projections sur 30 jours"
-        description="Projections calculées depuis le budget du plan avec des hypothèses affichées sous chaque graphe. Aucune donnée réelle tant que la campagne n'est pas active."
+        title="Validations"
+        description="Deux validations opérateur avant activation, persistées côté plateforme."
       >
-        <CampaignCharts dailyBudgetEur={dailyBudget} countries={plan.countries} />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="flex flex-col rounded-xl border border-zinc-950/10 bg-zinc-50 p-5 dark:border-white/10 dark:bg-white/5">
+            <Subheading level={3}>Validation du budget</Subheading>
+            <DescriptionList className="mt-2">
+              <DescriptionTerm>Budget / jour total</DescriptionTerm>
+              <DescriptionDetails className="tabular-nums">{eur(dailyBudget)}</DescriptionDetails>
+              <DescriptionTerm>Répartition</DescriptionTerm>
+              <DescriptionDetails>
+                Google Ads {eur(googleDaily)}, Instagram {eur(instagramDaily)}, TikTok {eur(tiktokDaily)}
+              </DescriptionDetails>
+              <DescriptionTerm>Plafond 30 jours</DescriptionTerm>
+              <DescriptionDetails className="tabular-nums">{eur(monthlyBudget)}</DescriptionDetails>
+            </DescriptionList>
+            <div className="mt-4">
+              {validation.budgetValidatedAt ? (
+                <Badge color="indigo">Validé le {frDateTime(validation.budgetValidatedAt)}</Badge>
+              ) : (
+                <ValidateButton storeId={storeId as string} kind="budget" label="Valider le budget" />
+              )}
+            </div>
+          </div>
+          <div className="flex flex-col rounded-xl border border-zinc-950/10 bg-zinc-50 p-5 dark:border-white/10 dark:bg-white/5">
+            <Subheading level={3}>Validation du calendrier</Subheading>
+            <ul className="mt-2 space-y-1.5 text-sm/6 text-zinc-600 dark:text-zinc-300">
+              {MILESTONES.map((m) => (
+                <li key={m.day} className="flex gap-2">
+                  <span className="w-14 shrink-0 font-medium tabular-nums text-zinc-950 dark:text-white">
+                    {m.day}
+                  </span>
+                  <span className="min-w-0">{m.action}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-4">
+              {validation.calendarValidatedAt ? (
+                <Badge color="indigo">Validé le {frDateTime(validation.calendarValidatedAt)}</Badge>
+              ) : (
+                <ValidateButton storeId={storeId as string} kind="calendar" label="Valider le calendrier" />
+              )}
+            </div>
+          </div>
+        </div>
       </AdminSection>
 
-      {/* Mots-clés & annonces */}
+      {/* Suivi projeté vs réel */}
+      <AdminSection
+        title="Suivi projeté vs réel"
+        description={
+          launched && sinceIso
+            ? `Depuis le lancement du ${frDate(sinceIso)} (${daysElapsed} jour${daysElapsed > 1 ? 's' : ''}).`
+            : campaign
+              ? `Campagne stagée le ${frDate(campaign.created_at)}, pas encore diffusée.`
+              : 'Aucune campagne stagée en base pour l instant.'
+        }
+      >
+        <div className="space-y-6">
+          {!launched ? (
+            <div className="rounded-lg border border-zinc-950/10 bg-zinc-50 px-4 py-3 text-sm/6 text-zinc-600 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
+              En attente du lancement. Les données réelles apparaîtront dès la première diffusion.
+            </div>
+          ) : null}
+          <AdminDataTable>
+            <Table dense>
+              <TableHead>
+                <TableRow>
+                  <TableHeader>Indicateur</TableHeader>
+                  <TableHeader className="text-right">Projeté</TableHeader>
+                  <TableHeader className="text-right">Réel</TableHeader>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {kpiRows.map((row) => (
+                  <TableRow key={row.label}>
+                    <TableCell className="font-medium">{row.label}</TableCell>
+                    <TableCell className="text-right tabular-nums">{row.projete}</TableCell>
+                    <TableCell className="text-right tabular-nums">{row.reel}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </AdminDataTable>
+          <div>
+            <KpiComparisonChart data={kpiChartData} />
+            <p className="mt-2 text-xs/5 text-zinc-500 dark:text-zinc-400">
+              Hypothèses de projection: CPC moyen {CPC_EUR.toLocaleString('fr-FR')} €, taux de conversion{' '}
+              {(CVR * 100).toLocaleString('fr-FR')}%. n/d: disponible après intégration des rapports de dépense des
+              plateformes.
+            </p>
+          </div>
+        </div>
+      </AdminSection>
+
+      {/* Mots-clés & annonces RSA */}
       <AdminSection
         title="Mots-clés et annonces"
         description="Le contenu RSA proposé par le plan: mots-clés d'intention, négatifs, titres et descriptions."
