@@ -5,6 +5,7 @@ import { apiFetch } from '@/lib/client-fetch';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { TEMPLATE_CATALOG, type StoreTemplate } from '@/lib/template-catalog';
+import { cn } from '@/lib/utils/cn';
 
 const OPTIONS = TEMPLATE_CATALOG.map((t) => ({
   value: t.id,
@@ -73,11 +74,13 @@ export function StoreTemplateForm({
                 type="button"
                 onClick={() => setValue(opt.value)}
                 disabled={pending}
-                className={`relative rounded-lg p-4 text-left ring-1 transition-colors disabled:cursor-not-allowed ${
+                aria-pressed={active}
+                className={cn(
+                  'relative rounded-lg p-4 text-left ring-1 transition-colors disabled:cursor-not-allowed',
                   active
                     ? 'bg-indigo-500/10 ring-indigo-500/40'
-                    : 'bg-white/5 ring-white/10 hover:bg-white/10'
-                }`}
+                    : 'bg-white/5 ring-white/10 hover:bg-white/10',
+                )}
               >
                 <div className="mb-0.5 text-sm font-semibold text-white">{opt.label}</div>
                 <div className={`text-xs leading-snug ${active ? 'text-gray-300' : 'text-gray-500'}`}>

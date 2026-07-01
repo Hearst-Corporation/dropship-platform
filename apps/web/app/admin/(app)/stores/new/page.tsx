@@ -220,6 +220,12 @@ function NewStoreForm() {
           result={result}
           error={error}
           onReset={reset}
+          onRetry={() => {
+            launch().catch((err) => {
+              console.error('[retry] failed', err);
+              setError(err instanceof Error ? err.message : 'Erreur de lancement');
+            });
+          }}
         />
       ) : (
         <div className="mx-auto w-full max-w-2xl space-y-6">
@@ -318,6 +324,7 @@ function CreationScreen({
   result,
   error,
   onReset,
+  onRetry,
 }: {
   running: boolean;
   percent: number;
@@ -328,11 +335,12 @@ function CreationScreen({
   result: { slug: string; storeName: string; productCount: number } | null;
   error: string | null;
   onReset: () => void;
+  onRetry: () => void;
 }) {
   const logsEndRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [logs]);
+  }, [logs.length]);
 
   if (result) {
     return (
@@ -382,9 +390,14 @@ function CreationScreen({
               </Text>
             )}
             {error && (
-              <Button plain type="button" onClick={onReset}>
-                Réessayer
-              </Button>
+              <>
+                <Button plain type="button" onClick={onRetry}>
+                  Réessayer
+                </Button>
+                <Button plain type="button" onClick={onReset}>
+                  Créer un autre
+                </Button>
+              </>
             )}
           </div>
         </div>

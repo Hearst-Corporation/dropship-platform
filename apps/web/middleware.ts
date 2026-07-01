@@ -226,6 +226,7 @@ export const config = {
     '/api/cockpit-chat',
     '/api/cockpit-chat/:path*',
     '/api/medusa/setup',
+    '/api/medusa/introspect',
     '/api/medusa/health',
     '/api/domain-resolve',
     // Storefront — UTM capture only, no auth.

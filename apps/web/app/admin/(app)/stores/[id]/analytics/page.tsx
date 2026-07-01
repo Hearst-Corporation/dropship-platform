@@ -87,6 +87,7 @@ export default async function StoreAnalyticsPage({ params, searchParams }: Props
   // d'erreur dans l'admin, on retombe sur des résultats vides.
   let acquisitionRows: AcquisitionRow[] = [];
   let funnelRows: FunnelRow[] = [];
+  let dataError = false;
   try {
     const [acquisitionRes, funnelRes] = await Promise.all([
       // ============ UA — Acquisition ============
@@ -124,6 +125,7 @@ export default async function StoreAnalyticsPage({ params, searchParams }: Props
     funnelRows = funnelRes.rows;
   } catch (err) {
     console.error('[store-analytics] requêtes funnel/acquisition échouées:', err);
+    dataError = true;
   }
   const funnelByName = new Map(funnelRows.map((r) => [r.event_name, r]));
 
@@ -164,7 +166,7 @@ export default async function StoreAnalyticsPage({ params, searchParams }: Props
         <div className="flex items-center gap-2">
           {Object.entries(RANGE_TO_INTERVAL).map(([key, c]) =>
             key === range ? (
-              <Button key={key} href={`?range=${key}`} color="indigo">
+              <Button key={key} href={`?range=${key}`} color="indigo" aria-current="true">
                 {c.label}
               </Button>
             ) : (
@@ -175,6 +177,12 @@ export default async function StoreAnalyticsPage({ params, searchParams }: Props
           )}
         </div>
       </div>
+
+      {dataError && (
+        <div className="rounded-md border border-amber-500/30 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-300">
+          Données temporairement indisponibles. Réessaie dans un instant.
+        </div>
+      )}
 
       {/* Aggregate KPIs */}
       <section>

@@ -42,6 +42,11 @@ export function BrandLogo({
 }: Props) {
   const cfg = SIZE[size];
   const text = tone === 'inverse' ? 'text-white' : 'text-zinc-900';
+  // These rgba() literals feed the SVG `stroke` attribute (not a className),
+  // so they stay inline. Tailwind scale equivalents, for reference only — do
+  // not change the values:
+  //   rgba(255,255,255,0.85) → white/85       rgba(15,23,42,0.85) → slate-900/85
+  //   rgba(255,255,255,0.55) → white/55       rgba(15,23,42,0.55) → slate-900/55
   const ringColor = tone === 'inverse' ? 'rgba(255,255,255,0.85)' : 'rgba(15,23,42,0.85)';
   const flowColor = accentColor || (tone === 'inverse' ? 'rgba(255,255,255,0.55)' : 'rgba(15,23,42,0.55)');
 

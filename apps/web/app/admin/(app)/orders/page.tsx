@@ -82,7 +82,14 @@ export default async function OrdersPage() {
   // Hydrate with Medusa info for orders that scrolled off the limit-50 window.
   // Best-effort: a missing Medusa order shouldn't break the page.
   const ordersById = new Map(orders.map((o) => [o.id, o]));
-  const missingIds = awaitingRaw.map((r) => r.medusa_order_id).filter((id) => !ordersById.has(id));
+  // Cap hydration at 20 orders: this only backfills the "à payer chez AE" table
+  // display fields (email/total). Each id is one Medusa HTTP call, so an
+  // unbounded map could fan out to hundreds of requests and stall the page.
+  // Rows beyond the bound still render, just with the '—' fallbacks.
+  const missingIds = awaitingRaw
+    .map((r) => r.medusa_order_id)
+    .filter((id) => !ordersById.has(id))
+    .slice(0, 20);
   const fetched = await Promise.all(missingIds.map((id) => medusa.getOrder(id).catch(() => null)));
   for (const o of fetched) {
     if (o) ordersById.set(o.id, o);

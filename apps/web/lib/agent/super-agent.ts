@@ -519,9 +519,17 @@ export async function execRunSql(
 
   const db = getDb();
   const { rows } = await db.query(query, params ?? []);
+  // Cap the payload returned to the agent so a broad SELECT can't blow up the
+  // token budget. The full row count is still reported; only the returned rows
+  // are truncated to the first 500.
+  const ROW_CAP = 500;
+  const truncated = rows.length > ROW_CAP;
+  const returnedRows = truncated ? rows.slice(0, ROW_CAP) : rows;
   return {
-    output: { rows, count: rows.length },
-    summary: `run_sql ${mode} — ${rows.length} ligne(s)`,
+    output: { rows: returnedRows, count: rows.length, truncated, returned: returnedRows.length },
+    summary: truncated
+      ? `run_sql ${mode} — ${rows.length} ligne(s) (tronqué à ${ROW_CAP})`
+      : `run_sql ${mode} — ${rows.length} ligne(s)`,
   };
 }
 

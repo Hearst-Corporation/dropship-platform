@@ -2,7 +2,7 @@
 
 import { apiFetch } from '@/lib/client-fetch';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface Props {
@@ -73,6 +73,8 @@ export function ForwardButton({ orderId, alreadySent }: Props) {
   const [dryRunning, setDryRunning] = useState(false);
   const [sending, setSending] = useState(false);
   const [sentResult, setSentResult] = useState<ForwardResult | null>(null);
+  // Element that opened the modal, so we can restore focus to it on close.
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const forward = useCallback(
     async (dryRun: boolean): Promise<ForwardResult> => {
@@ -113,11 +115,13 @@ export function ForwardButton({ orderId, alreadySent }: Props) {
     setModalOpen(true);
   }
 
-  function closeModal() {
+  const closeModal = useCallback(() => {
     setModalOpen(false);
-  }
+    // Restore focus to the button that opened the modal.
+    triggerRef.current?.focus();
+  }, []);
 
-  async function confirmSend() {
+  const confirmSend = useCallback(async () => {
     setSending(true);
     try {
       const r = await forward(false);
@@ -139,7 +143,7 @@ export function ForwardButton({ orderId, alreadySent }: Props) {
     } finally {
       setSending(false);
     }
-  }
+  }, [forward, router]);
 
   // Has something to send when there is at least one forward leg from dry-run.
   const canSend =
@@ -156,6 +160,7 @@ export function ForwardButton({ orderId, alreadySent }: Props) {
   return (
     <div className="flex flex-col items-end gap-1.5">
       <button
+        ref={triggerRef}
         onClick={openModal}
         disabled={alreadySent}
         className={
@@ -224,9 +229,59 @@ function ReviewModal({
   onClose: () => void;
   onConfirm: () => void;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Query the panel's currently-focusable elements (skips disabled/hidden).
+  const getFocusable = useCallback((): HTMLElement[] => {
+    const panel = panelRef.current;
+    if (!panel) return [];
+    return Array.from(
+      panel.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    );
+  }, []);
+
+  // Move focus into the modal on open (first focusable, else the panel itself).
+  useEffect(() => {
+    const focusable = getFocusable();
+    if (focusable.length > 0) {
+      focusable[0].focus();
+    } else {
+      panelRef.current?.focus();
+    }
+  }, [getFocusable]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !sending) onClose();
+      if (e.key === 'Escape' && !sending) {
+        onClose();
+        return;
+      }
+      // Trap Tab within the modal: wrap from last→first (Tab) and first→last
+      // (Shift+Tab). If focus somehow escaped the panel, pull it back in.
+      if (e.key === 'Tab') {
+        const focusable = getFocusable();
+        if (focusable.length === 0) {
+          e.preventDefault();
+          panelRef.current?.focus();
+          return;
+        }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const active = document.activeElement as HTMLElement | null;
+        const inPanel = active ? panelRef.current?.contains(active) : false;
+        if (!inPanel) {
+          e.preventDefault();
+          (e.shiftKey ? last : first).focus();
+        } else if (e.shiftKey && active === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
     window.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
@@ -234,7 +289,7 @@ function ReviewModal({
       window.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
     };
-  }, [onClose, sending]);
+  }, [onClose, sending, getFocusable]);
 
   const forwards = dryRunResult?.forwards ?? [];
   const unmapped = dryRunResult?.unmappedItems ?? [];
@@ -255,7 +310,11 @@ function ReviewModal({
         onClick={() => !sending && onClose()}
       />
       {/* Panel */}
-      <div className="relative flex max-h-[90vh] w-full max-w-xl flex-col rounded-xl bg-gray-800 ring-1 ring-inset ring-white/10 shadow-2xl">
+      <div
+        ref={panelRef}
+        tabIndex={-1}
+        className="relative flex max-h-[90vh] w-full max-w-xl flex-col rounded-xl bg-gray-800 ring-1 ring-inset ring-white/10 shadow-2xl outline-none"
+      >
         <header className="border-b border-white/10 px-5 py-4">
           <h2 id="forward-review-title" className="text-base font-semibold text-white">
             Vérifier la commande fournisseur

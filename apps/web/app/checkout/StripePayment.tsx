@@ -22,16 +22,21 @@ export function StripePayment({ publishableKey, amountLabel }: StripePaymentProp
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/checkout/payment', { method: 'POST' })
+    const controller = new AbortController();
+    fetch('/api/checkout/payment', { method: 'POST', signal: controller.signal })
       .then(async (r) => {
         const j = await r.json();
         if (cancelled) return;
         if (!r.ok || !j.success) throw new Error(j.error || 'Erreur init paiement');
         setClientSecret(j.clientSecret as string);
       })
-      .catch((e) => !cancelled && setError(e instanceof Error ? e.message : 'Erreur'));
+      .catch((e) => {
+        if (cancelled || controller.signal.aborted) return;
+        setError(e instanceof Error ? e.message : 'Erreur');
+      });
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, []);
 
@@ -91,6 +96,7 @@ function StripePayForm({ amountLabel }: { amountLabel: string }) {
         type="button"
         onClick={pay}
         disabled={pending || !stripe || !elements}
+        aria-busy={pending}
         className="bg-black text-white px-6 py-3 rounded-md hover:bg-zinc-800 disabled:opacity-60 w-full"
       >
         {pending ? 'Paiement…' : `Payer ${amountLabel}`}

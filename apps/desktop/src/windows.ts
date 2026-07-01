@@ -126,8 +126,17 @@ export function openWindow(opts: OpenWindowOptions): BrowserWindow {
   });
 
   // Open external links (anything outside our origin) in the default browser.
+  // Only hand off http/https URLs to the OS; deny anything else (file:, etc.)
+  // to avoid passing arbitrary schemes to shell.openExternal.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url);
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        void shell.openExternal(url);
+      }
+    } catch {
+      // Malformed URL — do not open.
+    }
     return { action: 'deny' };
   });
 

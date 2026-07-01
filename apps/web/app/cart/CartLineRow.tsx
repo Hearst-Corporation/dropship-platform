@@ -5,10 +5,12 @@ import { apiFetch } from '@/lib/client-fetch';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatMoney, type StoreLineItem } from '@/lib/medusa-store';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 export function CartLineRow({ item, currency }: { item: StoreLineItem; currency: string }) {
   const [qty, setQty] = useState(item.quantity);
   const [pending, startTransition] = useTransition();
+  const [confirmRemove, setConfirmRemove] = useState(false);
   const router = useRouter();
 
   function update(newQty: number) {
@@ -99,13 +101,27 @@ export function CartLineRow({ item, currency }: { item: StoreLineItem; currency:
       </td>
       <td className="p-6 text-right">
         <button
-          onClick={() => update(0)}
+          onClick={() => setConfirmRemove(true)}
           disabled={pending}
+          aria-label={`Retirer ${item.title}`}
           className="text-sm transition-colors hover:opacity-100"
           style={{ color: 'var(--ct-text-muted, rgba(245,245,245,0.48))' }}
         >
           Retirer
         </button>
+        <ConfirmDialog
+          open={confirmRemove}
+          title="Retirer cet article ?"
+          description={`${item.title} sera retiré de votre panier.`}
+          confirmLabel="Retirer"
+          cancelLabel="Annuler"
+          tone="destructive"
+          onConfirm={() => {
+            setConfirmRemove(false);
+            update(0);
+          }}
+          onCancel={() => setConfirmRemove(false)}
+        />
       </td>
     </tr>
   );

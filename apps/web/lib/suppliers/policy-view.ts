@@ -51,7 +51,11 @@ function buildFromConstants(): SupplierPolicyRow[] {
       label: s.label,
       tier: s.tier,
       status: s.status,
-      capabilities: s.capabilities as unknown as Record<string, boolean>,
+      // SupplierCapabilities is a fixed all-boolean interface; interfaces lack
+      // an implicit index signature so they aren't directly assignable to
+      // Record<string, boolean>. Spreading into a fresh object literal yields
+      // the same values as a plain string-keyed boolean map, no `unknown` cast.
+      capabilities: { ...s.capabilities },
       connectionState: 'unknown',
     });
   }

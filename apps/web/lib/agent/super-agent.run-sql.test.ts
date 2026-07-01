@@ -208,6 +208,6 @@ describe('execRunSql integration — mocked DB pool', () => {
     const result = await execRunSql({ query: 'SELECT 1', mode: 'read' }, {});
 
     expect(mockQuery).toHaveBeenCalledOnce();
-    expect(result.output).toEqual({ rows: fakeRows, count: 1 });
+    expect(result.output).toEqual({ rows: fakeRows, count: 1, truncated: false, returned: 1 });
   });
 });

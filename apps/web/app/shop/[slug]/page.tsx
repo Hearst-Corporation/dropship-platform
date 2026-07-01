@@ -70,10 +70,10 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
     error = e instanceof Error ? e.message : 'Erreur chargement produits';
   }
 
-  const orgJsonLd = JSON.stringify(organizationSchema(store));
+  const orgJsonLd = JSON.stringify(organizationSchema(store)).replace(/</g, '\\u003c');
   const breadcrumbJsonLd = JSON.stringify(
     breadcrumbList([{ name: store.name, url: storeUrl(slug) }]),
-  );
+  ).replace(/</g, '\\u003c');
 
   // Storefront error tone — read from the locked palette when available.
   const paletteDanger =

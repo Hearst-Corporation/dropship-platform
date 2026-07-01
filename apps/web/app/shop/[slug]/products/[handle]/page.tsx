@@ -80,13 +80,13 @@ export default async function ShopProductPage({
       priceMinor: price,
       currency,
     }),
-  );
+  ).replace(/</g, '\\u003c');
   const breadcrumbJsonLd = JSON.stringify(
     breadcrumbList([
       { name: store.name, url: storeUrl(slug) },
       { name: product.title, url: productUrl(slug, product.handle) },
     ]),
-  );
+  ).replace(/</g, '\\u003c');
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-12">
