@@ -277,7 +277,7 @@ async function generateLuxuryCopy(
     const response = await trackedMessage(
       { storeId: null, step: 'luxury-copy' },
       {
-        model: 'claude-opus-4-7',
+        model: 'gpt-4o',
         max_tokens: 1500,
         system: luxuryCopySystemPrompt(),
         messages: [

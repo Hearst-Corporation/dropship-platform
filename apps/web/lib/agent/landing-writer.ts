@@ -111,7 +111,7 @@ export async function writeLandingContent(
     const res = await trackedMessage(
       { step: 'landing-content' },
       {
-        model: 'claude-haiku-4-5-20251001',
+        model: 'gpt-4o-mini',
         max_tokens: 2048,
         messages: [
           {
@@ -138,7 +138,7 @@ export async function writeLandingContent(
     const res = await trackedMessage(
       { step: 'landing-content-luxury' },
       {
-        model: 'claude-opus-4-7',
+        model: 'gpt-4o',
         max_tokens: 1500,
         system: luxuryCopySystemPrompt(),
         messages: [

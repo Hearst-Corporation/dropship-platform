@@ -175,7 +175,7 @@ async function buildSingleAssetPromptWithClaude(args: {
     const res = await trackedMessage(
       { storeId: args.storeId, step: `asset-regen-prompt:${args.kind}` },
       {
-        model: 'claude-haiku-4-5-20251001',
+        model: 'gpt-4o-mini',
         max_tokens: 512,
         messages: [
           {

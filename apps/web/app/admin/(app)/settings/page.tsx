@@ -44,6 +44,12 @@ export default async function SettingsPage() {
   const aliColor: BadgeColor = isConnected && !isExpired ? 'green' : isConnected ? 'amber' : 'zinc';
   const aliLabel = isConnected && !isExpired ? 'Connecté' : isConnected ? 'Token expiré' : 'Non connecté';
 
+  const cjEmail = (process.env.CJ_DROPSHIPPING_EMAIL || '').trim();
+  const cjKeySet = !!(process.env.CJ_DROPSHIPPING_API_KEY || '').trim();
+  const cjMeta = cjEmail ? `Compte : ${cjEmail}` : 'Compte non lié';
+  const cjColor: BadgeColor = cjKeySet ? 'green' : 'zinc';
+  const cjLabel = cjKeySet ? 'API Key configurée' : 'API Key manquante';
+
   return (
     <div className="space-y-8">
       <div>
@@ -101,8 +107,8 @@ export default async function SettingsPage() {
 
       <ProviderSection
         name="CJ Dropshipping API"
-        meta="Email: adriennejkovic@gmail.com"
-        badge={<Badge color="zinc">API Key manquante</Badge>}
+        meta={cjMeta}
+        badge={<Badge color={cjColor}>{cjLabel}</Badge>}
       >
         <Text>
           L&apos;authentification CJ nécessite une <Strong>API Key dédiée</Strong> (pas le mot de passe du compte). Va

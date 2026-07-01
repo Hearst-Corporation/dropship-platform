@@ -10,8 +10,8 @@
  *   - commit, push and deploy
  *
  * It reuses existing tool executors (dev-copilot, asset-regenerator) and adds
- * platform-wide ones (sql, store CRUD, medusa, github). The loop is Kimi-powered
- * because the user explicitly asked for Kimi as the main brain.
+ * platform-wide ones (sql, store CRUD, medusa, github). The loop is OpenAI-powered
+ * (GPT-4.1) as the main brain.
  *
  * Safety model:
  *   - Read-only SQL by default; writes need confirmation
@@ -27,7 +27,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import { getDb } from '@/lib/db';
-import { trackedKimiMessage, type KimiMessage } from './kimi';
+import { trackedOpenAIMessage, type OpenAIMessage } from './openai-agent';
 import {
   executeDevTool,
   DEV_TOOLS,
@@ -1091,7 +1091,7 @@ export async function* runSuperAgentTurn(
   userMessage: string,
   options: SuperAgentOptions,
 ): AsyncGenerator<SuperAgentEvent> {
-  const messages: KimiMessage[] = [];
+  const messages: OpenAIMessage[] = [];
 
   messages.push({ role: 'system', content: buildSuperSystemPrompt(options.page, options.storeId) });
 
@@ -1137,7 +1137,7 @@ export async function* runSuperAgentTurn(
   const maxLoops = 15;
 
   for (let loop = 0; loop < maxLoops; loop++) {
-    const response = await trackedKimiMessage(
+    const response = await trackedOpenAIMessage(
       { step: 'super-agent-turn', storeId: options.storeId ?? null },
       messages,
       { tools: SUPER_TOOLS.map((t) => ({ type: 'function', function: { name: t.name, description: t.description ?? '', parameters: t.input_schema } })) },

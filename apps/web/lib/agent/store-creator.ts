@@ -6,7 +6,7 @@ import { filterByImageQuality, type ImageQualityVerdict } from './image-quality'
 import { generateMonoAssets } from './asset-generator';
 import { writeLandingContent } from './landing-writer';
 import { extractJson } from './json';
-import { trackedKimiMessage } from './kimi';
+import { trackedOpenAIMessage } from './openai-agent';
 import { runContext } from './run-context';
 import { rankAndKeepTop } from './product-scorer';
 import { buildMedusaHandle, slugifyTitle } from './handle';
@@ -117,7 +117,7 @@ async function searchSuppliers(
 // Output token budget for a multi-product JSON payload. Each product carries a
 // 130-170 word description (~250 tokens) plus title/price/keys; branding adds
 // ~250. The old flat 4096 ceiling truncated ~12-product payloads mid-JSON,
-// surfacing as "invalid JSON". Scale with product count, clamp to Kimi's
+// surfacing as "invalid JSON". Scale with product count, clamp to the model's
 // practical output limit.
 function tokenBudgetForProducts(maxProducts: number): number {
   return Math.min(16384, Math.max(8192, maxProducts * 500 + 2000));
@@ -137,7 +137,7 @@ async function generateProductsWithClaude(
     ? 'Write ALL content in French (titles, descriptions).'
     : 'Write ALL content in English.';
 
-  const { text, finishReason } = await trackedKimiMessage({ step: 'generate-products' }, [
+  const { text, finishReason } = await trackedOpenAIMessage({ step: 'generate-products' }, [
     {
       role: 'user',
       content: `You are a dropshipping expert. Create a complete product catalog for a dropshipping store.
@@ -250,7 +250,7 @@ async function enrichSupplierProductsWithClaude(
     2,
   );
 
-  const { text, finishReason } = await trackedKimiMessage(
+  const { text, finishReason } = await trackedOpenAIMessage(
     { step: 'enrich-products' },
     [
       {

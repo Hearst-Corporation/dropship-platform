@@ -168,7 +168,7 @@ async function execAdBenchmarks(raw: unknown): Promise<ResearchToolResult> {
     const extraction = await trackedMessage(
       { step: 'ad-benchmarks-extraction', storeId: null },
       {
-        model: 'claude-haiku-4-5-20251001',
+        model: 'gpt-4o-mini',
         max_tokens: 512,
         system: 'Extract advertising benchmark numbers from the provided text. Return ONLY valid JSON. If a value is not found, use null.',
         messages: [

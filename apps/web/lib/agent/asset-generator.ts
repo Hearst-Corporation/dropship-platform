@@ -160,7 +160,7 @@ async function buildPromptsWithClaude(input: AssetGenInput): Promise<PromptBundl
 
   try {
     const res = await trackedMessage({ step: 'asset-prompts' }, {
-      model: 'claude-haiku-4-5-20251001',
+      model: 'gpt-4o-mini',
       max_tokens: 1024,
       messages: [
         {

@@ -1,31 +1,21 @@
 /**
- * Medusa API Integration (Medusa v2)
+ * Medusa API Integration (Medusa v2) — ADMIN client.
+ *
+ * `import 'server-only'` guarantees this module (and the admin credentials it
+ * reads at module scope) can never be pulled into the client bundle. The
+ * client-safe base-URL resolver lives in ./medusa-shared and is re-exported
+ * below for back-compat with existing `@/lib/medusa` imports.
+ *
  * Admin JWT: POST /auth/user/emailpass
  * Secret API key: header x-medusa-access-token (voir Medusa Admin > Settings > Secret API Keys)
  */
+import 'server-only';
+import { getMedusaBaseUrl } from './medusa-shared';
 
-const DEV_FALLBACK_MEDUSA_URL = 'https://medusa-production-656a.up.railway.app';
-
-/**
- * URL Medusa : on requiert `MEDUSA_URL` (ou `NEXT_PUBLIC_MEDUSA_URL`) en prod
- * Vercel. En dev local on accepte un fallback hardcodé pour ne pas bloquer
- * `npm run dev` quand l'env n'est pas câblé. Toute autre absence d'URL
- * déclenche une erreur explicite plutôt que de laisser fuiter une URL
- * Railway publique en production.
- */
-export function getMedusaBaseUrl(): string {
-  const raw = (process.env.MEDUSA_URL || process.env.NEXT_PUBLIC_MEDUSA_URL || '').trim();
-  const fromEnv = raw.replace(/\/$/, '');
-  if (fromEnv) return fromEnv;
-  if (process.env.VERCEL_ENV === 'production') {
-    throw new Error('[medusa] MEDUSA_URL is required in production');
-  }
-  if (process.env.NODE_ENV === 'development') {
-    console.warn('[medusa] MEDUSA_URL missing, using dev fallback');
-    return DEV_FALLBACK_MEDUSA_URL.replace(/\/$/, '');
-  }
-  return '';
-}
+// Re-exported for back-compat: server-side callers still import
+// getMedusaBaseUrl from '@/lib/medusa'. The implementation now lives in the
+// client-safe ./medusa-shared module.
+export { getMedusaBaseUrl };
 
 const MEDUSA_ADMIN_EMAIL = (process.env.MEDUSA_ADMIN_EMAIL || '').trim();
 const MEDUSA_ADMIN_PASSWORD = (process.env.MEDUSA_ADMIN_PASSWORD || '').trim();

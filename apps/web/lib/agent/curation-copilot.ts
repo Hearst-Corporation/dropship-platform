@@ -22,10 +22,10 @@ import { buildMedusaHandle } from './handle';
 import { extractJson } from './json';
 import { rebuildMessages } from './copilot-shared';
 
-// Sonnet 4.6 is the lowest priced model in our table that does reliable tool
-// use. Haiku 4.5 is cheaper but in our tests it occasionally invents tool
-// names. If a sonnet-4-7 ships, swap here.
-const CURATION_MODEL = 'claude-sonnet-4-6';
+// GPT-4o does reliable tool use for the curation loop. A cheaper mini model
+// occasionally invents tool names in our tests, so we keep the full model for
+// the tool-driven turns.
+const CURATION_MODEL = 'gpt-4o';
 
 // ── Tool schemas (Zod) ────────────────────────────────────────────────
 // Zod is the source of truth — we derive both the Anthropic schema string
@@ -589,7 +589,7 @@ async function execRewriteProductCopy(
   }
 
   const response = await trackedMessage({ step: 'curate-rewrite-copy' }, {
-    model: 'claude-haiku-4-5-20251001',
+    model: 'gpt-4o-mini',
     max_tokens: 1024,
     messages: [
       {

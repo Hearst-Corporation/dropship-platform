@@ -105,7 +105,7 @@ export default async function ObservabilityPage() {
         <Subheading>Vue d&apos;ensemble</Subheading>
         <dl className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <div className="min-w-0">
-            <DescriptionTerm>Dépensé (estimé)</DescriptionTerm>
+            <DescriptionTerm>Dépensé (est.)</DescriptionTerm>
             <DescriptionDetails className="tabular-nums">{eur(totalSpent)}</DescriptionDetails>
           </div>
           <div className="min-w-0">
@@ -113,7 +113,7 @@ export default async function ObservabilityPage() {
             <DescriptionDetails className="tabular-nums">{eur(totalRevenue)}</DescriptionDetails>
           </div>
           <div className="min-w-0">
-            <DescriptionTerm>ROAS global</DescriptionTerm>
+            <DescriptionTerm>ROAS global (est.)</DescriptionTerm>
             <DescriptionDetails className="tabular-nums">{roas(totalRevenue, totalSpent)}</DescriptionDetails>
           </div>
           <div className="min-w-0">
@@ -139,9 +139,9 @@ export default async function ObservabilityPage() {
             <TableRow>
               <TableHeader>Canal</TableHeader>
               <TableHeader>État</TableHeader>
-              <TableHeader className="text-right">Dépensé</TableHeader>
+              <TableHeader className="text-right">Dépensé (est.)</TableHeader>
               <TableHeader className="text-right">Revenus</TableHeader>
-              <TableHeader className="text-right">ROAS</TableHeader>
+              <TableHeader className="text-right">ROAS (est.)</TableHeader>
               <TableHeader className="text-right">Campagnes</TableHeader>
             </TableRow>
           </TableHead>
@@ -182,9 +182,9 @@ export default async function ObservabilityPage() {
                 <TableHeader>Canal</TableHeader>
                 <TableHeader>Store</TableHeader>
                 <TableHeader className="text-right">Budget/j</TableHeader>
-                <TableHeader className="text-right">Dépensé</TableHeader>
+                <TableHeader className="text-right">Dépensé (est.)</TableHeader>
                 <TableHeader className="text-right">Revenus</TableHeader>
-                <TableHeader className="text-right">ROAS</TableHeader>
+                <TableHeader className="text-right">ROAS (est.)</TableHeader>
                 <TableHeader className="text-right">Conv.</TableHeader>
               </TableRow>
             </TableHead>

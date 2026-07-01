@@ -20,9 +20,9 @@ vi.mock('@/lib/db', () => ({
   getDbRead: () => ({ query: mockQuery }),
 }));
 
-// Kimi client — not under test here.
-vi.mock('./kimi', () => ({
-  trackedKimiMessage: vi.fn(),
+// OpenAI agent client — not under test here.
+vi.mock('./openai-agent', () => ({
+  trackedOpenAIMessage: vi.fn(),
 }));
 
 // dev-copilot — not under test here.

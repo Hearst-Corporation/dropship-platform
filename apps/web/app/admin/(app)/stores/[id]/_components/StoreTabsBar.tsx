@@ -3,23 +3,23 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard,
-  BarChart2,
-  Package,
-  SlidersHorizontal,
-  Bot,
-  Image,
-  type LucideIcon,
-} from 'lucide-react';
+  Squares2X2Icon,
+  ChartBarIcon,
+  CubeIcon,
+  AdjustmentsHorizontalIcon,
+  PhotoIcon,
+} from '@heroicons/react/24/outline';
 
 // ── Tab definitions ───────────────────────────────────────────────────────────
+
+type HeroIcon = typeof Squares2X2Icon;
 
 interface StoreTab {
   id: string;
   label: string;
   /** Route with [id] placeholder replaced by storeId at render time. */
   routePattern: string;
-  Icon: LucideIcon;
+  Icon: HeroIcon;
   /** When true, active only on exact pathname match. */
   exact?: boolean;
 }
@@ -29,38 +29,32 @@ const STORE_TABS: readonly StoreTab[] = [
     id: 'overview',
     label: 'Détails',
     routePattern: '/admin/stores/[id]',
-    Icon: LayoutDashboard,
+    Icon: Squares2X2Icon,
     exact: true,
   },
   {
     id: 'analytics',
     label: 'Analytics',
     routePattern: '/admin/stores/[id]/analytics',
-    Icon: BarChart2,
+    Icon: ChartBarIcon,
   },
   {
     id: 'catalog',
     label: 'Catalogue',
     routePattern: '/admin/stores/[id]/catalog',
-    Icon: Package,
+    Icon: CubeIcon,
   },
   {
     id: 'settings',
     label: 'Réglages',
     routePattern: '/admin/stores/[id]/settings',
-    Icon: SlidersHorizontal,
-  },
-  {
-    id: 'copilot',
-    label: 'Copilote',
-    routePattern: '/admin/stores/[id]/copilot',
-    Icon: Bot,
+    Icon: AdjustmentsHorizontalIcon,
   },
   {
     id: 'assets',
     label: 'Médias',
     routePattern: '/admin/stores/[id]/assets',
-    Icon: Image,
+    Icon: PhotoIcon,
   },
 ] as const;
 
@@ -104,7 +98,7 @@ export function StoreTabsBar({ storeId }: StoreTabsBarProps) {
                 : 'border-transparent font-medium text-zinc-500 hover:border-zinc-950/20 hover:text-zinc-800 dark:text-zinc-400 dark:hover:border-white/20 dark:hover:text-zinc-200',
             ].join(' ')}
           >
-            <tab.Icon size={16} strokeWidth={1.75} aria-hidden />
+            <tab.Icon className="size-4" aria-hidden />
             {tab.label}
           </Link>
         );

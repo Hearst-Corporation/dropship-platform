@@ -5,7 +5,7 @@ import { join } from 'node:path';
 
 /**
  * Provider-migration invariant (June 2026): the entire agent runtime calls
- * OpenAI through trackedMessage() / trackedKimiMessage(), both of which read
+ * OpenAI through trackedMessage() / trackedOpenAIMessage(), both of which read
  * process.env.OPENAI_API_KEY. This test guards against the class of regression
  * found in the total audit: a call site that gates real LLM work on
  * process.env.ANTHROPIC_API_KEY — a variable prod no longer sets — which
@@ -34,7 +34,7 @@ describe('agent LLM provider migration (OpenAI-only runtime)', () => {
 
   // The two runtime wrappers must be server-only and require the key server-side
   // (secret never crosses the client boundary; no silent keyless run).
-  for (const f of ['anthropic.ts', 'kimi.ts']) {
+  for (const f of ['anthropic.ts', 'openai-agent.ts']) {
     it(`${f} is server-only and requires OPENAI_API_KEY at call time`, () => {
       const src = readFileSync(join(dir, f), 'utf8');
       expect(src, `${f} must import 'server-only'`).toMatch(/import\s+['"]server-only['"]/);

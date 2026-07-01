@@ -19,8 +19,17 @@ interface ConfirmDialogProps {
   onCancel: () => void;
 }
 
-export function ConfirmDialog({
-  open,
+/**
+ * Public wrapper. It renders nothing while closed and mounts a fresh
+ * ConfirmDialogBody each time it opens. The remount is what resets the
+ * transient `confirming` state — no setState inside an effect is needed.
+ */
+export function ConfirmDialog(props: ConfirmDialogProps) {
+  if (!props.open) return null;
+  return <ConfirmDialogBody {...props} />;
+}
+
+function ConfirmDialogBody({
   title,
   description,
   confirmLabel = 'Confirmer',
@@ -41,10 +50,6 @@ export function ConfirmDialog({
   }, [confirming]);
 
   useEffect(() => {
-    if (!open) {
-      setConfirming(false);
-      return;
-    }
     confirmRef.current?.focus();
     const runConfirm = async () => {
       if (confirmingRef.current) return;
@@ -70,9 +75,7 @@ export function ConfirmDialog({
       window.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
     };
-  }, [open, onCancel, onConfirm]);
-
-  if (!open) return null;
+  }, [onCancel, onConfirm]);
 
   const handleConfirm = async () => {
     if (confirmingRef.current) return;

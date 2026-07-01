@@ -2,7 +2,7 @@
  * Medusa Store API client (publishable-key-based, used by the public storefront).
  * Distinct from the admin client in lib/medusa.ts.
  */
-import { getMedusaBaseUrl } from './medusa';
+import { getMedusaBaseUrl } from './medusa-shared';
 
 const MEDUSA_PUBLISHABLE_KEY = (process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || '').trim();
 

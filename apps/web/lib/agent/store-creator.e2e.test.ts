@@ -161,8 +161,8 @@ const kimi = vi.hoisted(() => {
   };
 });
 
-vi.mock('@/lib/agent/kimi', () => ({
-  trackedKimiMessage: vi.fn(
+vi.mock('@/lib/agent/openai-agent', () => ({
+  trackedOpenAIMessage: vi.fn(
     (meta: { step: string }, messages?: unknown, opts?: { maxTokens?: number }) => {
       kimi.calls.push({ meta, opts });
       return Promise.resolve(kimi.responder(meta, messages, opts));
