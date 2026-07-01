@@ -84,4 +84,23 @@ describe('extractJson', () => {
   it('does not invent content when nothing complete was emitted', () => {
     expect(extractJson('{"branding": {"tagline": "coupé tout de suite')).toBeNull();
   });
+
+  it('repairs raw newlines/tabs left unescaped inside a string (Kimi long descriptions)', () => {
+    // The enrichment failure mode: a complete (not truncated) body where a
+    // 130-170 word description carries literal newlines inside the JSON string.
+    const input = '{"products": [{"enrichedDescription": "Ligne une.\nLigne deux avec\ttab.\nLigne trois."}]}';
+    const parsed = extractJson<{ products: Array<{ enrichedDescription: string }> }>(input);
+    expect(parsed?.products[0].enrichedDescription).toBe('Ligne une.\nLigne deux avec\ttab.\nLigne trois.');
+  });
+
+  it('repairs trailing commas before } and ]', () => {
+    const input = '{"a": 1, "list": [1, 2, 3,], "b": 2,}';
+    expect(extractJson(input)).toEqual({ a: 1, list: [1, 2, 3], b: 2 });
+  });
+
+  it('does not drop commas that live inside string values while repairing', () => {
+    // Trailing comma forces the repair path; the in-string commas must survive.
+    const input = '{"csv": "a, b, c", "n": 1,}';
+    expect(extractJson<{ csv: string; n: number }>(input)).toEqual({ csv: 'a, b, c', n: 1 });
+  });
 });

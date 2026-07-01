@@ -53,8 +53,78 @@ function candidateBodies(text: string): string[] {
   // Strip a leading fence open (```json) before salvaging — truncation often
   // cuts the response before the closing fence so the regex above misses.
   const defenced = trimmed.replace(/^```(?:json)?\s*\n?/i, '');
+
+  // Repair a *complete but malformed* body — the failure mode we hit on Kimi
+  // when it emits long (130-170 word) description strings: raw newlines/tabs
+  // left unescaped inside string values, and trailing commas before } or ].
+  // Both make JSON.parse throw even though the response was not truncated
+  // (finishReason !== 'length'). This runs only after the clean candidates
+  // above fail, so it never rewrites already-valid JSON.
+  const repaired = repairMalformedJson(balanced ?? defenced);
+  if (repaired) out.push(repaired);
+
   const salvaged = salvageTruncatedJson(defenced);
   if (salvaged) out.push(salvaged);
+
+  return out;
+}
+
+/**
+ * Make a structurally-complete-but-malformed JSON body parseable. Walks the
+ * text string-aware and fixes the two common LLM emission bugs:
+ *   - raw control characters (newline, tab, CR, other < 0x20) inside a string
+ *     literal are escaped to their \\n / \\t / \\r / \\uXXXX forms;
+ *   - a comma immediately before a closing } or ] (outside a string) is dropped.
+ * Returns the repaired string, or null if there is no object/array to repair.
+ * Semantics are preserved — only escaping and dangling separators change.
+ */
+function repairMalformedJson(input: string): string | null {
+  const start = input.search(/[{[]/);
+  if (start === -1) return null;
+  const s = input.slice(start);
+
+  let out = '';
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (escaped) {
+      out += c;
+      escaped = false;
+      continue;
+    }
+    if (inString) {
+      if (c === '\\') {
+        out += c;
+        escaped = true;
+        continue;
+      }
+      if (c === '"') {
+        out += c;
+        inString = false;
+        continue;
+      }
+      const code = c.charCodeAt(0);
+      if (code < 0x20) {
+        out += c === '\n' ? '\\n' : c === '\r' ? '\\r' : c === '\t' ? '\\t' : `\\u${code.toString(16).padStart(4, '0')}`;
+      } else {
+        out += c;
+      }
+      continue;
+    }
+    if (c === '"') {
+      out += c;
+      inString = true;
+      continue;
+    }
+    if (c === ',') {
+      let j = i + 1;
+      while (j < s.length && /\s/.test(s[j])) j++;
+      if (s[j] === '}' || s[j] === ']') continue; // drop the trailing comma
+    }
+    out += c;
+  }
 
   return out;
 }
