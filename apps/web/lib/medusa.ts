@@ -156,6 +156,18 @@ class MedusaAPI {
   }
 
   /**
+   * Cheap configuration probe for diagnostic routes (e.g. /api/medusa/introspect):
+   * lets a caller fail fast with a 503 instead of firing admin requests against an
+   * empty base URL.
+   */
+  checkConfig(): { ok: boolean; message?: string } {
+    if (!this.baseUrl) {
+      return { ok: false, message: 'MEDUSA_URL is not configured' };
+    }
+    return { ok: true };
+  }
+
+  /**
    * Wrapper around fetch() with retry logic for transient failures.
    * Retries on 5xx, 429, 408, and network errors. Does NOT retry on
    * 4xx (client errors) except 429/408.
