@@ -6,8 +6,14 @@ import { formatMoney, listProducts } from '@/lib/medusa-store';
 import { breadcrumbList, organizationSchema, storeUrl, withCanonical } from '@/lib/seo';
 import { TrackPageView } from '@/components/analytics/TrackPageView';
 import { StoreLogo } from '@/components/ui';
+import { TEMPLATE_CATALOG, type StoreTemplate } from '@/lib/template-catalog';
+import { StorefrontEditorial } from './StorefrontEditorial';
+import { StorefrontBold } from './StorefrontBold';
+import { StorefrontMinimal } from './StorefrontMinimal';
+import { StorefrontShowcase } from './StorefrontShowcase';
 
 export const dynamic = 'force-dynamic';
+
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -82,6 +88,31 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
   // now renders the generic storefront: hero + product grid, driven by the
   // store's locked palette. The single/grid distinction is kept for UX.
   const isMono = products.length === 1;
+
+  // Template selector — maps store.template to a bespoke storefront when available.
+  if (store.template && store.template !== 'auto' && products.length > 0 && !error) {
+    const entry = TEMPLATE_CATALOG.find((t) => t.id === (store.template as StoreTemplate));
+    const templateProps = { store, products };
+    const storefrontJsx =
+      entry?.register === 'luxury' ? <StorefrontShowcase {...templateProps} /> :
+      entry?.mode === 'mono'       ? <StorefrontMinimal {...templateProps} /> :
+      entry?.mode === 'split'      ? <StorefrontBold {...templateProps} /> :
+      <StorefrontEditorial {...templateProps} />;
+
+    return (
+      <>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: orgJsonLd }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbJsonLd }} />
+        <TrackPageView
+          slug={slug}
+          eventName={isMono && products[0] ? 'view_content' : 'page_view'}
+          productId={isMono ? products[0]?.id : undefined}
+          variantId={isMono ? products[0]?.variants?.[0]?.id : undefined}
+        />
+        {storefrontJsx}
+      </>
+    );
+  }
 
   return (
     <div>
