@@ -9,15 +9,17 @@ import { Heading, Subheading } from '@/components/catalyst/heading';
 import { Text, TextLink, Strong } from '@/components/catalyst/text';
 import { Badge } from '@/components/catalyst/badge';
 import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from '@/components/catalyst/table';
-import { DescriptionList, DescriptionTerm, DescriptionDetails } from '@/components/catalyst/description-list';
+import { DescriptionTerm, DescriptionDetails } from '@/components/catalyst/description-list';
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid';
 
 export const dynamic = 'force-dynamic';
 
+/** One forward leg per row in dropship_order_forwards. */
 interface ForwardSummary {
   medusa_order_id: string;
+  supplier: string;
+  supplier_order_id: string | null;
   status: string;
-  ae_order_id: string | null;
   dry_run: boolean;
   error_message: string | null;
   paid_at: string | null;
@@ -26,7 +28,7 @@ interface ForwardSummary {
 
 interface AwaitingPaymentRow {
   medusa_order_id: string;
-  ae_order_id: string;
+  supplier_order_id: string;
   forwarded_at: string;
   customer_email: string | null;
   total_minor: number | null;
@@ -37,15 +39,14 @@ interface AwaitingPaymentRow {
 export default async function OrdersPage() {
   // 3 queries indépendantes en parallèle au lieu de séquentiel.
   // - medusa.getOrders : appel HTTP Medusa (le plus lent)
-  // - awaitingRaw : DB read query
-  // (la query forwardsByOrder dépend de orders.id donc reste séquentielle après)
+  // - awaitingRaw : DB read query — AliExpress rows awaiting payment
   const [ordersResult, awaitingResult] = await Promise.all([
     medusa.getOrders({ limit: 50 }).catch((e) => ({ error: e instanceof Error ? e.message : 'Unknown error', orders: [] as Awaited<ReturnType<typeof medusa.getOrders>>['orders'] })),
-    getDbRead().query<{ medusa_order_id: string; ae_order_id: string; created_at: string }>(
-      `SELECT medusa_order_id, ae_order_id, created_at
+    getDbRead().query<{ medusa_order_id: string; supplier_order_id: string; created_at: string }>(
+      `SELECT medusa_order_id, supplier_order_id, created_at
          FROM dropship_order_forwards
         WHERE status = 'sent' AND dry_run = false AND paid_at IS NULL
-          AND ae_order_id IS NOT NULL
+          AND supplier = 'aliexpress' AND supplier_order_id IS NOT NULL
         ORDER BY created_at ASC`,
     ),
   ]);
@@ -55,18 +56,27 @@ export default async function OrdersPage() {
   const awaitingRaw = awaitingResult.rows;
 
   const ids = orders.map((o) => o.id);
-  let forwardsByOrder = new Map<string, ForwardSummary>();
+  // Map<medusa_order_id, ForwardSummary[]> — one array per order, one entry per supplier leg.
+  const forwardsByOrder = new Map<string, ForwardSummary[]>();
   if (ids.length > 0) {
     const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ');
     const { rows } = await getDbRead().query<ForwardSummary>(
-      `SELECT DISTINCT ON (medusa_order_id)
-              medusa_order_id, status, ae_order_id, dry_run, error_message, paid_at, created_at
+      `SELECT medusa_order_id, supplier, supplier_order_id, status, dry_run,
+              error_message, paid_at, created_at
          FROM dropship_order_forwards
         WHERE medusa_order_id IN (${placeholders})
+          AND supplier_order_id IS NOT NULL
         ORDER BY medusa_order_id, created_at DESC`,
       ids,
     );
-    forwardsByOrder = new Map(rows.map((r) => [r.medusa_order_id, r]));
+    for (const row of rows) {
+      const existing = forwardsByOrder.get(row.medusa_order_id);
+      if (existing) {
+        existing.push(row);
+      } else {
+        forwardsByOrder.set(row.medusa_order_id, [row]);
+      }
+    }
   }
 
   // Hydrate with Medusa info for orders that scrolled off the limit-50 window.
@@ -82,7 +92,7 @@ export default async function OrdersPage() {
     const o = ordersById.get(r.medusa_order_id);
     return {
       medusa_order_id: r.medusa_order_id,
-      ae_order_id: r.ae_order_id,
+      supplier_order_id: r.supplier_order_id,
       forwarded_at: r.created_at,
       customer_email: o?.email ?? null,
       total_minor: o?.total ?? null,
@@ -91,21 +101,22 @@ export default async function OrdersPage() {
     };
   });
 
+  // Flatten all forward legs for aggregate stats.
+  const allLegs = Array.from(forwardsByOrder.values()).flat();
+
   const stats = {
     paidOrders: orders.filter(
       (o) => o.payment_status === 'captured' || o.payment_status === 'authorized',
     ).length,
     awaitingPayment: awaitingPayment.length,
-    paidAtAe: Array.from(forwardsByOrder.values()).filter(
-      (f) => f.status === 'sent' && f.paid_at,
-    ).length,
-    errors: Array.from(forwardsByOrder.values()).filter((f) => f.status === 'error').length,
+    paidAtSupplier: allLegs.filter((f) => f.status === 'sent' && f.paid_at).length,
+    errors: allLegs.filter((f) => f.status === 'error').length,
   };
 
   const kpis = [
     { label: 'Commandes payées', value: String(stats.paidOrders) },
     { label: 'À payer chez AE', value: String(stats.awaitingPayment) },
-    { label: 'Payées chez AE', value: String(stats.paidAtAe) },
+    { label: 'Payées fournisseur', value: String(stats.paidAtSupplier) },
     { label: 'Erreurs forward', value: String(stats.errors) },
   ];
 
@@ -115,7 +126,7 @@ export default async function OrdersPage() {
         <div className="min-w-0">
           <Heading>Carnet de commandes</Heading>
           <Text>
-            Forward chaque commande payée vers AliExpress. Le dry-run sauve le payload sans rien envoyer.
+            Forward chaque commande payée vers le fournisseur. Le dry-run sauve le payload sans rien envoyer.
           </Text>
         </div>
         <DryRunPendingButton />
@@ -187,12 +198,12 @@ export default async function OrdersPage() {
                     </TableCell>
                     <TableCell>
                       <TextLink
-                        href={aliExpressOrderUrl(row.ae_order_id)}
+                        href={aliExpressOrderUrl(row.supplier_order_id)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 font-mono text-xs"
                       >
-                        {row.ae_order_id}
+                        {row.supplier_order_id}
                         <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" aria-hidden="true" />
                       </TextLink>
                     </TableCell>
@@ -237,14 +248,15 @@ export default async function OrdersPage() {
                 <TableHeader>Client</TableHeader>
                 <TableHeader>Total</TableHeader>
                 <TableHeader>Paiement</TableHeader>
-                <TableHeader>AliExpress</TableHeader>
+                <TableHeader>Fournisseur(s)</TableHeader>
                 <TableHeader className="text-right">Action</TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
               {orders.map((order) => {
-                const forward = forwardsByOrder.get(order.id) ?? null;
-                const sent = forward?.status === 'sent';
+                const legs = forwardsByOrder.get(order.id) ?? [];
+                // Consider "sent" if any leg has status=sent.
+                const sent = legs.some((f) => f.status === 'sent');
                 const paymentOk =
                   order.payment_status === 'captured' || order.payment_status === 'authorized';
                 return (
@@ -276,35 +288,58 @@ export default async function OrdersPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {forward ? (
-                        forward.status === 'sent' && forward.ae_order_id ? (
-                          <div className="flex flex-col items-start gap-1">
-                            <Badge color={forward.paid_at ? 'green' : 'zinc'}>
-                              {forward.paid_at ? 'payée' : 'à payer'}
-                            </Badge>
-                            <TextLink
-                              href={aliExpressOrderUrl(forward.ae_order_id)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="font-mono text-xs"
-                            >
-                              {forward.ae_order_id}
-                            </TextLink>
-                          </div>
-                        ) : forward.status === 'dry_run' ? (
-                          <Badge color="green">dry-run prêt</Badge>
-                        ) : (
-                          <div className="flex max-w-52 flex-col items-start gap-1">
-                            <Badge color="red">erreur</Badge>
-                            {forward.error_message && (
-                              <Text className="line-clamp-2 text-xs" title={forward.error_message}>
-                                {forward.error_message}
-                              </Text>
-                            )}
-                          </div>
-                        )
-                      ) : (
+                      {legs.length === 0 ? (
                         <Text>—</Text>
+                      ) : (
+                        <div className="flex flex-col items-start gap-1">
+                          {legs.map((leg, legIdx) => {
+                            if (leg.status === 'sent' && leg.supplier_order_id) {
+                              if (leg.supplier === 'aliexpress') {
+                                return (
+                                  <div key={legIdx} className="flex flex-col items-start gap-0.5">
+                                    <Badge color={leg.paid_at ? 'green' : 'zinc'}>
+                                      {leg.paid_at ? 'payée' : 'à payer'}
+                                    </Badge>
+                                    <TextLink
+                                      href={aliExpressOrderUrl(leg.supplier_order_id)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="font-mono text-xs"
+                                    >
+                                      AE {leg.supplier_order_id}
+                                    </TextLink>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div key={legIdx} className="flex flex-col items-start gap-0.5">
+                                  <Badge color="zinc">envoyée</Badge>
+                                  <span className="font-mono text-xs text-zinc-500">
+                                    {leg.supplier} #{leg.supplier_order_id}
+                                  </span>
+                                </div>
+                              );
+                            }
+                            if (leg.status === 'dry_run') {
+                              return (
+                                <Badge key={legIdx} color="green">
+                                  dry-run prêt ({leg.supplier})
+                                </Badge>
+                              );
+                            }
+                            // error
+                            return (
+                              <div key={legIdx} className="flex max-w-52 flex-col items-start gap-1">
+                                <Badge color="red">erreur ({leg.supplier})</Badge>
+                                {leg.error_message && (
+                                  <Text className="line-clamp-2 text-xs" title={leg.error_message}>
+                                    {leg.error_message}
+                                  </Text>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       )}
                     </TableCell>
                     <TableCell className="text-right">

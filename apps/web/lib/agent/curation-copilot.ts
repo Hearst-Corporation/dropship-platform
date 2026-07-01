@@ -14,8 +14,8 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import { getDb } from '@/lib/db';
 import { medusa } from '@/lib/medusa';
-import * as aliexpress from '@/lib/suppliers/aliexpress';
-import * as cj from '@/lib/suppliers/cj';
+import { searchAllSuppliers, getSupplier, isSupplierId, SupplierIdSchema, SUPPLIER_IDS, type SupplierId } from '@/lib/suppliers/registry';
+import type { RawProduct } from '@/lib/suppliers/types';
 import { trackedMessage } from './anthropic';
 import { rankAndKeepTop } from './product-scorer';
 import { buildMedusaHandle } from './handle';
@@ -39,7 +39,7 @@ const SearchProductsInput = z.object({
 const ListCurrentProductsInput = z.object({}).strict();
 
 const AddProductInput = z.object({
-  supplier: z.enum(['aliexpress', 'cj']),
+  supplier: SupplierIdSchema,
   supplier_product_id: z.string().min(1),
   overrides: z
     .object({
@@ -95,7 +95,7 @@ const TOOLS: Anthropic.Messages.Tool[] = [
     input_schema: {
       type: 'object',
       properties: {
-        supplier: { type: 'string', enum: ['aliexpress', 'cj'] },
+        supplier: { type: 'string', enum: [...SUPPLIER_IDS] },
         supplier_product_id: { type: 'string' },
         overrides: {
           type: 'object',
@@ -279,58 +279,15 @@ async function execSearchProducts(
   const input = SearchProductsInput.parse(raw);
   const limit = input.limit ?? 10;
 
-  const [aliRes, cjRes] = await Promise.allSettled([
-    aliexpress.searchProducts({
-      keywords: input.query,
-      pageSize: Math.min(limit * 2, 30),
-      currency: 'EUR',
-      countryCode: 'FR',
-      locale: 'fr_FR',
-    }),
-    cj.searchProducts({ keywords: input.query, pageSize: Math.min(limit * 2, 30) }),
-  ]);
+  const { products: candidates, errors } = await searchAllSuppliers({
+    keywords: input.query,
+    pageSize: Math.min(limit * 2, 30),
+    currency: 'EUR',
+    countryCode: 'FR',
+    locale: 'fr_FR',
+  });
 
-  type Candidate = {
-    supplier: 'aliexpress' | 'cj';
-    externalId: string;
-    title: string;
-    price: number;
-    imageUrl: string;
-    supplierUrl: string;
-    orders?: number;
-    evaluateRate?: string;
-  };
-
-  const candidates: Candidate[] = [];
-  if (aliRes.status === 'fulfilled' && aliRes.value.success && aliRes.value.data) {
-    for (const p of aliRes.value.data.products) {
-      const ordersParsed = parseInt(p.thirty_days_sold_count || '0', 10);
-      candidates.push({
-        supplier: 'aliexpress',
-        externalId: p.product_id,
-        title: p.product_title,
-        price: parseFloat(p.sale_price || p.original_price || '0'),
-        imageUrl: p.product_main_image_url,
-        supplierUrl: p.product_url,
-        orders: Number.isFinite(ordersParsed) ? ordersParsed : undefined,
-        evaluateRate: p.evaluate_rate || undefined,
-      });
-    }
-  }
-  if (cjRes.status === 'fulfilled' && cjRes.value.success && cjRes.value.data) {
-    for (const p of cjRes.value.data.list) {
-      candidates.push({
-        supplier: 'cj',
-        externalId: p.pid,
-        title: p.productNameEn,
-        price: p.sellPrice,
-        imageUrl: p.productImage,
-        supplierUrl: p.sellUrl || '',
-      });
-    }
-  }
-
-  const top = rankAndKeepTop(candidates, limit).map((p) => {
+  const top = rankAndKeepTop(candidates as RawProduct[], limit).map((p) => {
     const costCents = Math.max(0, Math.round(p.price * 100));
     // Mirror store-creator pricing rule: cost * 2.2, floor 999, round to .99
     const retailRaw = Math.max(999, Math.round(costCents * 2.2 / 100) * 100 - 1);
@@ -349,14 +306,6 @@ async function execSearchProducts(
       score_reasons: p._scoreReasons,
     };
   });
-
-  // Surface supplier connectivity errors so the model can tell the user
-  // why a search returned nothing — better than silent zero results.
-  const errors: string[] = [];
-  if (aliRes.status === 'fulfilled' && !aliRes.value.success) errors.push(`AE: ${aliRes.value.error}`);
-  if (aliRes.status === 'rejected') errors.push(`AE: ${aliRes.reason instanceof Error ? aliRes.reason.message : String(aliRes.reason)}`);
-  if (cjRes.status === 'fulfilled' && !cjRes.value.success) errors.push(`CJ: ${cjRes.value.error}`);
-  if (cjRes.status === 'rejected') errors.push(`CJ: ${cjRes.reason instanceof Error ? cjRes.reason.message : String(cjRes.reason)}`);
 
   return {
     output: { query: input.query, candidates: top, supplier_errors: errors },
@@ -425,41 +374,29 @@ async function execAddProduct(
   let supplierUrl = '';
   let costCents = 0;
 
-  if (input.supplier === 'aliexpress') {
-    // The DS text search is our only catalog probe right now; we re-search
-    // by the title hint stored in overrides, or by the product id itself.
-    const probe = await aliexpress.searchProducts({
+  if (!isSupplierId(input.supplier)) {
+    throw new Error(`Fournisseur inconnu: "${input.supplier}".`);
+  }
+
+  {
+    const client = getSupplier(input.supplier as SupplierId);
+    const probe = await client.searchProducts({
       keywords: input.overrides?.title || input.supplier_product_id,
       pageSize: 30,
       currency: 'EUR',
       countryCode: 'FR',
       locale: 'fr_FR',
     });
-    const match = probe.success && probe.data
-      ? probe.data.products.find((p) => p.product_id === input.supplier_product_id)
+    const match = probe.success
+      ? probe.products.find((p) => p.externalId === input.supplier_product_id)
       : undefined;
     if (!match) {
-      throw new Error(`AliExpress: produit ${input.supplier_product_id} introuvable.`);
+      throw new Error(`${input.supplier}: produit ${input.supplier_product_id} introuvable.`);
     }
-    title = match.product_title;
-    imageUrl = match.product_main_image_url;
-    supplierUrl = match.product_url;
-    costCents = Math.round(parseFloat(match.sale_price || match.original_price || '0') * 100);
-  } else {
-    const probe = await cj.searchProducts({
-      keywords: input.overrides?.title || input.supplier_product_id,
-      pageSize: 30,
-    });
-    const match = probe.success && probe.data
-      ? probe.data.list.find((p) => p.pid === input.supplier_product_id)
-      : undefined;
-    if (!match) {
-      throw new Error(`CJ: produit ${input.supplier_product_id} introuvable.`);
-    }
-    title = match.productNameEn;
-    imageUrl = match.productImage;
-    supplierUrl = match.sellUrl;
-    costCents = Math.round(match.sellPrice * 100);
+    title = match.title;
+    imageUrl = match.imageUrl;
+    supplierUrl = match.supplierUrl;
+    costCents = Math.round(match.price * 100);
   }
 
   const finalTitle = input.overrides?.title || title || 'Produit sans titre';

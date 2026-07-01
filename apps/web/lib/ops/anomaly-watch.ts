@@ -26,7 +26,10 @@ import { medusa } from '@/lib/medusa';
 
 export interface StrandedForward {
   medusa_order_id: string;
-  ae_order_id: string;
+  supplier: string;
+  supplier_order_id: string;
+  /** AliExpress order number — only set (and only deep-linkable) for supplier='aliexpress'. */
+  ae_order_id: string | null;
   created_at: string;
   age_days: number;
 }
@@ -84,27 +87,35 @@ export async function runAnomalyWatch(): Promise<AnomalyWatchResult> {
   const warnings: string[] = [];
   const db = getDbRead();
 
-  // 1) Stranded "awaiting payment at AE" > 15 days. Same partial index
-  //    `idx_order_forwards_awaiting_payment` the admin /orders page uses,
-  //    so this stays cheap even on a long history.
+  // 1) Stranded "awaiting payment at supplier" > 15 days. Generalized across ALL
+  //    forwardable suppliers: live CJ/Zendrop/BigBuy forwards set
+  //    `supplier_order_id` but leave `ae_order_id` NULL, so filtering on
+  //    `supplier_order_id IS NOT NULL` keeps them visible to ops safeguards
+  //    (the old `ae_order_id IS NOT NULL` filter was AliExpress-blind). The AE
+  //    deep-link is built downstream only when supplier='aliexpress'.
   const { rows: strandedRows } = await db.query<{
     medusa_order_id: string;
-    ae_order_id: string;
+    supplier: string;
+    supplier_order_id: string;
+    ae_order_id: string | null;
     created_at: string;
   }>(
-    `SELECT medusa_order_id, ae_order_id, created_at
+    `SELECT medusa_order_id, supplier, supplier_order_id, ae_order_id, created_at
        FROM dropship_order_forwards
       WHERE status = 'sent'
         AND paid_at IS NULL
         AND dry_run = false
-        AND ae_order_id IS NOT NULL
+        AND supplier_order_id IS NOT NULL
         AND created_at < now() - interval '15 days'
       ORDER BY created_at ASC
       LIMIT 500`,
   );
   const stranded: StrandedForward[] = strandedRows.map((r) => ({
     medusa_order_id: r.medusa_order_id,
-    ae_order_id: r.ae_order_id,
+    supplier: r.supplier,
+    supplier_order_id: r.supplier_order_id,
+    // Only AliExpress rows carry a real AE order number that aliExpressOrderUrl can link.
+    ae_order_id: r.supplier === 'aliexpress' ? r.ae_order_id : null,
     created_at: r.created_at,
     age_days: daysBetween(now, r.created_at),
   }));
@@ -133,10 +144,14 @@ export async function runAnomalyWatch(): Promise<AnomalyWatchResult> {
 
   // 2) Stuck Stripe → forward gap > 4h. We rely on the 50 most recent Medusa
   //    orders (same window the admin page uses) — any paid order older than
-  //    that window has either been forwarded or is already lost. Joining
-  //    against the full `dropship_order_forwards` table (all statuses,
-  //    including dry_run) ensures we don't flag an order the founder
-  //    intentionally left in dry-run.
+  //    that window has either been forwarded or is already lost.
+  //
+  //    "Seen" must mean a REAL live forward exists — mirror the composite-lock
+  //    predicate (dry_run = false AND status IN ('sending','sent')). An order
+  //    whose ONLY forward rows are dry-runs or failed attempts (status='error')
+  //    is NOT handled: nothing shipped, so it must resurface as stuck. Counting
+  //    those rows as "seen" (the old all-statuses join) hid errored-only paid
+  //    orders forever.
   const stuck: StuckOrder[] = [];
   try {
     const { orders } = await medusa.getOrders({ limit: 50 });
@@ -149,7 +164,9 @@ export async function runAnomalyWatch(): Promise<AnomalyWatchResult> {
       const { rows: existing } = await db.query<{ medusa_order_id: string }>(
         `SELECT DISTINCT medusa_order_id
            FROM dropship_order_forwards
-          WHERE medusa_order_id IN (${placeholders})`,
+          WHERE medusa_order_id IN (${placeholders})
+            AND dry_run = false
+            AND status IN ('sending', 'sent')`,
         ids,
       );
       const seen = new Set(existing.map((r) => r.medusa_order_id));

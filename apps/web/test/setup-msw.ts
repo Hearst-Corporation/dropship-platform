@@ -4,6 +4,10 @@ import { aliexpressHandlers } from './handlers/aliexpress';
 import { cjHandlers } from './handlers/cj';
 import { anthropicHandlers } from './handlers/anthropic';
 import { medusaHandlers } from './handlers/medusa';
+import { zendropHandlers } from './handlers/zendrop';
+import { spocketHandlers } from './handlers/spocket';
+import { bigbuyHandlers } from './handlers/bigbuy';
+import { dobaHandlers } from './handlers/doba';
 
 /**
  * Shared MSW server used by every Vitest run.
@@ -19,6 +23,12 @@ export const server = setupServer(
   ...cjHandlers,
   ...anthropicHandlers,
   ...medusaHandlers,
+  // New suppliers — all fail-closed (401/error) so the default test run
+  // yields zero products from each, keeping existing assertions intact.
+  ...zendropHandlers,
+  ...spocketHandlers,
+  ...bigbuyHandlers,
+  ...dobaHandlers,
 );
 
 beforeAll(() => {
@@ -42,6 +52,21 @@ beforeAll(() => {
   vi.stubEnv('R2_ACCOUNT_ID', '');
   vi.stubEnv('COMFY_DEPLOY_API_KEY', '');
   vi.stubEnv('COMFYUI_URL', '');
+  // New supplier env vars — all empty so each client short-circuits
+  // immediately (no HTTP, no DB) and returns {success:false, products:[]}.
+  vi.stubEnv('SUPPLIER_ZENDROP_CLIENT_ID', '');
+  vi.stubEnv('SUPPLIER_ZENDROP_CLIENT_SECRET', '');
+  vi.stubEnv('SUPPLIER_ZENDROP_MCP_URL', 'https://app.zendrop.com/mcp/v1');
+  vi.stubEnv('SUPPLIER_SPOCKET_API_KEY', '');
+  vi.stubEnv('SUPPLIER_SYNCEE_API_KEY', '');
+  vi.stubEnv('SUPPLIER_SYNCEE_FEED_URL', '');
+  vi.stubEnv('BIGBUY_API_KEY', '');
+  vi.stubEnv('W2B_API_KEY', '');
+  vi.stubEnv('DOBA_ACCESS_KEY', '');
+  vi.stubEnv('DOBA_SECRET', '');
+  vi.stubEnv('INVENTORY_SOURCE_API_KEY', '');
+  vi.stubEnv('AUTODS_API_URL', '');
+  vi.stubEnv('AUTODS_BUYER_ACCOUNT_ID', '');
 
   server.listen({
     // Anything not matched by a handler should fail loudly: it means the test

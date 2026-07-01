@@ -84,6 +84,11 @@ vi.mock('@/lib/db', () => ({
   getDb: () => ({
     query: dbQuery,
   }),
+  // Feed-only suppliers (syncee, wholesale2b, inventory-source) call getDbRead()
+  // in their searchProducts. Return empty rows so they short-circuit cleanly.
+  getDbRead: () => ({
+    query: () => Promise.resolve({ rows: [], rowCount: 0 }),
+  }),
 }));
 
 /**

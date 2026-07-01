@@ -32,7 +32,7 @@
  */
 
 export interface ScorableProduct {
-  supplier: 'aliexpress' | 'cj';
+  supplier: string;
   externalId: string;
   title: string;
   /** Supplier cost in EUR (parsed from sale_price / sellPrice). */

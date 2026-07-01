@@ -22,7 +22,7 @@ export interface ResearchStreamEvent {
 }
 
 export interface FeaturedProduct {
-  supplier: 'aliexpress' | 'cj';
+  supplier: string;
   supplier_product_id: string;
   title: string;
   image_url: string;

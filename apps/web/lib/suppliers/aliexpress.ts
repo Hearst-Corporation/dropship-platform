@@ -5,6 +5,7 @@
  * Auth: OAuth access_token obtained via /api/aliexpress/oauth/start.
  * Search: `aliexpress.ds.text.search` (requires access_token).
  */
+import type { SupplierClient, SupplierSearchResult, PlaceOrderInput, PlaceOrderResult } from './types';
 
 import { createHash, createHmac } from 'crypto';
 import { getDb } from '@/lib/db';
@@ -448,3 +449,95 @@ export async function placeOrder(input: AliExpressPlaceOrderInput): Promise<AliE
     return { success: false, raw: null, error: e instanceof Error ? e.message : 'Unknown error' };
   }
 }
+
+// ---------------------------------------------------------------------------
+// SupplierClient implementation — pluggable registry adapter
+// ---------------------------------------------------------------------------
+
+export const aliexpressClient: SupplierClient = {
+  id: 'aliexpress',
+  label: 'AliExpress',
+  tier: 'v1',
+  status: 'active',
+  capabilities: {
+    unitOrder: true,
+    noStock: true,
+    directShip: true,
+    neutralPackaging: true,
+    stockPriceSync: false,
+    tracking: false,
+    returns: false,
+    imageRights: false,
+  },
+
+  async ensureAuth(): Promise<boolean> {
+    const token = await getAccessToken();
+    return token !== null;
+  },
+
+  async searchProducts(params): Promise<SupplierSearchResult> {
+    const result = await searchProducts({
+      keywords: params.keywords,
+      page: params.page,
+      pageSize: params.pageSize,
+      countryCode: params.countryCode,
+      currency: params.currency,
+      locale: params.locale,
+    });
+    if (!result.success || !result.data) {
+      return {
+        success: false,
+        products: [],
+        error: result.error,
+        needsAuth: result.needsAuth,
+      };
+    }
+    const products = result.data.products.map((p) => {
+      const ordersParsed = parseInt(p.thirty_days_sold_count || '0', 10);
+      return {
+        supplier: 'aliexpress' as const,
+        externalId: p.product_id,
+        title: p.product_title,
+        price: parseFloat(p.sale_price || p.original_price || '0'),
+        imageUrl: p.product_main_image_url,
+        supplierUrl: p.product_url,
+        orders: Number.isFinite(ordersParsed) ? ordersParsed : undefined,
+        evaluateRate: p.evaluate_rate || undefined,
+      };
+    });
+    return {
+      success: true,
+      products,
+      total: result.data.total_record_count,
+    };
+  },
+
+  async placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResult> {
+    const result = await placeOrder({
+      out_order_id: input.outOrderId,
+      logistics_address: {
+        full_name: input.address.fullName,
+        contact_person: input.address.contactPerson,
+        address: input.address.address1,
+        address2: input.address.address2,
+        city: input.address.city,
+        province: input.address.province,
+        country: input.address.countryCode,
+        zip: input.address.zip,
+        phone_country: input.address.phoneDial,
+        mobile_no: input.address.phoneNumber,
+      },
+      product_items: input.items.map((item) => ({
+        product_id: item.externalId,
+        product_count: item.quantity,
+        ...(item.skuAttr ? { sku_attr: item.skuAttr } : {}),
+      })),
+    });
+    return {
+      success: result.success,
+      supplierOrderId: result.ae_order_id,
+      raw: result.raw,
+      error: result.error,
+    };
+  },
+};

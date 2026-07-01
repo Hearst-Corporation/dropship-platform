@@ -44,6 +44,72 @@ curl -N -X POST 'https://<host>/api/agent/create-store' \
   -d '{"niche":"yoga mat","storeName":"Mono Test","mode":"mono","language":"fr"}'
 ```
 
+## Socle fournisseurs (V1 + V2 + gouvernance)
+
+### Matrice des fournisseurs
+
+#### V1 — fournisseurs principaux
+
+| Fournisseur | Statut | Auto-forward | Realite API | CONFIRMER avant go-live |
+|---|---|---|---|---|
+| **AliExpress** | active | oui (`placeOrder` via DS API) | `aliexpress.ds.text.search`, OAuth token dans `platform_settings` (refresh auto GitHub Actions) | IP whitelist vide sur console AliExpress (Vercel IPs dynamiques) |
+| **CJ Dropshipping** | active | oui (flow en deux phases : `createOrderV2` puis `confirm`) | Access token cache 1h, `POST /product/list` | Pas d auto-pay : la confirmation de commande est une etape distincte — ne pas fusionner les deux appels |
+| **Zendrop** | active | oui (si `placeOrder` implemente) | Transport MCP JSON-RPC, OAuth PKCE via `/api/zendrop/oauth/start`, tokens dans `platform_settings` (`zendrop_access_token`, `zendrop_refresh_token`) | **CONFIRMER les noms exacts des outils MCP Zendrop** (ils varient selon la version du serveur MCP) avant toute commande live |
+| **Spocket** | search_only | non | Recherche produits via API ; pas d endpoint commande headless publiquement documente | Fulfillment 100% manuel via dashboard Spocket ; prevoir un workflow operateur |
+| **Syncee** | feed-only | non | Import de feed uniquement | Passer `isDropshipDirect=true` dans chaque requete pour filtrer les lots grossistes ; commandes manuelles |
+
+#### V2 — fournisseurs secondaires
+
+| Fournisseur | Statut | Auto-forward | Realite API | CONFIRMER avant go-live |
+|---|---|---|---|---|
+| **BigBuy** | active | oui (flow check->create) | Verifier la disponibilite avant creation commande | Valider le format exact du payload `create` et la gestion des erreurs de stock |
+| **Wholesale2B** | feed-only | non | Import de feed CSV/XML | Pas d API commande — fulfillment manuel |
+| **Doba** | feed-only | non | Feed produits ; mecanisme de signature de requete + prepay | **CONFIRMER** le schema de signature et les conditions de prepay avec la doc API Doba avant activation |
+| **Inventory Source** | feed-only | non | Import de feed uniquement | Pas d API commande documentee — fulfillment manuel |
+
+#### AutoDS — couche d'automatisation (pas un fournisseur)
+
+`lib/automation/autods.ts` est un **order-forwarder** qui peut router les commandes vers AutoDS comme intermediaire. Ce n'est pas un fournisseur de catalogue : il ne contribue pas a `searchAllSuppliers`. Gated par `AUTODS_ROUTING_ENABLED=1` (OFF par defaut). Token OAuth stocke dans `platform_settings` sous la cle `autods_api_token` via `STORE_SECRETS_KEY`.
+
+### Gouvernance — politique dropship-pur
+
+Fichier source : `apps/web/lib/suppliers/policy.ts`
+
+**EXCLUDED_PLATFORMS** — blocklist absolue (jamais enregistrable comme fournisseur actif) :
+`alibaba`, `1688`, `taobao`, `indiamart`, `tradeindia`, `exportersindia`, `turkishexporter`, `made-in-china`, `local-no-api`.
+Ces plateformes sont exclues pour MOQ / modele grossiste / absence de fulfillment unitaire.
+
+**`assertDropshipPure(s)`** — gate fail-closed appliquee au sourcing. Valide les trois criteres durs :
+- `unitOrder` — commande unitaire possible (pas de MOQ)
+- `noStock` — modele no-stock, pas d achat de lot
+- `directShip` — expedition directe au client final en neutre
+
+Un fournisseur qui echoue sur un seul de ces trois criteres est bloque avec une erreur explicite.
+
+**`canAutoForward(s)`** — retourne `true` uniquement si `s.status === 'active'` ET `s.placeOrder` est une fonction. Les fournisseurs `feed-only` et `search_only` sont exclus du forwarding automatique.
+
+**`activeSourcingSuppliers()`** — liste les fournisseurs autorises comme sources de produits (ceux qui passent `evaluateDropshipPure`). Utilise par `searchAllSuppliers` pour le fan-out.
+
+**`searchAllSuppliers(params, opts)`** — fan-out `Promise.allSettled` sur `activeSourcingSuppliers()` (ou un sous-ensemble via `opts.only`). Agregation des resultats ; les erreurs individuelles ne bloquent pas les autres fournisseurs.
+
+### Migrations a appliquer manuellement contre Railway
+
+Les trois migrations suivantes (dans `infra/postgres/`) doivent etre appliquees avec `psql "$DATABASE_URL" -f infra/postgres/<fichier>.sql` avant tout deploiement utilisant le socle V1/V2 :
+
+| Fichier | Objet |
+|---|---|
+| `031_order_forward_supplier.sql` | Tracking du fournisseur utilise pour chaque forward de commande |
+| `032_dropship_suppliers.sql` | Table de configuration des fournisseurs enregistres |
+| `033_supplier_catalog.sql` | Cache catalogue produits multi-fournisseurs |
+
+Chacune dispose d un `.down.sql` pour rollback.
+
+### Etat des tests
+
+Toute la suite de tests fournisseurs est mockee via **MSW** (fail-closed par defaut, cf. `test/setup-msw.ts`). Les handlers MSW de chaque fournisseur (ex. `bigbuy.test.ts`, `zendrop.test.ts`, etc.) retournent des fixtures statiques. Resultat : `npm test` passe au vert **sans aucune cle live**. Le cablage live se fait uniquement via les variables d'env documentees dans `apps/web/env.example`.
+
+---
+
 ## Mode mono-produit + génération d'assets
 
 Le mode `mono` ajoute deux étages au pipeline :
