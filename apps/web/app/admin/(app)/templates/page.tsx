@@ -8,14 +8,6 @@ import { Heading, Subheading } from '@/components/catalyst/heading';
 import { Text, Code, Strong } from '@/components/catalyst/text';
 import { Badge } from '@/components/catalyst/badge';
 import { Button } from '@/components/catalyst/button';
-import {
-  Table,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableHeader,
-  TableCell,
-} from '@/components/catalyst/table';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,64 +69,47 @@ export default async function TemplatesGalleryPage() {
               <Subheading>{labelForRegister(reg)}</Subheading>
               <Text className="text-xs">{entries.length} templates</Text>
             </div>
-            <Table dense className="[--gutter:--spacing(6)]">
-              <TableHead>
-                <TableRow>
-                  <TableHeader>Aperçu</TableHeader>
-                  <TableHeader>Template</TableHeader>
-                  <TableHeader>Mode</TableHeader>
-                  <TableHeader>Niches</TableHeader>
-                  <TableHeader>Identifiant</TableHeader>
-                  <TableHeader className="text-right">Action</TableHeader>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {entries.map((t) => {
-                  const preview = previewByid[t.id];
-                  return (
-                    <TableRow key={t.id}>
-                      <TableCell>
-                        <div className="relative h-12 w-20 overflow-hidden rounded bg-zinc-100 dark:bg-zinc-950">
-                          {preview ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={preview}
-                              alt={t.label}
-                              className="absolute inset-0 h-full w-full object-cover object-top"
-                            />
-                          ) : (
-                            <div className="absolute inset-0 flex items-center justify-center text-xs font-medium text-zinc-500">
-                              N/A
-                            </div>
-                          )}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+              {entries.map((t) => {
+                const preview = previewByid[t.id];
+                return (
+                  <div
+                    key={t.id}
+                    className="flex min-w-0 flex-col overflow-hidden rounded-lg bg-white/[0.02] ring-1 ring-zinc-950/10 dark:ring-white/10"
+                  >
+                    <div className="relative aspect-[16/10] w-full overflow-hidden bg-zinc-100 dark:bg-zinc-950">
+                      {preview ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={preview}
+                          alt={t.label}
+                          className="absolute inset-0 h-full w-full object-cover object-top"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-xs font-medium text-zinc-500">
+                          Aperçu indisponible
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-1">
-                          <Strong>{t.label}</Strong>
-                          <Text className="line-clamp-2 max-w-md !text-xs">{t.hint}</Text>
-                        </div>
-                      </TableCell>
-                      <TableCell>
+                      )}
+                    </div>
+                    <div className="flex min-w-0 flex-1 flex-col gap-3 p-4">
+                      <div className="flex min-w-0 flex-col gap-1">
+                        <Strong>{t.label}</Strong>
+                        <Text className="line-clamp-2 !text-xs">{t.hint}</Text>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <Badge color="zinc">{t.mode}</Badge>
-                      </TableCell>
-                      <TableCell>
                         {t.niches.length > 0 ? (
-                          <div className="flex flex-wrap gap-1.5">
-                            {t.niches.map((n) => (
-                              <Badge key={n} color="indigo">
-                                {n}
-                              </Badge>
-                            ))}
-                          </div>
+                          t.niches.map((n) => (
+                            <Badge key={n} color="indigo">
+                              {n}
+                            </Badge>
+                          ))
                         ) : (
-                          <Text className="!text-xs text-zinc-500">Tous secteurs</Text>
+                          <Badge color="zinc">Tous secteurs</Badge>
                         )}
-                      </TableCell>
-                      <TableCell>
-                        <Code>{t.id}</Code>
-                      </TableCell>
-                      <TableCell className="text-right">
+                      </div>
+                      <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-1">
+                        <Code className="truncate">{t.id}</Code>
                         <Button
                           href={`/admin/templates/${t.id}/preview`}
                           plain
@@ -143,12 +118,12 @@ export default async function TemplatesGalleryPage() {
                         >
                           Voir en live &#8594;
                         </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </section>
         );
       })}

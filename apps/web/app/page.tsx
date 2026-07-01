@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { listProducts, storefrontEnabled, type StoreProduct } from '@/lib/medusa-store';
 import { StoreShell } from './_components/StoreShell';
 import { ProductCard } from './_components/ProductCard';

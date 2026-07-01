@@ -65,8 +65,14 @@ function textFromContent(content: unknown): string {
   return '';
 }
 
-/** Translate Anthropic-shape params into an OpenAI chat/completions body. */
-function toOpenAIBody(
+/**
+ * Translate Anthropic-shape params into an OpenAI chat/completions body.
+ *
+ * Exported for unit testing: the Anthropic->OpenAI message conversion must
+ * preserve OpenAI's tool-call invariant (every role:'tool' message directly
+ * follows the assistant message whose tool_calls include its tool_call_id).
+ */
+export function toOpenAIBody(
   params: Anthropic.Messages.MessageCreateParamsNonStreaming,
 ): Record<string, unknown> {
   const messages: Array<Record<string, unknown>> = [];
@@ -109,6 +115,25 @@ function toOpenAIBody(
       const imageBlocks = blocks.filter(
         (b): b is Extract<AnthropicBlock, { type: 'image' }> => b.type === 'image',
       );
+
+      // OpenAI invariant: every role:'tool' message MUST directly follow the
+      // assistant message that carried its matching tool_calls, with NOTHING
+      // in between. Anthropic groups tool_result blocks together with any
+      // follow-up text/image blocks in the SAME user turn, so we must emit the
+      // 'tool' messages FIRST (right after the assistant tool_calls) and only
+      // then any user text/image content. Emitting text first inserts a user
+      // message between the tool_calls and their responses, which triggers
+      // "messages with role 'tool' must be a response to a preceding message
+      // with tool_calls" and breaks every multi-turn tool loop. (Bug fix, June
+      // 2026 — was the cause of the copilots/super-agent tool-loop crash.)
+      for (const tr of toolResults) {
+        messages.push({
+          role: 'tool',
+          tool_call_id: tr.tool_use_id,
+          content: typeof tr.content === 'string' ? tr.content : JSON.stringify(tr.content),
+        });
+      }
+
       if (imageBlocks.length > 0) {
         const parts: Array<Record<string, unknown>> = [];
         if (textParts) parts.push({ type: 'text', text: textParts });
@@ -123,13 +148,6 @@ function toOpenAIBody(
         messages.push({ role: 'user', content: parts });
       } else if (textParts) {
         messages.push({ role: 'user', content: textParts });
-      }
-      for (const tr of toolResults) {
-        messages.push({
-          role: 'tool',
-          tool_call_id: tr.tool_use_id,
-          content: typeof tr.content === 'string' ? tr.content : JSON.stringify(tr.content),
-        });
       }
     }
   }

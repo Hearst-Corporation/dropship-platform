@@ -1,15 +1,23 @@
-import { ChevronLeftIcon } from '@heroicons/react/20/solid';
-import { Heading, Subheading } from '@/components/catalyst/heading';
-import { Text } from '@/components/catalyst/text';
-import { Button } from '@/components/catalyst/button';
+import { notFound } from 'next/navigation';
+import Link from 'next/link';
+import { TEMPLATE_CATALOG } from '@/lib/template-catalog';
+import { StorefrontEditorial } from '@/app/shop/[slug]/StorefrontEditorial';
+import { StorefrontBold } from '@/app/shop/[slug]/StorefrontBold';
+import { StorefrontMinimal } from '@/app/shop/[slug]/StorefrontMinimal';
+import { StorefrontShowcase } from '@/app/shop/[slug]/StorefrontShowcase';
+import { buildMockStore, MOCK_PRODUCTS } from './_mock';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Template preview — the 24 bespoke landing templates were removed (audit
- * cleanup). Stores now render the generic storefront (hero + product grid),
- * so there is no per-template preview to show. Kept as a route so existing
- * links don't 404.
+ * Template preview — renders the real Storefront component for the given
+ * template id, using mock store config + mock products. No DB, no network.
+ *
+ * Component mapping (mirrors shop/[slug]/page.tsx logic):
+ *   register === 'luxury'  => StorefrontShowcase
+ *   mode === 'mono'        => StorefrontMinimal
+ *   mode === 'split'       => StorefrontBold
+ *   default                => StorefrontEditorial
  */
 export default async function TemplatePreviewPage({
   params,
@@ -17,25 +25,63 @@ export default async function TemplatePreviewPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+
+  // 'auto' is a meta-value (resolved at render time from store mode/count).
+  // It has no fixed layout to preview, so treat it like an unknown id.
+  if (id === 'auto') notFound();
+
+  const entry = TEMPLATE_CATALOG.find((t) => t.id === id);
+  if (!entry) notFound();
+
+  const store = buildMockStore(id, entry.label);
+  const products = MOCK_PRODUCTS;
+
+  const storefrontJsx =
+    entry.register === 'luxury' ? (
+      <StorefrontShowcase store={store} products={products} />
+    ) : entry.mode === 'mono' ? (
+      <StorefrontMinimal store={store} products={products} />
+    ) : entry.mode === 'split' ? (
+      <StorefrontBold store={store} products={products} />
+    ) : (
+      <StorefrontEditorial store={store} products={products} />
+    );
+
   return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <Heading>Aperçu indisponible</Heading>
-          <Text>{`Le template « ${id} » n'a plus d'aperçu : les designs sur mesure ont été retirés.`}</Text>
-        </div>
-        <Button plain href="/admin/templates">
-          <ChevronLeftIcon aria-hidden />
+    <div>
+      {/* Admin header bar */}
+      <div className="sticky top-0 z-50 flex items-center gap-3 border-b border-zinc-200 bg-white/95 px-4 py-2.5 backdrop-blur-sm text-sm">
+        <Link
+          href="/admin/templates"
+          className="flex items-center gap-1 text-zinc-500 hover:text-zinc-900 transition-colors"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="h-4 w-4"
+            aria-hidden="true"
+          >
+            <path
+              fillRule="evenodd"
+              d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z"
+              clipRule="evenodd"
+            />
+          </svg>
           Templates
-        </Button>
+        </Link>
+        <span className="text-zinc-300">/</span>
+        <span className="font-semibold text-zinc-900">{entry.label}</span>
+        <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-500">
+          {id}
+        </span>
+        <span className="ml-auto rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+          Apercu avec donnees fictives
+        </span>
       </div>
-      <div>
-        <Subheading>Storefront générique</Subheading>
-        <Text className="mt-2 max-w-md">
-          Toutes les boutiques rendent désormais le storefront standard (hero + grille produits)
-          piloté par la palette du store. Il n&apos;y a plus de templates sur mesure à prévisualiser.
-        </Text>
-      </div>
+
+      {/* Full-bleed storefront render */}
+      {storefrontJsx}
     </div>
   );
 }

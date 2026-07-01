@@ -36,6 +36,9 @@ beforeAll(() => {
   // — `vi.stubEnv` here covers modules read at import time (medusa.ts reads
   // MEDUSA_URL at module init, suppliers/aliexpress.ts reads APP_KEY, etc).
   vi.stubEnv('ANTHROPIC_API_KEY', 'test-anthropic-key');
+  vi.stubEnv('OPENAI_API_KEY', 'test-openai-key');
+  vi.stubEnv('OPENAI_BASE_URL', 'https://api.openai.com/v1');
+  vi.stubEnv('OPENAI_CHAT_MODEL', 'gpt-4o');
   vi.stubEnv('ALIEXPRESS_APP_KEY', 'test-app-key');
   vi.stubEnv('ALIEXPRESS_APP_SECRET', 'test-app-secret');
   vi.stubEnv('CJ_DROPSHIPPING_EMAIL', 'test@test.local');
