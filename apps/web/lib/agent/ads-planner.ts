@@ -29,6 +29,94 @@ export interface AdsPlanInput {
   products: Array<{ title: string; priceCents: number; costCents: number }>;
 }
 
+/**
+ * Deterministic unit-economics block, computed in CODE from the real catalog
+ * (never by the LLM). This is the data-science core of the launch: the
+ * break-even ROAS comes from actual margins, the kill/scale rules from the
+ * average margin, and the daily projections from the plan's budget under
+ * documented CPC/CVR assumptions.
+ */
+const PerformanceTargetsSchema = z.object({
+  avgPriceEur: z.number(),
+  avgMarginEur: z.number(),
+  avgMarginPct: z.number(),
+  breakEvenRoas: z.number(),
+  targetRoas: z.number(),
+  maxCpaEur: z.number(),
+  assumedCpcEur: z.number(),
+  assumedCvrPct: z.number(),
+  expectedDailyClicks: z.number(),
+  expectedDailyConversions: z.number(),
+  expectedDailyRevenueEur: z.number(),
+  projectedRoas: z.number(),
+  killThreshold: z.object({
+    spendEurWithoutSale: z.number(),
+    description: z.string(),
+  }),
+  scaleRule: z.object({
+    roasFloor: z.number(),
+    budgetStepPct: z.number(),
+    description: z.string(),
+  }),
+});
+
+export type PerformanceTargets = z.infer<typeof PerformanceTargetsSchema>;
+
+const ASSUMED_CPC_EUR = 0.45;
+const ASSUMED_CVR_PCT = 2.5;
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** Pure unit-economics computation from the real catalog + planned budget. */
+export function computePerformanceTargets(
+  products: Array<{ priceCents: number; costCents: number }>,
+  dailyBudgetEur: number,
+): PerformanceTargets {
+  const priced = products.filter((p) => p.priceCents > 0);
+  const avgPriceEur = priced.length
+    ? priced.reduce((s, p) => s + p.priceCents, 0) / priced.length / 100
+    : 29;
+  const avgMarginEur = priced.length
+    ? priced.reduce((s, p) => s + Math.max(0, p.priceCents - p.costCents), 0) / priced.length / 100
+    : avgPriceEur * 0.5;
+  const avgMarginPct = avgPriceEur > 0 ? (avgMarginEur / avgPriceEur) * 100 : 50;
+
+  const breakEvenRoas = avgMarginEur > 0 ? avgPriceEur / avgMarginEur : 2;
+  const targetRoas = breakEvenRoas * 1.5;
+  const maxCpaEur = avgMarginEur * 0.75;
+
+  const expectedDailyClicks = dailyBudgetEur / ASSUMED_CPC_EUR;
+  const expectedDailyConversions = expectedDailyClicks * (ASSUMED_CVR_PCT / 100);
+  const expectedDailyRevenueEur = expectedDailyConversions * avgPriceEur;
+  const projectedRoas = dailyBudgetEur > 0 ? expectedDailyRevenueEur / dailyBudgetEur : 0;
+
+  const killSpend = avgMarginEur * 1.5;
+
+  return {
+    avgPriceEur: round2(avgPriceEur),
+    avgMarginEur: round2(avgMarginEur),
+    avgMarginPct: round2(avgMarginPct),
+    breakEvenRoas: round2(breakEvenRoas),
+    targetRoas: round2(targetRoas),
+    maxCpaEur: round2(maxCpaEur),
+    assumedCpcEur: ASSUMED_CPC_EUR,
+    assumedCvrPct: ASSUMED_CVR_PCT,
+    expectedDailyClicks: round2(expectedDailyClicks),
+    expectedDailyConversions: round2(expectedDailyConversions),
+    expectedDailyRevenueEur: round2(expectedDailyRevenueEur),
+    projectedRoas: round2(projectedRoas),
+    killThreshold: {
+      spendEurWithoutSale: round2(killSpend),
+      description: `Couper l'annonce ou le mot-clé après ${round2(killSpend)} € dépensés sans aucune vente (1,5 fois la marge moyenne).`,
+    },
+    scaleRule: {
+      roasFloor: round2(targetRoas),
+      budgetStepPct: 20,
+      description: `Monter le budget de 20% par palier tant que le ROAS sur 7 jours glissants dépasse ${round2(targetRoas)}.`,
+    },
+  };
+}
+
 const GoogleAdsPlanSchema = z.object({
   campaignName: z.string().min(3).max(120),
   objective: z.string().min(3).max(200),
@@ -44,6 +132,10 @@ const GoogleAdsPlanSchema = z.object({
   policyRisks: z.array(z.string().min(5).max(300)).min(1).max(10),
   nextSteps: z.array(z.string().min(5).max(300)).min(1).max(10),
   source: z.enum(['openai', 'fallback']),
+  // Data-science block, computed in code (never emitted by the model).
+  performanceTargets: PerformanceTargetsSchema.optional(),
+  // Short expert notes from the model (FR), optional and non-blocking.
+  strategyNotes: z.array(z.string().min(5).max(300)).max(5).optional(),
 });
 
 export type GoogleAdsPlan = z.infer<typeof GoogleAdsPlanSchema>;
@@ -124,6 +216,7 @@ export function buildFallbackGoogleAdsPlan(input: AdsPlanInput): GoogleAdsPlan {
     ],
     source: 'fallback',
   };
+  plan.performanceTargets = computePerformanceTargets(input.products, plan.dailyBudgetEur);
   return clampRsa(plan);
 }
 
@@ -139,7 +232,17 @@ export async function generateGoogleAdsPlan(input: AdsPlanInput): Promise<Google
 
   const langNote = input.language === 'fr' ? 'Écris tout le contenu en français.' : 'Write all content in English.';
 
-  const prompt = `You are a senior Google Ads strategist for premium dropshipping launches.
+  // Unit-economics constraints handed to the model (budget-independent).
+  const econ = computePerformanceTargets(input.products, 25);
+
+  const prompt = `You are a top 0.1% e-commerce growth data scientist specialised in dropshipping launches. You think in unit economics, not vibes.
+
+HARD ECONOMIC CONSTRAINTS (computed from the real catalog — respect them):
+- Average price: ${econ.avgPriceEur}€ · average gross margin: ${econ.avgMarginEur}€ (${econ.avgMarginPct}%)
+- Break-even ROAS: ${econ.breakEvenRoas} — your proposal must be built to beat ${econ.targetRoas}
+- Max acceptable CPA: ${econ.maxCpaEur}€ — budget and structure must respect it
+- Keywords must be buying-intent long-tail; negatives must exclude bargain hunters, DIY, research-only and competitor-brand queries.
+
 
 Store: "${input.storeName}" (${input.landingUrl})
 Niche: "${input.niche}"
@@ -171,6 +274,7 @@ Return ONLY a JSON object with EXACTLY these keys:
   "trackingNotes": ["conversion + UTM setup notes"],
   "policyRisks": ["specific Google Ads policy risks for THIS catalog and how to avoid them"],
   "nextSteps": ["3-5 concrete launch steps"],
+  "strategyNotes": ["3-5 short expert notes (in the requested language): bidding strategy, expected CPC range for this niche, first-week optimization moves"],
   "source": "openai"
 }`;
 
@@ -188,7 +292,10 @@ Return ONLY a JSON object with EXACTLY these keys:
         source: 'openai',
         landingPage: typeof parsed.landingPage === 'string' && parsed.landingPage ? parsed.landingPage : input.landingUrl,
       });
-      if (candidate.success) return clampRsa(candidate.data);
+      if (candidate.success) {
+        candidate.data.performanceTargets = computePerformanceTargets(input.products, candidate.data.dailyBudgetEur);
+        return clampRsa(candidate.data);
+      }
       // Lenient second chance: coerce the common near-misses before giving up.
       const coerced = GoogleAdsPlanSchema.safeParse({
         ...parsed,
@@ -197,7 +304,10 @@ Return ONLY a JSON object with EXACTLY these keys:
         landingPage: input.landingUrl,
         source: 'openai',
       });
-      if (coerced.success) return clampRsa(coerced.data);
+      if (coerced.success) {
+        coerced.data.performanceTargets = computePerformanceTargets(input.products, coerced.data.dailyBudgetEur);
+        return clampRsa(coerced.data);
+      }
     } catch (e) {
       console.error('[ads-planner] attempt failed', {
         attempt,

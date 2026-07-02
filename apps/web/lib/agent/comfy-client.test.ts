@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/setup-msw';
 import {
+  buildFluxKontextGraph,
   buildFluxTxt2ImgGraph,
   getDeploymentIds,
   isComfyConfigured,
@@ -186,12 +187,71 @@ describe('buildFluxTxt2ImgGraph', () => {
   });
 });
 
+describe('buildFluxKontextGraph', () => {
+  beforeEach(() => {
+    vi.stubEnv('COMFYUI_KONTEXT_UNET', '');
+    vi.stubEnv('COMFYUI_STEPS', '');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  type GraphNode = { class_type: string; inputs: Record<string, unknown> };
+  const nodesOf = (g: Record<string, object>) => Object.values(g) as GraphNode[];
+  const nodeByClass = (g: Record<string, object>, cls: string) =>
+    nodesOf(g).find((n) => n.class_type === cls)!;
+
+  it('wires the verified kontext model stack (UNET + dual CLIP + ae VAE)', () => {
+    const g = buildFluxKontextGraph({ prompt: 'p', referenceImageName: 'dropship-refs/ref.jpg' });
+    expect(nodeByClass(g, 'UNETLoader').inputs.unet_name).toBe(
+      'flux1-dev-kontext_fp8_scaled.safetensors',
+    );
+    const clip = nodeByClass(g, 'DualCLIPLoader').inputs;
+    expect(clip.clip_name1).toBe('clip_l.safetensors');
+    expect(clip.clip_name2).toBe('t5xxl_fp8_e4m3fn_scaled.safetensors');
+    expect(clip.type).toBe('flux');
+    expect(nodeByClass(g, 'VAELoader').inputs.vae_name).toBe('ae.safetensors');
+  });
+
+  it('feeds the reference image through LoadImage → kontext scale → VAEEncode → ReferenceLatent', () => {
+    const g = buildFluxKontextGraph({ prompt: 'p', referenceImageName: 'dropship-refs/ref.jpg' });
+    expect(nodeByClass(g, 'LoadImage').inputs.image).toBe('dropship-refs/ref.jpg');
+    expect(nodeByClass(g, 'FluxKontextImageScale')).toBeDefined();
+    expect(nodeByClass(g, 'VAEEncode')).toBeDefined();
+    expect(nodeByClass(g, 'ReferenceLatent')).toBeDefined();
+    expect(nodeByClass(g, 'FluxGuidance').inputs.guidance).toBe(2.5);
+    // The sampler must denoise FROM the reference latent, not an empty one.
+    const sampler = nodeByClass(g, 'KSampler').inputs;
+    expect(sampler.cfg).toBe(1.0);
+    expect(nodesOf(g).some((n) => n.class_type === 'EmptySD3LatentImage')).toBe(false);
+  });
+
+  it('wires the prompt into CLIPTextEncode and honors seed/guidance/unet overrides', () => {
+    vi.stubEnv('COMFYUI_KONTEXT_UNET', 'flux1-dev-bf16.safetensors');
+    const g = buildFluxKontextGraph({
+      prompt: 'same exact product on an oak shelf',
+      referenceImageName: 'ref.png',
+      seed: 99,
+      guidance: 3.0,
+    });
+    expect(nodeByClass(g, 'CLIPTextEncode').inputs.text).toBe('same exact product on an oak shelf');
+    expect(nodeByClass(g, 'KSampler').inputs.seed).toBe(99);
+    expect(nodeByClass(g, 'FluxGuidance').inputs.guidance).toBe(3.0);
+    expect(nodeByClass(g, 'UNETLoader').inputs.unet_name).toBe('flux1-dev-bf16.safetensors');
+  });
+});
+
 /**
  * Local backend end-to-end via MSW: /prompt queue, /history poll, /view
  * binary fetch. The queue handler captures the submitted graph so we can
  * assert that deploy-style `inputs` get synthesized into a FLUX txt2img
  * graph — the conciliation path that lets asset-generator stay
  * backend-agnostic while comfy.hearst.app does the actual rendering.
+ *
+ * The kontext tests add two more handlers: the supplier image URL and
+ * POST /upload/image, so we can observe the full reference round-trip
+ * (download → upload → LoadImage name in the submitted graph).
  */
 describe('runWorkflow local backend', () => {
   const BASE = 'http://127.0.0.1:8188';
@@ -287,6 +347,132 @@ describe('runWorkflow local backend', () => {
     const result = await runWorkflow({ inputs: { prompt: 'forced local' } });
     expect(result.deploymentId).toBe('local');
     expect(submittedGraphs).toHaveLength(1);
+  });
+
+  describe('kontext reference path', () => {
+    const REF_URL = 'https://cdn.supplier.test/kf/product-photo.jpg';
+    const JPEG_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]);
+    let uploadedFilenames: string[] = [];
+
+    beforeEach(() => {
+      uploadedFilenames = [];
+      server.use(
+        http.get(REF_URL, () =>
+          HttpResponse.arrayBuffer(JPEG_BYTES.buffer as ArrayBuffer, {
+            headers: { 'Content-Type': 'image/jpeg' },
+          }),
+        ),
+        http.post(`${BASE}/upload/image`, async ({ request }) => {
+          const form = await request.formData();
+          const file = form.get('image') as File;
+          uploadedFilenames.push(file.name);
+          return HttpResponse.json({
+            name: file.name,
+            subfolder: String(form.get('subfolder') || ''),
+            type: 'input',
+          });
+        }),
+      );
+    });
+
+    it('uploads the reference and submits a kontext graph wired to it', async () => {
+      const result = await runWorkflow({
+        inputs: {
+          prompt: 'the exact same product on an oak shelf',
+          reference_image: REF_URL,
+          seed: 11,
+        },
+      });
+
+      expect(result.runId).toBe('prompt_123');
+      expect(result.images).toHaveLength(1);
+
+      // /upload/image was hit exactly once, with a unique .jpg name.
+      expect(uploadedFilenames).toHaveLength(1);
+      expect(uploadedFilenames[0]).toMatch(/^ref-\d+-[a-z0-9]+\.jpg$/);
+
+      expect(submittedGraphs).toHaveLength(1);
+      const graph = submittedGraphs[0]!;
+      const classes = Object.values(graph).map((n) => n.class_type);
+      expect(classes).toEqual(
+        expect.arrayContaining([
+          'UNETLoader',
+          'DualCLIPLoader',
+          'VAELoader',
+          'LoadImage',
+          'FluxKontextImageScale',
+          'VAEEncode',
+          'ReferenceLatent',
+          'FluxGuidance',
+          'KSampler',
+          'VAEDecode',
+          'SaveImage',
+        ]),
+      );
+      // LoadImage points at the uploaded file (subfolder/filename).
+      const loadImage = Object.values(graph).find((n) => n.class_type === 'LoadImage')!;
+      expect(loadImage.inputs.image).toBe(`dropship-refs/${uploadedFilenames[0]}`);
+      // The prompt made it into the kontext conditioning, seed into the sampler.
+      const textNode = Object.values(graph).find((n) => n.class_type === 'CLIPTextEncode')!;
+      expect(textNode.inputs.text).toBe('the exact same product on an oak shelf');
+      expect(Object.values(graph).find((n) => n.class_type === 'KSampler')!.inputs.seed).toBe(11);
+    });
+
+    it('keeps plain txt2img untouched when reference_image is absent', async () => {
+      await runWorkflow({ inputs: { prompt: 'hero without reference' } });
+
+      expect(uploadedFilenames).toHaveLength(0);
+      const classes = Object.values(submittedGraphs[0]!).map((n) => n.class_type);
+      expect(classes).toContain('CheckpointLoaderSimple');
+      expect(classes).toContain('EmptySD3LatentImage');
+      expect(classes).not.toContain('LoadImage');
+      expect(classes).not.toContain('ReferenceLatent');
+    });
+
+    it('ignores non-http reference_image values (stays on txt2img)', async () => {
+      await runWorkflow({
+        inputs: { prompt: 'p', reference_image: 'not-a-url.png' },
+      });
+      expect(uploadedFilenames).toHaveLength(0);
+      const classes = Object.values(submittedGraphs[0]!).map((n) => n.class_type);
+      expect(classes).toContain('CheckpointLoaderSimple');
+      expect(classes).not.toContain('LoadImage');
+    });
+
+    it('falls back to txt2img (with a warning) when the reference download fails', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      server.use(
+        http.get(REF_URL, () => new HttpResponse(null, { status: 404 })),
+      );
+
+      const result = await runWorkflow({
+        inputs: { prompt: 'p', reference_image: REF_URL },
+      });
+
+      expect(result.images).toHaveLength(1);
+      expect(uploadedFilenames).toHaveLength(0);
+      const classes = Object.values(submittedGraphs[0]!).map((n) => n.class_type);
+      expect(classes).toContain('CheckpointLoaderSimple');
+      expect(classes).not.toContain('ReferenceLatent');
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('kontext reference path failed'));
+    });
+
+    it('falls back to txt2img when /upload/image errors', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      server.use(
+        http.post(`${BASE}/upload/image`, () => new HttpResponse('disk full', { status: 500 })),
+      );
+
+      const result = await runWorkflow({
+        inputs: { prompt: 'p', reference_image: REF_URL },
+      });
+
+      expect(result.images).toHaveLength(1);
+      const classes = Object.values(submittedGraphs[0]!).map((n) => n.class_type);
+      expect(classes).toContain('CheckpointLoaderSimple');
+      expect(classes).not.toContain('LoadImage');
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('kontext reference path failed'));
+    });
   });
 });
 

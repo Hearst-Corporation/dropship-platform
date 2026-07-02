@@ -36,7 +36,11 @@ const scriptSrc = isProd
 const CSP_DIRECTIVES = [
   scriptSrc,
   // Next.js inline styles + the storefront design-token <style> block.
-  "style-src 'self' 'unsafe-inline'",
+  // Google Fonts stylesheets are loaded by the storefront templates
+  // (Instrument Serif, Inter Tight, Poppins…) — without this allowance the
+  // CSP silently drops them and every template renders in fallback type.
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' data: https://fonts.gstatic.com",
   "object-src 'none'",
   "base-uri 'self'",
   `frame-ancestors ${frameAncestors}`,

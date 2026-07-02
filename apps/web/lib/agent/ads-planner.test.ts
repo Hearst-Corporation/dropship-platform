@@ -28,6 +28,7 @@ vi.mock('@/lib/agent/openai-agent', () => ({
 
 import {
   buildFallbackGoogleAdsPlan,
+  computePerformanceTargets,
   generateGoogleAdsPlan,
   stageGoogleAdsPlan,
   type AdsPlanInput,
@@ -73,6 +74,49 @@ beforeEach(() => {
     text: '',
     usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
     finishReason: 'stop',
+  });
+});
+
+describe('computePerformanceTargets', () => {
+  it('computes exact unit economics for a known catalog (18.99€ / 8.29€)', () => {
+    const t = computePerformanceTargets([{ priceCents: 1899, costCents: 829 }], 25);
+    expect(t.avgPriceEur).toBe(18.99);
+    expect(t.avgMarginEur).toBe(10.7);
+    expect(t.breakEvenRoas).toBe(1.77); // 18.99 / 10.70
+    expect(t.targetRoas).toBe(2.66); // break-even × 1.5
+    expect(t.maxCpaEur).toBe(8.02); // marge × 0.75 (8.025 → float round down)
+    expect(t.assumedCpcEur).toBe(0.45);
+    expect(t.expectedDailyClicks).toBe(55.56); // 25 / 0.45
+    expect(t.expectedDailyConversions).toBe(1.39); // clicks × 2.5%
+    expect(t.killThreshold.spendEurWithoutSale).toBe(16.05); // marge × 1.5
+    expect(t.scaleRule.budgetStepPct).toBe(20);
+    expect(t.scaleRule.roasFloor).toBe(2.66);
+  });
+
+  it('stays sane on an empty catalog (defaults, no NaN)', () => {
+    const t = computePerformanceTargets([], 20);
+    expect(Number.isFinite(t.breakEvenRoas)).toBe(true);
+    expect(t.avgPriceEur).toBeGreaterThan(0);
+    expect(t.maxCpaEur).toBeGreaterThan(0);
+  });
+
+  it('is attached to the fallback plan', () => {
+    const plan = buildFallbackGoogleAdsPlan(INPUT);
+    expect(plan.performanceTargets).toBeDefined();
+    expect(plan.performanceTargets!.breakEvenRoas).toBeGreaterThan(1);
+    expect(plan.performanceTargets!.killThreshold.description).toMatch(/Couper/);
+  });
+
+  it('is attached to a validated openai plan too', async () => {
+    llm.responder = () => ({
+      text: JSON.stringify(VALID_PLAN),
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+      finishReason: 'stop',
+    });
+    const plan = await generateGoogleAdsPlan(INPUT);
+    expect(plan.source).toBe('openai');
+    expect(plan.performanceTargets).toBeDefined();
+    expect(plan.performanceTargets!.expectedDailyClicks).toBeCloseTo(plan.dailyBudgetEur / 0.45, 1);
   });
 });
 

@@ -22,6 +22,8 @@ import {
   DescriptionDetails,
 } from '@/components/catalyst/description-list';
 import { AdminSection } from '@/components/admin/AdminSection';
+import { AdminStatsGrid } from '@/components/admin/AdminStatsGrid';
+import { AdminStatCard } from '@/components/admin/AdminStatCard';
 import { AdminDataTable } from '@/components/admin/AdminDataTable';
 import { AdminBadge } from '@/components/admin/AdminBadge';
 import { AdminEmptyState } from '@/components/admin/AdminEmptyState';
@@ -120,6 +122,15 @@ function eur(n: number): string {
   return `${n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} €`;
 }
 
+function fr(n: number): string {
+  return n.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+}
+
+/** ROAS en multiplicateur, ex. "x2,4". */
+function roasFmt(n: number): string {
+  return `x${fr(n)}`;
+}
+
 function frDate(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 }
@@ -201,6 +212,10 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
     }
   }
 
+  // ── Cibles de performance (bloc optionnel, absent sur les vieux plans) ─────
+  const targets = plan.performanceTargets ?? null;
+  const strategyNotes = plan.strategyNotes ?? [];
+
   // ── Budget et répartition plateforme (France uniquement) ───────────────────
   const dailyBudget = plan.dailyBudgetEur;
   const monthlyBudget = dailyBudget * 30;
@@ -253,6 +268,7 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
   let spendProjected = 0;
   let clicksProjected = 0;
   let convProjected = 0;
+  let revenueProjected = 0;
   let realTraffic = 0;
   let realConversions = 0;
   let realRevenue = 0;
@@ -260,8 +276,15 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
   if (launched && sinceIso) {
     daysElapsed = Math.max(1, Math.ceil((Date.now() - new Date(sinceIso).getTime()) / 86_400_000));
     spendProjected = Math.round(dailyBudget * daysElapsed * 100) / 100;
-    clicksProjected = Math.round(spendProjected / CPC_EUR);
-    convProjected = Math.round(clicksProjected * CVR * 10) / 10;
+    if (targets) {
+      // Projections du bloc data du plan (calculées sur le catalogue réel).
+      clicksProjected = Math.round(targets.expectedDailyClicks * daysElapsed);
+      convProjected = Math.round(targets.expectedDailyConversions * daysElapsed * 10) / 10;
+      revenueProjected = Math.round(targets.expectedDailyRevenueEur * daysElapsed * 100) / 100;
+    } else {
+      clicksProjected = Math.round(spendProjected / CPC_EUR);
+      convProjected = Math.round(clicksProjected * CVR * 10) / 10;
+    }
 
     const realsRes = await db.query<FunnelRealsRow>(
       `SELECT
@@ -287,8 +310,12 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
     { label: 'Dépense publicitaire', projete: eur(spendProjected), reel: 'n/d' },
     { label: 'Trafic (clics)', projete: clicksProjected.toLocaleString('fr-FR'), reel: realTraffic.toLocaleString('fr-FR') },
     { label: 'Conversions', projete: convProjected.toLocaleString('fr-FR'), reel: realConversions.toLocaleString('fr-FR') },
-    { label: 'Revenus', projete: 'n/d', reel: eur(realRevenue) },
+    { label: 'Revenus', projete: targets ? eur(revenueProjected) : 'n/d', reel: eur(realRevenue) },
   ];
+
+  // Hypothèses affichées: celles du plan quand elles existent, sinon locales.
+  const cpcAssumption = targets?.assumedCpcEur ?? CPC_EUR;
+  const cvrAssumptionPct = targets?.assumedCvrPct ?? CVR * 100;
 
   const campaignStatus = campaign?.status ?? 'draft';
   const campaignStatusLabel = CAMPAIGN_STATUS_LABEL[campaignStatus] ?? campaignStatus;
@@ -374,6 +401,94 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
           }))}
         />
       </AdminSection>
+
+      {/* Cibles de performance (bloc data, optionnel sur les vieux plans) */}
+      {targets ? (
+        <AdminSection
+          title="Cibles de performance"
+          description={`Calculées sur la marge réelle du catalogue: prix moyen ${eur(targets.avgPriceEur)}, marge moyenne ${eur(targets.avgMarginEur)} (${fr(targets.avgMarginPct)}%).`}
+        >
+          <div className="space-y-6">
+            <AdminStatsGrid cols={3}>
+              <AdminStatCard
+                label="ROAS break-even"
+                value={roasFmt(targets.breakEvenRoas)}
+                hint="Seuil de rentabilité calculé sur la marge réelle du catalogue"
+              />
+              <AdminStatCard
+                label="ROAS cible"
+                value={roasFmt(targets.targetRoas)}
+                tone="positive"
+                hint="Objectif de pilotage, au-dessus du seuil de rentabilité"
+              />
+              <AdminStatCard
+                label="CPA max"
+                value={eur(targets.maxCpaEur)}
+                hint="Coût par acquisition à ne pas dépasser"
+              />
+              <AdminStatCard
+                label="Conversions / jour attendues"
+                value={fr(targets.expectedDailyConversions)}
+                hint="Au budget quotidien du plan"
+              />
+              <AdminStatCard
+                label="Revenus / jour attendus"
+                value={eur(targets.expectedDailyRevenueEur)}
+                hint="Conversions attendues x prix moyen"
+              />
+              <AdminStatCard
+                label="ROAS projeté"
+                value={roasFmt(targets.projectedRoas)}
+                tone={targets.projectedRoas >= targets.breakEvenRoas ? 'positive' : 'default'}
+                hint="Revenus attendus / budget quotidien"
+              />
+            </AdminStatsGrid>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="rounded-xl border border-zinc-950/10 bg-zinc-50 p-5 dark:border-white/10 dark:bg-white/5">
+                <Subheading level={3}>Règle de coupe</Subheading>
+                <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-zinc-950 dark:text-white">
+                  {eur(targets.killThreshold.spendEurWithoutSale)}
+                  <span className="ml-1 text-sm font-normal text-zinc-500 dark:text-zinc-400">
+                    dépensés sans vente
+                  </span>
+                </p>
+                <p className="mt-2 text-sm/6 text-zinc-600 dark:text-zinc-300">
+                  {targets.killThreshold.description}
+                </p>
+              </div>
+              <div className="rounded-xl border border-zinc-950/10 bg-zinc-50 p-5 dark:border-white/10 dark:bg-white/5">
+                <Subheading level={3}>Règle de scaling</Subheading>
+                <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-zinc-950 dark:text-white">
+                  +{fr(targets.scaleRule.budgetStepPct)}%
+                  <span className="ml-1 text-sm font-normal text-zinc-500 dark:text-zinc-400">
+                    par palier, plancher ROAS {roasFmt(targets.scaleRule.roasFloor)}
+                  </span>
+                </p>
+                <p className="mt-2 text-sm/6 text-zinc-600 dark:text-zinc-300">
+                  {targets.scaleRule.description}
+                </p>
+              </div>
+            </div>
+            <p className="text-xs/5 text-zinc-500 dark:text-zinc-400">
+              Hypothèses: CPC moyen {fr(targets.assumedCpcEur)} €, taux de conversion {fr(targets.assumedCvrPct)}%.
+            </p>
+          </div>
+        </AdminSection>
+      ) : null}
+
+      {/* Notes du stratège (optionnel) */}
+      {strategyNotes.length > 0 ? (
+        <AdminSection
+          title="Notes du stratège"
+          description="Recommandations du modèle pour le pilotage de la campagne."
+        >
+          <ul className="list-disc space-y-1.5 pl-4 text-sm/6 text-zinc-600 dark:text-zinc-300">
+            {strategyNotes.map((note, i) => (
+              <li key={i}>{note}</li>
+            ))}
+          </ul>
+        </AdminSection>
+      ) : null}
 
       {/* Calendrier de lancement jour 1 */}
       <div className="space-y-3">
@@ -494,8 +609,8 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
           <div>
             <KpiComparisonChart data={kpiChartData} />
             <p className="mt-2 text-xs/5 text-zinc-500 dark:text-zinc-400">
-              Hypothèses de projection: CPC moyen {CPC_EUR.toLocaleString('fr-FR')} €, taux de conversion{' '}
-              {(CVR * 100).toLocaleString('fr-FR')}%. n/d: disponible après intégration des rapports de dépense des
+              Hypothèses de projection{targets ? ' (bloc data du plan)' : ''}: CPC moyen {fr(cpcAssumption)} €, taux
+              de conversion {fr(cvrAssumptionPct)}%. n/d: disponible après intégration des rapports de dépense des
               plateformes.
             </p>
           </div>

@@ -2,6 +2,7 @@ import 'server-only';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { runWorkflow, isComfyConfigured } from './comfy-client';
+import { generateAmbientTrack, isAudioConfigured, muxAudioIntoVideo } from './audio-client';
 import { falGenerateImage, falGenerateVideo, isFalConfigured } from './fal-client';
 import { extractJson } from './json';
 import { trackedMessage } from './anthropic';
@@ -644,7 +645,35 @@ export async function generateMonoAssets(
       referenceImageUrl: videoSource,
       deploymentEnvKey: 'COMFY_DEPLOYMENT_VIDEO',
       isVideo: true,
-      persist: (bytes) => persist('promo.mp4', bytes),
+      persist: async (bytes) => {
+        // Ambient soundtrack: generated on the same ComfyUI box (stable-audio)
+        // and muxed with ffmpeg. Best-effort — a silent promo ships rather
+        // than no promo.
+        try {
+          if (isAudioConfigured()) {
+            log('Génération de la musique d’ambiance (stable-audio)...');
+            const track = await generateAmbientTrack({
+              prompt:
+                'calm ambient spa music, soft piano and warm pads, gentle, loopable, premium wellness brand, no vocals',
+              seconds: 6,
+            });
+            const muxed = await muxAudioIntoVideo({
+              videoBuffer: bytes,
+              videoExt: 'mp4',
+              audioBuffer: track.buffer,
+              audioExt: track.extension,
+            });
+            if (muxed) {
+              log('Musique d’ambiance ajoutée à la vidéo promo');
+              return persist('promo.mp4', muxed);
+            }
+            warn.push('Musique: mux ffmpeg indisponible — vidéo publiée sans piste audio');
+          }
+        } catch (e) {
+          warn.push(`Musique: ${e instanceof Error ? e.message : 'erreur'} — vidéo publiée sans piste audio`);
+        }
+        return persist('promo.mp4', bytes);
+      },
     });
     promoVideoUrl = r.url;
     if (r.error) {

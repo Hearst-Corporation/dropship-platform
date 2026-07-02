@@ -11,6 +11,7 @@ import { StorefrontEditorial } from './StorefrontEditorial';
 import { StorefrontBold } from './StorefrontBold';
 import { StorefrontMinimal } from './StorefrontMinimal';
 import { StorefrontShowcase } from './StorefrontShowcase';
+import { MonoProductLanding } from './MonoProductLanding';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,9 +94,16 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
   if (store.template && store.template !== 'auto' && products.length > 0 && !error) {
     const entry = TEMPLATE_CATALOG.find((t) => t.id === (store.template as StoreTemplate));
     const templateProps = { store, products };
+    // Mono stores with generated assets get the dedicated long-form DTC
+    // landing; StorefrontMinimal stays as the lean fallback when the store
+    // has neither hero nor landing copy to feed the long-form sections.
+    const monoJsx =
+      store.heroImageUrl || store.landingContent
+        ? <MonoProductLanding {...templateProps} />
+        : <StorefrontMinimal {...templateProps} />;
     const storefrontJsx =
       entry?.register === 'luxury' ? <StorefrontShowcase {...templateProps} /> :
-      entry?.mode === 'mono'       ? <StorefrontMinimal {...templateProps} /> :
+      entry?.mode === 'mono'       ? monoJsx :
       entry?.mode === 'split'      ? <StorefrontBold {...templateProps} /> :
       <StorefrontEditorial {...templateProps} />;
 

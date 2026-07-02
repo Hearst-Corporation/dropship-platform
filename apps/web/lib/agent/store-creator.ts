@@ -438,7 +438,7 @@ Raw supplier products:
 ${productsJson}
 
 Tasks:
-1. Select the best ${maxProducts} products most relevant to the niche and the operator brief. Reject regulated medical devices, excessive health claims and dangerous goods.
+1. Select the best ${maxProducts} products most relevant to the niche and the operator brief. Reject regulated medical devices, excessive health claims and dangerous goods. VARIETY IS MANDATORY: never select two variants, colorways or sizes of the same physical product — every pick must be a clearly different product.
 2. Write a compelling title (max 65 chars) and description (130-170 words) for each.
 3. Retail price = cost * 2.2 rounded to nearest .99, minimum €9.99.
 4. Assess each product: risk level, market fit, selection reason.
