@@ -26,6 +26,7 @@ import {
   NavbarSection,
   NavbarSpacer,
 } from "@/components/catalyst/navbar";
+import { SuperAgentRail } from "@/components/admin/SuperAgentRail";
 
 /**
  * Admin chrome — Catalyst SidebarLayout (official kit). Dark forced via the
@@ -121,11 +122,8 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
   return (
     <div className="dark">
       <SidebarLayout sidebar={sidebar} navbar={navbar}>
-        {/* Reserve space on the right for the fixed SuperAgent rail (xl:w-96).
-            The rail only docks at xl: on lg laptops the content would be left
-            with ~300px otherwise. min-w-0 lets the parent overflow-x-clip
-            contain wide tables. */}
         <div className="min-w-0 xl:pr-96">{children}</div>
+        <SuperAgentRail />
       </SidebarLayout>
     </div>
   );

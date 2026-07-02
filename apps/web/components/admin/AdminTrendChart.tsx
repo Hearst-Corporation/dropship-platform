@@ -42,7 +42,7 @@ function DarkTooltip({
 }) {
   if (!active || !payload || payload.length === 0) return null;
   return (
-    <div className="rounded border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-zinc-100 shadow-lg">
+    <div className="rounded border border-admin-border bg-admin-surface-inset px-3 py-2 text-xs text-zinc-100 shadow-lg">
       {label !== undefined && (
         <div className="mb-1 font-medium text-zinc-400">{label}</div>
       )}
@@ -65,7 +65,7 @@ function DarkTooltip({
 function EmptyState({ height }: { height: number }) {
   return (
     <div
-      className="flex items-center justify-center bg-white/[0.03] text-[10px] font-bold uppercase tracking-widest text-zinc-500"
+      className="flex items-center justify-center bg-admin-surface-inset text-[10px] font-bold uppercase tracking-widest text-zinc-500"
       style={{ height }}
     >
       Pas encore de données

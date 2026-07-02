@@ -74,7 +74,7 @@ export function StoreTemplateForm({
                   "relative rounded-lg p-4 text-left ring-1 transition-colors disabled:cursor-not-allowed",
                   active
                     ? "bg-indigo-500/10 ring-indigo-500/40"
-                    : "bg-white/[0.02] ring-white/[0.08] hover:bg-white/[0.08]",
+                    : "bg-admin-surface-panel ring-admin-ring hover:bg-admin-surface-muted",
                 )}
               >
                 <div className="mb-0.5 text-sm font-semibold text-white">

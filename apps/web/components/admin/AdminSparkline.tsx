@@ -3,7 +3,7 @@ import type React from "react";
 
 export interface AdminSparklineProps {
   data: number[];
-  color?: "indigo" | "emerald" | "rose" | "amber" | "zinc" | "black";
+  color?: "indigo" | "emerald" | "rose" | "amber" | "zinc" | "black" | "white";
   className?: string;
 }
 
@@ -14,6 +14,7 @@ const strokeColorMap = {
   amber: "stroke-amber-500 dark:stroke-amber-400",
   zinc: "stroke-zinc-500 dark:stroke-zinc-400",
   black: "stroke-zinc-950 dark:stroke-zinc-950",
+  white: "stroke-white/70",
 };
 
 const stopColorMap = {

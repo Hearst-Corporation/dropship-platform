@@ -1,13 +1,17 @@
-import { Fragment } from "react";
 import { notFound } from "next/navigation";
 import { getDbRead } from "@/lib/db";
 import { resolveStoreId } from "@/lib/resolve-store";
-import { Heading, Subheading } from "@/components/catalyst/heading";
+import { Heading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
 import { AdminBadge } from "@/components/admin/AdminBadge";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
+import { AdminDataTable } from "@/components/admin/AdminDataTable";
+import { AdminAssetCell } from "@/components/admin/AdminAssetCell";
+import { AdminStatCard } from "@/components/admin/AdminStatCard";
+import { AdminStatsGrid } from "@/components/admin/AdminStatsGrid";
+import { AdminSection } from "@/components/admin/AdminSection";
 import { EllipsisHorizontalIcon } from "@heroicons/react/16/solid";
 import {
   Dropdown,
@@ -16,11 +20,6 @@ import {
   DropdownLabel,
   DropdownMenu,
 } from "@/components/catalyst/dropdown";
-import {
-  DescriptionList,
-  DescriptionTerm,
-  DescriptionDetails,
-} from "@/components/catalyst/description-list";
 import {
   Table,
   TableHead,
@@ -124,38 +123,25 @@ export default async function StoreCatalogPage({
         </Button>
       </div>
 
-      <div className="border-t border-white/[0.08] pt-8 border-white/[0.08]">
-        <Subheading>Aperçu</Subheading>
-        <div className="grid grid-cols-1 gap-x-8 2xl:grid-cols-2">
-          {[stats.slice(0, 2), stats.slice(2)].map((half, i) => (
-            <DescriptionList key={i} className="mt-4">
-              {half.map((stat) => (
-                <Fragment key={stat.label}>
-                  <DescriptionTerm>{stat.label}</DescriptionTerm>
-                  <DescriptionDetails className="tabular-nums">
-                    {stat.value}
-                  </DescriptionDetails>
-                </Fragment>
-              ))}
-            </DescriptionList>
+      <AdminSection title="Aperçu">
+        <AdminStatsGrid cols={4}>
+          {stats.map((stat) => (
+            <AdminStatCard key={stat.label} label={stat.label} value={stat.value} />
           ))}
-        </div>
-      </div>
+        </AdminStatsGrid>
+      </AdminSection>
 
-      <div className="border-t border-white/[0.08] pt-8 border-white/[0.08]">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <Subheading>
-            {products.length} produit{products.length > 1 ? "s" : ""}
-          </Subheading>
-          {Object.entries(supplierCounts).length > 0 ? (
-            <Text className="text-xs">
-              {Object.entries(supplierCounts)
-                .map(([s, c]) => `${s}·${c}`)
-                .join(" / ")}
-            </Text>
-          ) : null}
-        </div>
-
+      <AdminSection
+        title={`${products.length} produit${products.length > 1 ? "s" : ""}`}
+        description={
+          Object.entries(supplierCounts).length > 0
+            ? Object.entries(supplierCounts)
+                .map(([s, c]) => `${s} · ${c}`)
+                .join(" / ")
+            : undefined
+        }
+        flush={products.length > 0}
+      >
         {products.length === 0 ? (
           <AdminEmptyState
             title="Aucun produit dans ce store"
@@ -167,69 +153,63 @@ export default async function StoreCatalogPage({
             }
           />
         ) : (
-          <Table className="mt-4" dense>
-            <TableHead>
-              <TableRow>
-                <TableHeader>Produit</TableHeader>
-                <TableHeader className="hidden sm:table-cell">
-                  Source
-                </TableHeader>
-                <TableHeader className="text-right hidden md:table-cell">
-                  Coût
-                </TableHeader>
-                <TableHeader className="text-right">Prix</TableHeader>
-                <TableHeader className="text-right hidden sm:table-cell">
-                  Marge
-                </TableHeader>
-                <TableHeader className="text-right hidden lg:table-cell">
-                  Image
-                </TableHeader>
-                <TableHeader className="text-right">État</TableHeader>
-                <TableHeader className="relative w-0">
-                  <span className="sr-only">Actions</span>
-                </TableHeader>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {products.map((p) => {
-                const margin = (p.price_cents - p.cost_cents) / 100;
-                const marginPct =
-                  p.cost_cents > 0
-                    ? Math.round(
-                        ((p.price_cents - p.cost_cents) / p.cost_cents) * 100,
-                      )
-                    : 0;
-                const supplierColor = "zinc";
-                return (
-                  <TableRow key={p.id}>
-                    <TableCell>
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="size-10 shrink-0 overflow-hidden rounded-lg bg-white/[0.03] ring-1 ring-white/[0.05] bg-white/[0.03] ring-white/[0.08]">
-                          {p.image_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={p.image_url}
-                              alt={p.enriched_title || "Produit"}
-                              loading="lazy"
-                              decoding="async"
-                              className="size-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex size-full items-center justify-center text-lg">
-                              {store.logo_emoji}
-                            </div>
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="max-w-[28ch] truncate font-medium text-white">
-                            {p.enriched_title}
-                          </div>
-                          <Text className="mt-0.5 max-w-[36ch] truncate text-xs">
-                            {p.enriched_description}
-                          </Text>
-                        </div>
-                      </div>
-                    </TableCell>
+          <AdminDataTable fixedLayout>
+            <Table dense bleed clip>
+              <colgroup>
+                <col />
+                <col style={{ width: "6rem" }} />
+                <col style={{ width: "4.5rem" }} />
+                <col style={{ width: "5rem" }} />
+                <col style={{ width: "5.5rem" }} />
+                <col style={{ width: "4rem" }} />
+                <col style={{ width: "5rem" }} />
+                <col style={{ width: "3rem" }} />
+              </colgroup>
+              <TableHead>
+                <TableRow>
+                  <TableHeader>Produit</TableHeader>
+                  <TableHeader className="whitespace-nowrap hidden sm:table-cell">
+                    Source
+                  </TableHeader>
+                  <TableHeader className="whitespace-nowrap text-right hidden md:table-cell">
+                    Coût
+                  </TableHeader>
+                  <TableHeader className="whitespace-nowrap text-right">
+                    Prix
+                  </TableHeader>
+                  <TableHeader className="whitespace-nowrap text-right hidden sm:table-cell">
+                    Marge
+                  </TableHeader>
+                  <TableHeader className="whitespace-nowrap text-right hidden lg:table-cell">
+                    Image
+                  </TableHeader>
+                  <TableHeader className="whitespace-nowrap text-right">
+                    État
+                  </TableHeader>
+                  <TableHeader className="whitespace-nowrap text-right">
+                    <span className="sr-only">Actions</span>
+                  </TableHeader>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {products.map((p) => {
+                  const margin = (p.price_cents - p.cost_cents) / 100;
+                  const marginPct =
+                    p.cost_cents > 0
+                      ? Math.round(
+                          ((p.price_cents - p.cost_cents) / p.cost_cents) * 100,
+                        )
+                      : 0;
+                  const supplierColor = "zinc";
+                  return (
+                    <TableRow key={p.id}>
+                      <TableCell className="min-w-0">
+                        <AdminAssetCell
+                          imageUrl={p.image_url}
+                          title={p.enriched_title}
+                          subtitle={p.enriched_description}
+                        />
+                      </TableCell>
                     <TableCell className="hidden sm:table-cell">
                       <Badge color={supplierColor}>{p.supplier}</Badge>
                     </TableCell>
@@ -298,8 +278,9 @@ export default async function StoreCatalogPage({
               })}
             </TableBody>
           </Table>
+          </AdminDataTable>
         )}
-      </div>
+      </AdminSection>
     </div>
   );
 }

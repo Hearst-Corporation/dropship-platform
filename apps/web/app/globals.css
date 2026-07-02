@@ -30,6 +30,31 @@
   --color-admin-warning: var(--admin-warning);
   --color-admin-danger: var(--admin-danger);
 
+  /* Admin Deep Black surfaces (see `.dark` block in @layer base) */
+  --color-admin-surface-panel: var(--admin-surface-panel);
+  --color-admin-surface-inset: var(--admin-surface-inset);
+  --color-admin-surface-highlight: var(--admin-surface-highlight);
+  --color-admin-surface-raised: var(--admin-surface-raised);
+  --color-admin-surface-skeleton: var(--admin-surface-skeleton);
+  --color-admin-surface-muted: var(--admin-surface-muted);
+  --color-admin-surface-track: var(--admin-surface-track);
+  --color-admin-surface-dot: var(--admin-surface-dot);
+  --color-admin-border: var(--admin-border-default);
+  --color-admin-border-strong: var(--admin-border-strong);
+  --color-admin-border-soft: var(--admin-border-soft);
+  --color-admin-ring: var(--admin-ring-default);
+  --color-admin-ring-strong: var(--admin-ring-strong);
+  --color-admin-ring-hover: var(--admin-ring-hover);
+  --color-admin-preview-chrome: var(--admin-preview-chrome);
+
+  /* KPI strip (indigo accent row) */
+  --color-admin-surface-kpi: var(--admin-surface-kpi);
+  --color-admin-border-kpi: var(--admin-border-kpi);
+  --color-admin-kpi-divider: var(--admin-kpi-divider);
+  --color-admin-on-kpi: var(--admin-text-on-kpi);
+  --color-admin-on-kpi-muted: var(--admin-text-on-kpi-muted);
+  --color-admin-on-kpi-faint: var(--admin-text-on-kpi-faint);
+
   --radius-admin-sm: var(--admin-radius-sm);
   --radius-admin-md: var(--admin-radius-md);
   --radius-admin-lg: var(--admin-radius-lg);
@@ -155,6 +180,32 @@
     --admin-radius-lg: 12px;
     --admin-radius-xl: 16px;
     --admin-shadow-card: var(--ct-shadow-depth);
+  }
+
+  /* Admin Deep Black — forced via `.dark` wrapper in AdminLayoutClient. */
+  .dark {
+    --admin-surface-panel: #000000;
+    --admin-surface-inset: #000000;
+    --admin-surface-highlight: #0a0a0a;
+    --admin-surface-raised: #141414;
+    --admin-surface-skeleton: #0a0a0a;
+    --admin-surface-muted: #111111;
+    --admin-surface-track: #0a0a0a;
+    --admin-surface-dot: rgb(255 255 255 / 0.18);
+    --admin-border-default: rgb(255 255 255 / 0.08);
+    --admin-border-strong: rgb(255 255 255 / 0.12);
+    --admin-border-soft: rgb(255 255 255 / 0.05);
+    --admin-ring-default: rgb(255 255 255 / 0.08);
+    --admin-ring-strong: rgb(255 255 255 / 0.12);
+    --admin-ring-hover: rgb(255 255 255 / 0.12);
+    --admin-preview-chrome: rgb(0 0 0 / 0.92);
+    /* KPI strip — indigo accent, white type */
+    --admin-surface-kpi: #4f46e5;
+    --admin-border-kpi: rgb(255 255 255 / 0.14);
+    --admin-kpi-divider: rgb(255 255 255 / 0.14);
+    --admin-text-on-kpi: #ffffff;
+    --admin-text-on-kpi-muted: rgb(255 255 255 / 0.72);
+    --admin-text-on-kpi-faint: rgb(255 255 255 / 0.55);
   }
 
   html {

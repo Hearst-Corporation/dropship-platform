@@ -172,7 +172,7 @@ export function ForwardButton({ orderId, alreadySent }: Props) {
           className={
             sentResult.ok || sentAny
               ? "max-w-xs rounded-md px-2.5 py-1.5 text-xs bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20"
-              : "max-w-xs rounded-md px-2.5 py-1.5 text-xs bg-gray-800/50 text-gray-400 ring-1 ring-inset ring-white/[0.08]"
+              : "max-w-xs rounded-md px-2.5 py-1.5 text-xs bg-admin-surface-highlight text-gray-400 ring-1 ring-inset ring-admin-ring"
           }
         >
           {sentLegs.length > 0 ? (
@@ -251,14 +251,14 @@ function ReviewModal({
             className={
               sentAnyModal
                 ? "rounded-lg bg-indigo-500/10 px-4 py-3 ring-1 ring-inset ring-indigo-500/20"
-                : "rounded-lg bg-white/[0.03] px-4 py-3 ring-1 ring-inset ring-white/[0.08]"
+                : "rounded-lg bg-admin-surface-inset px-4 py-3 ring-1 ring-inset ring-admin-ring"
             }
           >
             <p
               className={
                 sentAnyModal
                   ? "rounded-lg bg-indigo-500/10 px-4 py-3 ring-1 ring-inset ring-indigo-500/20"
-                  : "rounded-lg bg-gray-800/50 px-4 py-3 ring-1 ring-inset ring-white/[0.08]"
+                  : "rounded-lg bg-admin-surface-highlight px-4 py-3 ring-1 ring-inset ring-admin-ring"
               }
             >
               {erroredAnyModal
@@ -282,7 +282,7 @@ function ReviewModal({
             )}
           </div>
         ) : sentResult?.status === "error" ? (
-          <div className="rounded-lg bg-white/[0.03] px-4 py-3 ring-1 ring-inset ring-white/[0.08]">
+          <div className="rounded-lg bg-admin-surface-inset px-4 py-3 ring-1 ring-inset ring-admin-ring">
             <p className="text-sm font-medium text-white">
               Erreur lors de l&apos;envoi
             </p>
@@ -294,7 +294,7 @@ function ReviewModal({
             Préparation du payload fournisseur…
           </div>
         ) : dryRunResult?.status === "error" || !dryRunResult?.ok ? (
-          <div className="rounded-lg bg-white/[0.03] px-4 py-3 ring-1 ring-inset ring-white/[0.08]">
+          <div className="rounded-lg bg-admin-surface-inset px-4 py-3 ring-1 ring-inset ring-admin-ring">
             <p className="text-sm font-medium text-white">
               Impossible de préparer la commande
             </p>
@@ -416,7 +416,7 @@ function Section({
       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
         {title}
       </h3>
-      <div className="rounded-lg bg-gray-900/50 px-4 py-3 ring-1 ring-inset ring-white/[0.08]">
+      <div className="rounded-lg bg-admin-surface-highlight px-4 py-3 ring-1 ring-inset ring-admin-ring">
         {children}
       </div>
     </section>

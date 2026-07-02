@@ -27,6 +27,7 @@ import { AdminSection } from "@/components/admin/AdminSection";
 import { AdminStatsGrid } from "@/components/admin/AdminStatsGrid";
 import { AdminStatCard } from "@/components/admin/AdminStatCard";
 import { AdminDataTable } from "@/components/admin/AdminDataTable";
+import { AdminTruncatedText } from "@/components/admin/AdminTruncatedText";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 import { AdminActionMenu } from "@/components/admin/AdminActionMenu";
 import { getDbRead } from "@/lib/db";
@@ -204,7 +205,7 @@ export default async function ObservabilityPage() {
       />
 
       {dataError && (
-        <div className="rounded-md border border-white/[0.08] bg-white/[0.02] px-4 py-3 text-sm text-white">
+        <div className="rounded-md border border-admin-border bg-admin-surface-panel px-4 py-3 text-sm text-white">
           Données temporairement indisponibles. Réessaie dans un instant.
         </div>
       )}
@@ -243,8 +244,16 @@ export default async function ObservabilityPage() {
       </AdminStatsGrid>
 
       <AdminSection title="Par canal" flush>
-        <AdminDataTable>
-          <Table dense>
+        <AdminDataTable fixedLayout>
+          <Table dense bleed clip>
+            <colgroup>
+              <col />
+              <col style={{ width: "7rem" }} />
+              <col style={{ width: "5.5rem" }} />
+              <col style={{ width: "5.5rem" }} />
+              <col style={{ width: "4.5rem" }} />
+              <col style={{ width: "6.5rem" }} />
+            </colgroup>
             <TableHead>
               <TableRow>
                 <TableHeader>Canal</TableHeader>
@@ -301,8 +310,19 @@ export default async function ObservabilityPage() {
             </Text>
           </div>
         ) : (
-          <AdminDataTable>
-            <Table dense>
+          <AdminDataTable fixedLayout>
+            <Table dense bleed clip>
+              <colgroup>
+                <col />
+                <col style={{ width: "9rem" }} />
+                <col style={{ width: "5.5rem" }} />
+                <col style={{ width: "5.5rem" }} />
+                <col style={{ width: "5.5rem" }} />
+                <col style={{ width: "4.5rem" }} />
+                <col style={{ width: "4rem" }} />
+                <col style={{ width: "5.5rem" }} />
+                <col style={{ width: "6rem" }} />
+              </colgroup>
               <TableHead>
                 <TableRow>
                   <TableHeader>Campagne</TableHeader>
@@ -331,24 +351,27 @@ export default async function ObservabilityPage() {
               <TableBody className="[&>tr:last-child>td]:border-b-0">
                 {campaigns.map((c) => (
                   <TableRow key={c.id}>
-                    <TableCell>
+                    <TableCell className="min-w-0">
                       <div className="flex min-w-0 items-center gap-2">
                         <AdminBadge status={c.status} />
-                        <span
-                          className="block max-w-[18rem] truncate font-medium text-white"
-                          title={c.hook ?? undefined}
+                        <AdminTruncatedText
+                          className="font-medium text-white"
+                          title={c.hook ?? "Campagne"}
                         >
                           {c.hook ?? "Campagne"}
-                        </span>
+                        </AdminTruncatedText>
                       </div>
                     </TableCell>
-                    <TableCell className="hidden lg:table-cell">
+                    <TableCell className="min-w-0 hidden lg:table-cell">
                       <div className="font-medium text-white">
                         {CHANNEL_LABEL[c.channel] ?? c.channel}
                       </div>
-                      <div className="mt-0.5 text-xs text-zinc-500">
+                      <AdminTruncatedText
+                        className="mt-0.5 text-xs text-zinc-500"
+                        title={c.storeName ?? undefined}
+                      >
                         {c.storeName ?? "—"}
-                      </div>
+                      </AdminTruncatedText>
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-zinc-500 hidden sm:table-cell">
                       {c.dailyBudgetEur != null

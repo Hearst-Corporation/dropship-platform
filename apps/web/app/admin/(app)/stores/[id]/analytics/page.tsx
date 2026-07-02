@@ -2,9 +2,15 @@ import { notFound } from "next/navigation";
 import { getDbRead } from "@/lib/db";
 import { resolveStoreId } from "@/lib/resolve-store";
 import { formatMoney } from "@/lib/medusa-store";
-import { Heading, Subheading } from "@/components/catalyst/heading";
-import { Text, TextLink, Strong, Code } from "@/components/catalyst/text";
+import { Heading } from "@/components/catalyst/heading";
+import { Text, TextLink, Strong } from "@/components/catalyst/text";
 import { AdminBadge } from "@/components/admin/AdminBadge";
+import { AdminStatCard } from "@/components/admin/AdminStatCard";
+import { AdminStatsGrid } from "@/components/admin/AdminStatsGrid";
+import { AdminDataTable } from "@/components/admin/AdminDataTable";
+import { AdminTruncatedText } from "@/components/admin/AdminTruncatedText";
+import { AdminSection } from "@/components/admin/AdminSection";
+import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 import { Button } from "@/components/catalyst/button";
 import {
   Table,
@@ -199,38 +205,29 @@ export default async function StoreAnalyticsPage({
       </div>
 
       {dataError && (
-        <div className="rounded-md border border-white/[0.08] bg-white/[0.02] px-4 py-3 text-sm text-white">
+        <div className="rounded-md border border-admin-border bg-admin-surface-panel px-4 py-3 text-sm text-white">
           Données temporairement indisponibles. Réessaie dans un instant.
         </div>
       )}
 
-      {/* Aggregate KPIs */}
-      <section>
-        <Subheading>Indicateurs clés</Subheading>
-        <div className="grid grid-cols-1 gap-x-8 2xl:grid-cols-2">
-          {[stats.slice(0, 2), stats.slice(2)].map((half, i) => (
-            <DescriptionList key={i} className="mt-4">
-              {half.map((s) => (
-                <DescriptionListKpi
-                  key={s.label}
-                  term={s.label}
-                  value={s.value}
-                  hint={s.hint}
-                />
-              ))}
-            </DescriptionList>
+      <AdminSection title="Indicateurs clés">
+        <AdminStatsGrid cols={4}>
+          {stats.map((s) => (
+            <AdminStatCard
+              key={s.label}
+              label={s.label}
+              value={s.value}
+              hint={s.hint}
+            />
           ))}
-        </div>
-      </section>
+        </AdminStatsGrid>
+      </AdminSection>
 
-      {/* UX — Funnel */}
-      <section className="border-t border-white/[0.08] pt-8 border-white/[0.08]">
-        <Subheading>Comportement (UX)</Subheading>
-        <Text className="mt-1">
-          Funnel des sessions uniques sur les events serveur. Les session_id se
-          persistent 30 jours.
-        </Text>
-        <DescriptionList className="mt-4">
+      <AdminSection
+        title="Comportement (UX)"
+        description="Funnel des sessions uniques sur les events serveur. Les session_id se persistent 30 jours."
+      >
+        <DescriptionList>
           {FUNNEL_ORDER.map((name) => (
             <DescriptionListPair
               key={name}
@@ -252,52 +249,68 @@ export default async function StoreAnalyticsPage({
             .
           </Text>
         )}
-      </section>
+      </AdminSection>
 
-      {/* UA — Acquisition by source/campaign */}
-      <section className="border-t border-white/[0.08] pt-8 border-white/[0.08]">
-        <Subheading>Acquisition (UA)</Subheading>
-        <Text className="mt-1">
-          Décomposition par utm_source / utm_campaign. Les visiteurs sans UTM
-          sont regroupés sous <Code>(direct)</Code>.
-        </Text>
+      <AdminSection
+        title="Acquisition (UA)"
+        description="Décomposition par utm_source / utm_campaign. Les visiteurs sans UTM sont regroupés sous (direct)."
+        flush={acquisitionRows.length > 0}
+      >
         {acquisitionRows.length === 0 ? (
-          <Text className="mt-6 text-center">
-            Aucun évènement enregistré sur cette période.
-          </Text>
+          <AdminEmptyState
+            title="Aucun évènement sur cette période"
+            description="Les sessions avec UTM apparaîtront ici dès qu'une campagne enverra du trafic."
+          />
         ) : (
-          <Table className="mt-4" dense>
-            <TableHead>
-              <TableRow>
-                <TableHeader>Source</TableHeader>
-                <TableHeader>Campagne</TableHeader>
-                <TableHeader className="text-right hidden sm:table-cell">
-                  Sessions
-                </TableHeader>
-                <TableHeader className="text-right hidden md:table-cell">
-                  Cart
-                </TableHeader>
-                <TableHeader className="text-right hidden lg:table-cell">
-                  Checkout
-                </TableHeader>
-                <TableHeader className="text-right">Achats</TableHeader>
-                <TableHeader className="text-right hidden sm:table-cell">
-                  Revenu
-                </TableHeader>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {acquisitionRows.map((r, i) => {
-                const conv =
-                  r.adds_to_cart > 0 ? (r.purchases / r.adds_to_cart) * 100 : 0;
-                return (
-                  <TableRow key={i}>
-                    <TableCell>
-                      <Strong>{r.source}</Strong>
-                    </TableCell>
-                    <TableCell className="text-zinc-500">
-                      {r.campaign}
-                    </TableCell>
+          <AdminDataTable fixedLayout>
+            <Table dense bleed clip>
+              <colgroup>
+                <col style={{ width: "6rem" }} />
+                <col />
+                <col style={{ width: "4.5rem" }} />
+                <col style={{ width: "4rem" }} />
+                <col style={{ width: "5rem" }} />
+                <col style={{ width: "4.5rem" }} />
+                <col style={{ width: "6rem" }} />
+              </colgroup>
+              <TableHead>
+                <TableRow>
+                  <TableHeader className="whitespace-nowrap">Source</TableHeader>
+                  <TableHeader>Campagne</TableHeader>
+                  <TableHeader className="whitespace-nowrap text-right hidden sm:table-cell">
+                    Sessions
+                  </TableHeader>
+                  <TableHeader className="whitespace-nowrap text-right hidden md:table-cell">
+                    Cart
+                  </TableHeader>
+                  <TableHeader className="whitespace-nowrap text-right hidden lg:table-cell">
+                    Checkout
+                  </TableHeader>
+                  <TableHeader className="whitespace-nowrap text-right">
+                    Achats
+                  </TableHeader>
+                  <TableHeader className="whitespace-nowrap text-right hidden sm:table-cell">
+                    Revenu
+                  </TableHeader>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {acquisitionRows.map((r, i) => {
+                  const conv =
+                    r.adds_to_cart > 0 ? (r.purchases / r.adds_to_cart) * 100 : 0;
+                  return (
+                    <TableRow key={i}>
+                      <TableCell className="min-w-0">
+                        <Strong className="truncate">{r.source}</Strong>
+                      </TableCell>
+                      <TableCell className="min-w-0">
+                        <AdminTruncatedText
+                          className="text-zinc-500"
+                          title={r.campaign}
+                        >
+                          {r.campaign}
+                        </AdminTruncatedText>
+                      </TableCell>
                     <TableCell className="text-right tabular-nums hidden sm:table-cell">
                       {r.visits}
                     </TableCell>
@@ -327,13 +340,15 @@ export default async function StoreAnalyticsPage({
               })}
             </TableBody>
           </Table>
+          </AdminDataTable>
         )}
-      </section>
+      </AdminSection>
 
-      {/* Pixel/CAPI status */}
-      <section className="border-t border-white/[0.08] pt-8 border-white/[0.08]">
-        <Subheading>Plomberie connectée</Subheading>
-        <div className="mt-4 flex flex-wrap gap-3">
+      <AdminSection
+        title="Plomberie connectée"
+        description="Pixels et IDs analytics configurés pour ce store."
+      >
+        <div className="flex flex-wrap gap-3">
           <ConnState label="GA4" set={!!store.ga4_measurement_id} />
           <ConnState label="Meta Pixel" set={!!store.meta_pixel_id} />
           <ConnState label="TikTok Pixel" set={!!store.tiktok_pixel_id} />
@@ -345,7 +360,7 @@ export default async function StoreAnalyticsPage({
             Configure-les dans les Réglages
           </TextLink>
         </Text>
-      </section>
+      </AdminSection>
     </div>
   );
 }
@@ -361,26 +376,6 @@ function DescriptionListPair({
     <>
       <DescriptionTerm>{term}</DescriptionTerm>
       <DescriptionDetails className="tabular-nums">{detail}</DescriptionDetails>
-    </>
-  );
-}
-
-function DescriptionListKpi({
-  term,
-  value,
-  hint,
-}: {
-  term: string;
-  value: string;
-  hint?: string;
-}) {
-  return (
-    <>
-      <DescriptionTerm>{term}</DescriptionTerm>
-      <DescriptionDetails className="tabular-nums">
-        <Strong>{value}</Strong>
-        {hint && <Text className="text-xs/5">{hint}</Text>}
-      </DescriptionDetails>
     </>
   );
 }

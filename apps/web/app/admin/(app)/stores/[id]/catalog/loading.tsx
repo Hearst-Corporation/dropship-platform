@@ -1,39 +1,34 @@
-// Skeleton de chargement — reflète la mise en page de catalog/page.tsx
-// (header, 4 stats aperçu, tableau produits).
+import clsx from "clsx";
+import { adminKpiSkeleton, adminKpiStrip } from "@/components/admin/admin-surface";
+
 export default function Loading() {
   return (
     <div className="space-y-8 animate-pulse" aria-hidden="true">
-      {/* Header */}
       <div className="flex min-w-0 flex-wrap items-end justify-between gap-4">
         <div className="min-w-0 space-y-2">
-          <div className="h-3 w-24 rounded bg-white/[0.03]" />
-          <div className="h-7 w-56 rounded bg-white/[0.03]" />
-          <div className="h-4 w-80 rounded bg-white/[0.03]" />
+          <div className="h-3 w-24 rounded bg-admin-surface-inset" />
+          <div className="h-7 w-56 rounded bg-admin-surface-inset" />
+          <div className="h-4 w-80 rounded bg-admin-surface-inset" />
         </div>
-        <div className="h-9 w-48 rounded-lg bg-white/[0.03]" />
+        <div className="h-9 w-48 rounded-lg bg-admin-surface-inset" />
       </div>
 
-      {/* Aperçu — stats */}
-      <div className="border-t border-white/[0.08] pt-8 border-white/[0.08]">
-        <div className="h-5 w-24 rounded bg-white/[0.03]" />
-        <dl className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
+      <div className="border-t border-admin-border pt-8">
+        <div className="h-5 w-24 rounded bg-admin-surface-inset" />
+        <div className={clsx(adminKpiStrip, "mt-4 sm:grid-cols-2 xl:grid-cols-4")}>
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="space-y-2">
-              <div className="h-3 w-28 rounded bg-white/[0.03]" />
-              <div className="h-6 w-20 rounded bg-white/[0.03]" />
-            </div>
+            <div key={i} className={clsx("h-24", adminKpiSkeleton)} />
           ))}
-        </dl>
+        </div>
       </div>
 
-      {/* Tableau produits */}
-      <div className="border-t border-white/[0.08] pt-8 border-white/[0.08]">
-        <div className="h-5 w-32 rounded bg-white/[0.03]" />
+      <div className="border-t border-admin-border pt-8">
+        <div className="h-5 w-32 rounded bg-admin-surface-inset" />
         <div className="mt-4 space-y-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="flex items-center gap-3">
-              <div className="size-10 shrink-0 rounded-lg bg-white/[0.03]" />
-              <div className="h-8 flex-1 rounded bg-white/[0.03]" />
+              <div className="size-10 shrink-0 rounded-lg bg-admin-surface-inset" />
+              <div className="h-8 flex-1 rounded bg-admin-surface-inset" />
             </div>
           ))}
         </div>

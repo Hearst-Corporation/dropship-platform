@@ -51,7 +51,7 @@ export function AdminSection({
         <div
           className={clsx(
             adminSectionHeader,
-            "relative flex-col gap-4 px-6 py-5 sm:flex-row sm:items-end sm:justify-between",
+            "relative flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-end sm:justify-between",
           )}
         >
           <div className="min-w-0">

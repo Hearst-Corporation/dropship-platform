@@ -2,10 +2,11 @@ import { notFound } from "next/navigation";
 import { getDbRead } from "@/lib/db";
 import { resolveStoreId } from "@/lib/resolve-store";
 import { ASSET_KINDS, type AssetKind } from "@/lib/agent/asset-regenerator";
-import { Heading, Subheading } from "@/components/catalyst/heading";
+import { Heading } from "@/components/catalyst/heading";
 import { Text, Code } from "@/components/catalyst/text";
 import { AdminBadge } from "@/components/admin/AdminBadge";
-import { AssetRegenerator } from "./AssetRegenerator";
+import { AdminSection } from "@/components/admin/AdminSection";
+import { AssetRegenerator, ASSET_KIND_LABELS } from "./AssetRegenerator";
 
 export const dynamic = "force-dynamic";
 
@@ -121,23 +122,26 @@ export default async function StoreAssetsPage({
       </div>
 
       {!product?.image_url && (
-        <div>
+        <AdminSection title="Aucun produit de référence">
           <div className="flex items-center gap-2">
             <AdminBadge status="warning">Attention</AdminBadge>
-            <Subheading>Aucun produit de référence</Subheading>
           </div>
           <Text className="mt-2">
             Aucune image produit n&apos;est associée à ce store, la régénération
             ne peut pas s&apos;appuyer sur un visuel source. Importe un produit
             avec une image avant d&apos;utiliser cette page.
           </Text>
-        </div>
+        </AdminSection>
       )}
 
       <div className="space-y-6">
         {ASSET_KINDS.map((kind) => (
-          <AssetRegenerator
+          <AdminSection
             key={kind}
+            title={ASSET_KIND_LABELS[kind].title}
+            description={ASSET_KIND_LABELS[kind].hint}
+          >
+            <AssetRegenerator
             storeId={store.id}
             kind={kind}
             currentUrl={currentUrlByKind[kind]}
@@ -154,7 +158,8 @@ export default async function StoreAssetsPage({
                   : r.created_at.toISOString(),
             }))}
             referenceImageUrl={product?.image_url ?? null}
-          />
+            />
+          </AdminSection>
         ))}
       </div>
     </div>

@@ -163,7 +163,6 @@ export async function* runResearchTurn(
           const assistantText = textBlocks.map((b) => b.text).join('\n').trim();
 
           if (assistantText) {
-            emit({ type: 'thinking', data: { text: assistantText } });
             finalAssistantText = assistantText;
           }
 
@@ -188,6 +187,7 @@ export async function* runResearchTurn(
           }
 
           if (assistantText) {
+            emit({ type: 'thinking', data: { text: assistantText } });
             await insertMessage(sessionId, {
               role: 'assistant',
               content: assistantText,

@@ -1,5 +1,4 @@
 import { Fragment } from "react";
-import { Subheading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
 import { Badge } from "@/components/catalyst/badge";
 import {
@@ -17,6 +16,8 @@ import {
 } from "@/components/catalyst/description-list";
 import { AdminBadge } from "@/components/admin/AdminBadge";
 import { AdminDataTable } from "@/components/admin/AdminDataTable";
+import { AdminTruncatedText } from "@/components/admin/AdminTruncatedText";
+import { AdminSection } from "@/components/admin/AdminSection";
 import type { StoreRunReport } from "@/lib/agent/store-report";
 
 const RISK_LABEL: Record<string, string> = {
@@ -72,14 +73,15 @@ export function RunReportSections({
 
   return (
     <>
-      <section className="border-t border-white/[0.08] pt-8">
-        <div className="flex items-start justify-between gap-4">
-          <Subheading>Run agent</Subheading>
+      <AdminSection
+        title="Run agent"
+        actions={
           <AdminBadge status={report.assets.status}>
             {ASSET_STATUS_LABEL[report.assets.status] ?? report.assets.status}
           </AdminBadge>
-        </div>
-        <DescriptionList className="mt-4 sm:grid-cols-2">
+        }
+      >
+        <DescriptionList className="sm:grid-cols-2">
           <DescriptionTerm>Marchés cibles</DescriptionTerm>
           <DescriptionDetails>
             {report.markets.join(" + ") || "FR"}
@@ -102,16 +104,21 @@ export function RunReportSections({
             </>
           )}
         </DescriptionList>
-      </section>
+      </AdminSection>
 
-      <section className="border-t border-white/[0.08] pt-8">
-        <Subheading>Fournisseurs et dropshippers</Subheading>
-        <Text className="mt-1">
-          Politique appliquée pendant le run: sources interrogées, plateformes
-          exclues et justification.
-        </Text>
-        <AdminDataTable className="mt-4">
-          <Table dense>
+      <AdminSection
+        title="Fournisseurs et dropshippers"
+        description="Politique appliquée pendant le run : sources interrogées, plateformes exclues et justification."
+        flush
+      >
+        <AdminDataTable fixedLayout>
+          <Table dense bleed clip>
+            <colgroup>
+              <col />
+              <col style={{ width: "7rem" }} />
+              <col style={{ width: "4.5rem" }} />
+              <col />
+            </colgroup>
             <TableHead>
               <TableRow>
                 <TableHeader>Fournisseur</TableHeader>
@@ -156,17 +163,26 @@ export function RunReportSections({
             </TableBody>
           </Table>
         </AdminDataTable>
-      </section>
+      </AdminSection>
 
       {report.products.length > 0 && (
-        <section className="border-t border-white/[0.08] pt-8">
-          <Subheading>Sélection produits du run</Subheading>
-          <Text className="mt-1">
-            Prix, coût, marge, risque et adéquation marché évalués par
-            l&rsquo;agent.
-          </Text>
-          <AdminDataTable className="mt-4">
-            <Table dense>
+        <AdminSection
+          title="Sélection produits du run"
+          description="Prix, coût, marge, risque et adéquation marché évalués par l'agent."
+          flush
+        >
+          <AdminDataTable fixedLayout>
+            <Table dense bleed clip>
+              <colgroup>
+                <col />
+                <col style={{ width: "6rem" }} />
+                <col style={{ width: "4.5rem" }} />
+                <col style={{ width: "4.5rem" }} />
+                <col style={{ width: "5rem" }} />
+                <col style={{ width: "6rem" }} />
+                <col style={{ width: "7rem" }} />
+                <col style={{ width: "6rem" }} />
+              </colgroup>
               <TableHead>
                 <TableRow>
                   <TableHeader>Produit</TableHeader>
@@ -192,13 +208,21 @@ export function RunReportSections({
               <TableBody>
                 {report.products.map((p) => (
                   <TableRow key={`${p.supplier}-${p.externalId}`}>
-                    <TableCell className="max-w-xs">
-                      <span className="line-clamp-1 font-medium text-white">
+                  <TableCell className="min-w-0">
+                      <AdminTruncatedText
+                        as="p"
+                        className="font-medium text-white"
+                        title={p.title}
+                      >
                         {p.title}
-                      </span>
-                      <span className="mt-0.5 line-clamp-1 block text-xs text-zinc-500">
+                      </AdminTruncatedText>
+                      <AdminTruncatedText
+                        as="p"
+                        className="mt-0.5 text-xs text-zinc-500"
+                        title={p.reason}
+                      >
                         {p.reason}
-                      </span>
+                      </AdminTruncatedText>
                     </TableCell>
                     <TableCell className="text-zinc-500 hidden sm:table-cell">
                       {p.supplier}
@@ -219,8 +243,10 @@ export function RunReportSections({
                         {RISK_LABEL[p.riskLevel] ?? p.riskLevel}
                       </AdminBadge>
                     </TableCell>
-                    <TableCell className="max-w-48 text-zinc-500 hidden lg:table-cell">
-                      <span className="line-clamp-2">{p.marketFit}</span>
+                    <TableCell className="min-w-0 text-zinc-500 hidden lg:table-cell">
+                      <AdminTruncatedText title={p.marketFit}>
+                        {p.marketFit}
+                      </AdminTruncatedText>
                     </TableCell>
                     <TableCell>
                       <AdminBadge
@@ -234,22 +260,22 @@ export function RunReportSections({
               </TableBody>
             </Table>
           </AdminDataTable>
-        </section>
+        </AdminSection>
       )}
 
       {plan && (
-        <section className="border-t border-white/[0.08] pt-8">
-          <div className="flex items-start justify-between gap-4">
-            <Subheading>Plan Google Ads de lancement</Subheading>
+        <AdminSection
+          title="Plan Google Ads de lancement"
+          actions={
             <div className="flex items-center gap-2">
               <Badge color="zinc">Draft, non envoyé</Badge>
               <Badge color={plan.source === "openai" ? "indigo" : "zinc"}>
                 {plan.source === "openai" ? "Généré par IA" : "Plan de secours"}
               </Badge>
             </div>
-          </div>
-
-          <DescriptionList className="mt-4 sm:grid-cols-2">
+          }
+        >
+          <DescriptionList className="sm:grid-cols-2">
             <DescriptionTerm>Campagne</DescriptionTerm>
             <DescriptionDetails>{plan.campaignName}</DescriptionDetails>
 
@@ -337,13 +363,12 @@ export function RunReportSections({
               ))}
             </DescriptionDetails>
           </DescriptionList>
-        </section>
+        </AdminSection>
       )}
 
       {report.events.length > 0 && (
-        <section className="border-t border-white/[0.08] pt-8">
-          <Subheading>Logs du run agent</Subheading>
-          <div className="mt-4 max-h-80 overflow-y-auto rounded-lg p-4 ring-1 ring-white/[0.08]">
+        <AdminSection title="Logs du run agent">
+          <div className="max-h-80 overflow-y-auto rounded-lg border border-admin-border bg-admin-surface-inset p-4">
             <div className="flex flex-col gap-1 font-mono text-xs">
               {report.events.map((e, i) => (
                 <div key={i} className="flex items-start gap-3">
@@ -367,7 +392,7 @@ export function RunReportSections({
               ))}
             </div>
           </div>
-        </section>
+        </AdminSection>
       )}
     </>
   );

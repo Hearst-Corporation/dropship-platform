@@ -38,10 +38,10 @@ export function AdminAssetCell({
         <img
           src={imageUrl}
           alt=""
-          className="size-11 shrink-0 rounded-lg object-cover ring-1 ring-white/[0.08]"
+          className="size-11 shrink-0 rounded-lg object-cover ring-1 ring-admin-ring"
         />
       ) : (
-        <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-white/[0.03] ring-1 ring-white/[0.08]">
+        <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-admin-surface-inset ring-1 ring-admin-ring">
           <PhotoIcon className="size-5 text-zinc-400 text-zinc-500" />
         </div>
       )}
@@ -56,7 +56,7 @@ export function AdminAssetCell({
           </div>
         ) : null}
         {handle ? (
-          <div className="mt-0.5 max-w-[16rem] truncate font-mono text-[0.6875rem] text-zinc-400 text-zinc-500">
+          <div className="mt-0.5 truncate font-mono text-[0.6875rem] text-zinc-400 text-zinc-500">
             {handle}
           </div>
         ) : null}

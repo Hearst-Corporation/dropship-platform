@@ -203,7 +203,7 @@ export function StoreAnalyticsForm({ storeId, initial }: Props) {
           </FieldGroup>
         </Fieldset>
 
-        <div className="flex items-center justify-between gap-4 border-t border-white/[0.08] pt-4 border-white/[0.08]">
+        <div className="flex items-center justify-between gap-4 border-t border-admin-border pt-4 border-admin-border">
           {feedback ? (
             feedback.type === "ok" ? (
               <span className="text-sm text-indigo-400">{feedback.msg}</span>
@@ -214,7 +214,7 @@ export function StoreAnalyticsForm({ storeId, initial }: Props) {
             )
           ) : dirty ? (
             <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500 text-zinc-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-white/[0.15]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-admin-surface-dot" />
               Non sauvegardé
             </span>
           ) : (

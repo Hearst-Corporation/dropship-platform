@@ -326,7 +326,7 @@ export default async function PortfolioDashboard() {
 
       <AdminSection flush>
         <div className="grid grid-cols-1 lg:grid-cols-3">
-          <div className="flex flex-col justify-center border-b border-white/[0.08] bg-white/[0.02] p-6 lg:border-b-0 lg:border-r lg:p-8">
+          <div className="flex flex-col justify-center border-b border-admin-border bg-admin-surface-panel p-6 lg:border-b-0 lg:border-r lg:p-8">
             <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-400">
               Performance
             </p>
@@ -354,7 +354,7 @@ export default async function PortfolioDashboard() {
               .
             </p>
           </div>
-          <div className="p-6 bg-white/[0.02] lg:col-span-2 lg:p-8">
+          <div className="p-6 bg-admin-surface-panel lg:col-span-2 lg:p-8">
             <div className="mb-8 flex items-center justify-between gap-3">
               <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-400">
                 Tendance
@@ -392,7 +392,7 @@ export default async function PortfolioDashboard() {
           hint={`${revenue.orders_7d.toLocaleString("fr-FR")} commandes`}
           icon={CurrencyEuroIcon}
           chart={
-            <AdminSparkline data={trendData.map((d) => d.ca)} color="black" />
+            <AdminSparkline data={trendData.map((d) => d.ca)} color="white" />
           }
         />
         <AdminStatCard
@@ -404,7 +404,7 @@ export default async function PortfolioDashboard() {
           chart={
             <AdminSparkline
               data={funnelSteps.map((d) => d.value)}
-              color="black"
+              color="white"
             />
           }
         />
@@ -441,8 +441,14 @@ export default async function PortfolioDashboard() {
               description="Aucun store actif n'a enregistré de commande sur les 7 derniers jours."
             />
           ) : (
-            <AdminDataTable>
-              <Table dense>
+            <AdminDataTable fixedLayout>
+              <Table dense bleed clip>
+                <colgroup>
+                  <col style={{ width: "2.5rem" }} />
+                  <col />
+                  <col style={{ width: "6.5rem" }} />
+                  <col style={{ width: "4.5rem" }} />
+                </colgroup>
                 <TableHead>
                   <TableRow>
                     <TableHeader className="w-10 text-right hidden sm:table-cell">
@@ -463,14 +469,14 @@ export default async function PortfolioDashboard() {
                         <TableCell className="text-right text-xs tabular-nums text-zinc-400 hidden sm:table-cell">
                           {idx + 1}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="min-w-0">
                           <div className="flex items-center gap-4">
                             <StoreAvatar
                               slug={s.slug}
                               name={s.name}
                               size={32}
                             />
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <div className="truncate font-bold text-white">
                                 {s.name}
                               </div>
@@ -557,7 +563,7 @@ export default async function PortfolioDashboard() {
           description="Signaux nécessitant une attention immédiate."
         >
           {errorRate > 5 ? (
-            <div className="flex items-start gap-4 border border-white/[0.08] bg-white/[0.02] p-5">
+            <div className="flex items-start gap-4 border border-admin-border bg-admin-surface-panel p-5">
               <ExclamationTriangleIcon className="size-5 shrink-0 text-zinc-400 text-zinc-500" />
               <div className="min-w-0">
                 <p className="text-sm font-bold text-white">

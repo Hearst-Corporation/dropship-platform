@@ -1,4 +1,3 @@
-import { Fragment } from "react";
 import { notFound } from "next/navigation";
 import { getDbRead } from "@/lib/db";
 import { resolveStoreId } from "@/lib/resolve-store";
@@ -6,9 +5,12 @@ import { loadStoreReport } from "@/lib/agent/store-report";
 import { StoreAvatar } from "@/components/ui";
 import { StoreActions } from "../StoreActions";
 import { RunReportSections } from "./RunReportSections";
-import { Heading, Subheading } from "@/components/catalyst/heading";
+import { Heading } from "@/components/catalyst/heading";
 import { Text, TextLink, Strong, Code } from "@/components/catalyst/text";
 import { AdminBadge } from "@/components/admin/AdminBadge";
+import { AdminStatCard } from "@/components/admin/AdminStatCard";
+import { AdminStatsGrid } from "@/components/admin/AdminStatsGrid";
+import { AdminSection } from "@/components/admin/AdminSection";
 import { Button } from "@/components/catalyst/button";
 import {
   DescriptionList,
@@ -142,27 +144,23 @@ export default async function StoreDetailPage({
         </div>
       </div>
 
-      <section>
-        <Subheading>Indicateurs</Subheading>
-        <DescriptionList className="mt-4 sm:grid-cols-2">
+      <AdminSection title="Indicateurs">
+        <AdminStatsGrid cols={4}>
           {kpis.map((kpi) => (
-            <Fragment key={kpi.label}>
-              <DescriptionTerm>{kpi.label}</DescriptionTerm>
-              <DescriptionDetails>{kpi.value}</DescriptionDetails>
-            </Fragment>
+            <AdminStatCard key={kpi.label} label={kpi.label} value={kpi.value} />
           ))}
-        </DescriptionList>
-      </section>
+        </AdminStatsGrid>
+      </AdminSection>
 
-      <section className="border-t border-white/[0.08] pt-8">
-        <div className="flex items-start justify-between gap-4">
-          <Subheading>Informations</Subheading>
+      <AdminSection
+        title="Informations"
+        actions={
           <AdminBadge status={statusActive ? "active" : store.status}>
             {statusActive ? "En ligne" : store.status}
           </AdminBadge>
-        </div>
-
-        <DescriptionList className="mt-4 sm:grid-cols-2">
+        }
+      >
+        <DescriptionList className="sm:grid-cols-2">
           <DescriptionTerm>Niche</DescriptionTerm>
           <DescriptionDetails>{store.niche || "—"}</DescriptionDetails>
 
@@ -207,25 +205,26 @@ export default async function StoreDetailPage({
             </>
           )}
         </DescriptionList>
-      </section>
+      </AdminSection>
 
-      <section className="flex flex-wrap items-center justify-between gap-4 border-t border-white/[0.08] pt-8">
-        <div className="min-w-0">
-          <Subheading>Catalogue</Subheading>
-          <Text className="mt-1">
-            <Strong>{products.length}</Strong> produit
-            {products.length > 1 ? "s" : ""} import&eacute;
-            {products.length > 1 ? "s" : ""}.
-          </Text>
-        </div>
-        <Button
-          color="indigo"
-          href={`/admin/stores/${store.id}/catalog`}
-          className="shrink-0"
-        >
-          Voir le catalogue
-        </Button>
-      </section>
+      <AdminSection
+        title="Catalogue"
+        actions={
+          <Button
+            color="indigo"
+            href={`/admin/stores/${store.id}/catalog`}
+            className="shrink-0"
+          >
+            Voir le catalogue
+          </Button>
+        }
+      >
+        <Text>
+          <Strong>{products.length}</Strong> produit
+          {products.length > 1 ? "s" : ""} import&eacute;
+          {products.length > 1 ? "s" : ""}.
+        </Text>
+      </AdminSection>
 
       <RunReportSections report={runReport} />
     </div>

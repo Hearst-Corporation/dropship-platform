@@ -22,6 +22,7 @@ import { AdminStatCard } from "@/components/admin/AdminStatCard";
 import { AdminStatsGrid } from "@/components/admin/AdminStatsGrid";
 import { AdminBadge } from "@/components/admin/AdminBadge";
 import { AdminDataTable } from "@/components/admin/AdminDataTable";
+import { AdminTruncatedText } from "@/components/admin/AdminTruncatedText";
 import {
   CheckCircleIcon,
   ClockIcon,
@@ -225,8 +226,16 @@ export default async function OrdersPage() {
               Annulation auto après <Strong>20 jours</Strong>.
             </Text>
           </div>
-          <AdminDataTable>
-            <Table dense>
+          <AdminDataTable fixedLayout>
+            <Table dense bleed clip>
+              <colgroup>
+                <col style={{ width: "9rem" }} />
+                <col style={{ width: "9rem" }} />
+                <col style={{ width: "5rem" }} />
+                <col style={{ width: "8rem" }} />
+                <col style={{ width: "7rem" }} />
+                <col style={{ width: "7rem" }} />
+              </colgroup>
               <TableHead>
                 <TableRow>
                   <TableHeader>Commande</TableHeader>
@@ -257,30 +266,39 @@ export default async function OrdersPage() {
                   const stale = ageHours >= 24 * 15;
                   return (
                     <TableRow key={row.medusa_order_id}>
-                      <TableCell>
+                      <TableCell className="min-w-0">
                         <div className="font-medium text-white">
                           #{row.display_id ?? row.medusa_order_id.slice(0, 8)}
                         </div>
-                        <div className="mt-0.5 max-w-36 truncate font-mono text-xs text-zinc-500">
+                        <AdminTruncatedText
+                          className="mt-0.5 font-mono text-xs text-zinc-500"
+                          title={row.medusa_order_id}
+                        >
                           {row.medusa_order_id}
-                        </div>
+                        </AdminTruncatedText>
                       </TableCell>
-                      <TableCell className="max-w-40 truncate text-zinc-500 hidden sm:table-cell">
-                        {row.customer_email ?? "—"}
+                      <TableCell className="min-w-0 hidden sm:table-cell">
+                        <AdminTruncatedText
+                          className="text-zinc-500"
+                          title={row.customer_email ?? undefined}
+                        >
+                          {row.customer_email ?? "—"}
+                        </AdminTruncatedText>
                       </TableCell>
                       <TableCell className="font-semibold tabular-nums text-white">
                         {row.total_minor != null && row.currency_code
                           ? formatMoney(row.total_minor, row.currency_code)
                           : "—"}
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell">
+                      <TableCell className="min-w-0 hidden lg:table-cell">
                         <TextLink
                           href={aliExpressOrderUrl(row.supplier_order_id)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 font-mono text-xs"
+                          className="inline-flex min-w-0 max-w-full items-center gap-1 font-mono text-xs"
+                          title={row.supplier_order_id}
                         >
-                          {row.supplier_order_id}
+                          <span className="truncate">{row.supplier_order_id}</span>
                           <ArrowTopRightOnSquareIcon
                             className="h-3.5 w-3.5"
                             aria-hidden="true"
@@ -326,8 +344,16 @@ export default async function OrdersPage() {
           }
           flush
         >
-          <AdminDataTable>
-            <Table dense>
+          <AdminDataTable fixedLayout>
+            <Table dense bleed clip>
+              <colgroup>
+                <col style={{ width: "8rem" }} />
+                <col style={{ width: "9rem" }} />
+                <col style={{ width: "5rem" }} />
+                <col style={{ width: "7rem" }} />
+                <col />
+                <col style={{ width: "6.5rem" }} />
+              </colgroup>
               <TableHead>
                 <TableRow>
                   <TableHeader>Commande</TableHeader>
@@ -366,10 +392,13 @@ export default async function OrdersPage() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="hidden sm:table-cell">
-                        <div className="max-w-40 truncate text-zinc-500">
+                      <TableCell className="min-w-0 hidden sm:table-cell">
+                        <AdminTruncatedText
+                          className="text-zinc-500"
+                          title={order.email ?? undefined}
+                        >
                           {order.email ?? "—"}
-                        </div>
+                        </AdminTruncatedText>
                         {order.shipping_address?.city && (
                           <div className="mt-0.5 text-xs text-zinc-500">
                             {order.shipping_address.city}
@@ -388,8 +417,8 @@ export default async function OrdersPage() {
                           {order.payment_status ?? order.status ?? "—"}
                         </AdminBadge>
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell">
-                        <div className="flex flex-col items-start gap-1">
+                      <TableCell className="min-w-0 hidden lg:table-cell">
+                        <div className="flex min-w-0 flex-col items-start gap-1">
                           {legs.length === 0 ? (
                             <Text>—</Text>
                           ) : (

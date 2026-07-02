@@ -39,7 +39,7 @@ export default async function TemplatePreviewPage({
   return (
     <div>
       {/* Admin header bar */}
-      <div className="sticky top-0 z-50 flex items-center gap-3 border-b border-white/[0.12] bg-white/[0.95] px-4 py-2.5 text-sm backdrop-blur-sm">
+      <div className="sticky top-0 z-50 flex items-center gap-3 border-b border-admin-border-strong bg-admin-preview-chrome px-4 py-2.5 text-sm backdrop-blur-sm">
         <Link
           href="/admin/templates"
           className="flex items-center gap-1 text-zinc-500 transition-colors hover:text-zinc-900"
@@ -64,7 +64,7 @@ export default async function TemplatePreviewPage({
         <Badge color="zinc" className="font-mono">
           {id}
         </Badge>
-        <span className="ml-auto rounded-full bg-white/[0.03] px-2.5 py-0.5 text-xs font-medium text-zinc-400">
+        <span className="ml-auto rounded-full bg-admin-surface-inset px-2.5 py-0.5 text-xs font-medium text-zinc-400">
           Apercu avec donnees fictives
         </span>
       </div>

@@ -17,16 +17,45 @@ export function Table({
   dense = false,
   grid = false,
   striped = false,
+  clip = false,
   className,
   children,
   ...props
-}: { bleed?: boolean; dense?: boolean; grid?: boolean; striped?: boolean } & React.ComponentPropsWithoutRef<'div'>) {
+}: {
+  bleed?: boolean
+  dense?: boolean
+  grid?: boolean
+  striped?: boolean
+  /** Fit parent width; clip overflow instead of horizontal scroll. */
+  clip?: boolean
+} & React.ComponentPropsWithoutRef<'div'>) {
   return (
     <TableContext.Provider value={{ bleed, dense, grid, striped } as React.ContextType<typeof TableContext>}>
       <div className="flow-root">
-        <div {...props} className={clsx(className, 'relative -mx-(--gutter) overflow-x-auto')}>
-          <div className={clsx('inline-block min-w-full align-middle', !bleed && 'sm:px-(--gutter)')}>
-            <table className="min-w-full text-left text-sm/6 text-white">{children}</table>
+        <div
+          {...props}
+          className={clsx(
+            className,
+            'relative',
+            !bleed && '-mx-(--gutter)',
+            clip ? 'min-w-0 overflow-x-clip' : 'overflow-x-auto',
+          )}
+        >
+          <div
+            className={clsx(
+              clip ? 'w-full min-w-0' : 'inline-block min-w-full',
+              'align-middle',
+              !bleed && 'sm:px-(--gutter)',
+            )}
+          >
+            <table
+              className={clsx(
+                'min-w-full text-left text-sm/6 text-white',
+                clip && 'w-full table-fixed',
+              )}
+            >
+              {children}
+            </table>
           </div>
         </div>
       </div>

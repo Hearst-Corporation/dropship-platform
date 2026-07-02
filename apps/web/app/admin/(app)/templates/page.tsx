@@ -87,13 +87,13 @@ export default async function TemplatesGalleryPage() {
                 return (
                   <div
                     key={t.id}
-                    className="flex min-w-0 flex-col overflow-hidden bg-white/[0.02] ring-1 ring-white/[0.08] transition hover:ring-white/[0.12]"
+                    className="flex min-w-0 flex-col overflow-hidden bg-admin-surface-panel ring-1 ring-admin-ring transition hover:ring-admin-ring-strong"
                   >
                     <Link
                       href={`/admin/templates/${t.id}/preview`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="relative block aspect-[16/10] w-full overflow-hidden bg-white/[0.02]"
+                      className="relative block aspect-[16/10] w-full overflow-hidden bg-admin-surface-panel"
                     >
                       {preview ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -105,7 +105,7 @@ export default async function TemplatesGalleryPage() {
                           className="absolute inset-0 h-full w-full object-cover object-top"
                         />
                       ) : (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/[0.02]">
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-admin-surface-panel">
                           <Squares2X2Icon
                             className="size-6 text-zinc-400"
                             aria-hidden="true"

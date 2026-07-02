@@ -175,7 +175,7 @@ describe('research-copilot', () => {
     expect(msgs[1]!.params[2]).toBe('Bienvenue, quel marché vises-tu ?');
 
     const types = events.map((e) => e.type);
-    expect(types).toContain('thinking');
+    expect(types).not.toContain('thinking');
     expect(types).toContain('message');
     expect(types).toContain('done');
   });

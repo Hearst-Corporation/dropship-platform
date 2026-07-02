@@ -4,12 +4,16 @@ import {
   ArrowTrendingDownIcon,
   ArrowTrendingUpIcon,
 } from "@heroicons/react/16/solid";
-import { adminText, adminTextMuted } from "./admin-surface";
+import {
+  adminTextOnKpi,
+  adminTextOnKpiFaint,
+  adminTextOnKpiMuted,
+} from "./admin-surface";
 
 /**
- * Compact KPI card for the admin dashboard. Shows a label, a big value, an
- * optional hint line, an optional colored delta chip, and an optional icon.
- * Dark-mode aware. Server-safe.
+ * Compact KPI card for the admin dashboard. Renders inside AdminStatsGrid
+ * (indigo strip, white type). Shows label, value, optional hint, delta chip,
+ * icon and sparkline. Server-safe.
  */
 type Tone = "default" | "positive" | "warning" | "danger";
 
@@ -24,17 +28,17 @@ export interface AdminStatCardProps {
 }
 
 const toneValue: Record<Tone, string> = {
-  default: adminText,
-  positive: "text-indigo-400",
-  warning: "text-amber-400",
-  danger: "text-red-400",
+  default: adminTextOnKpi,
+  positive: adminTextOnKpi,
+  warning: "text-amber-200",
+  danger: "text-red-200",
 };
 
 const toneIconWrap: Record<Tone, string> = {
-  default: adminTextMuted,
-  positive: "text-indigo-400",
-  warning: "text-amber-400",
-  danger: "text-red-400",
+  default: adminTextOnKpiMuted,
+  positive: adminTextOnKpiMuted,
+  warning: "text-amber-200",
+  danger: "text-red-200",
 };
 
 export function AdminStatCard({
@@ -47,13 +51,13 @@ export function AdminStatCard({
   chart,
 }: AdminStatCardProps) {
   return (
-    <div className="group relative flex-col justify-between overflow-hidden p-6">
+    <div className="group relative flex flex-col justify-between overflow-hidden p-6">
       <div className="relative z-10">
         <div className="flex items-start justify-between gap-3">
           <p
             className={clsx(
               "truncate text-[10px] font-bold uppercase tracking-[0.15em]",
-              adminTextMuted,
+              adminTextOnKpiMuted,
             )}
           >
             {label}
@@ -82,7 +86,7 @@ export function AdminStatCard({
             <span
               className={clsx(
                 "inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs font-bold tabular-nums",
-                delta.positive ? "text-indigo-400" : adminTextMuted,
+                delta.positive ? adminTextOnKpi : adminTextOnKpiFaint,
               )}
             >
               {delta.positive ? (
@@ -98,7 +102,7 @@ export function AdminStatCard({
           <p
             className={clsx(
               "mt-2 truncate text-xs font-medium",
-              adminTextMuted,
+              adminTextOnKpiFaint,
             )}
           >
             {hint}
@@ -106,7 +110,7 @@ export function AdminStatCard({
         ) : null}
       </div>
       {chart ? (
-        <div className="absolute inset-x-0 bottom-0 z-0 h-16 opacity-40">
+        <div className="absolute inset-x-0 bottom-0 z-0 h-16 opacity-50">
           {chart}
         </div>
       ) : null}

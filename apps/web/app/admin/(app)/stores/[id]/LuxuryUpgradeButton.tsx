@@ -57,25 +57,13 @@ export function LuxuryUpgradeButton({
   };
 
   return (
-    <section className="overflow-hidden rounded-xl bg-gray-800/50 ring-1 ring-indigo-500/20">
-      <div className="border-b border-indigo-500/20 px-5 pb-3 pt-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-indigo-400">
-          Passage en mode luxe
-        </p>
-        <h3 className="mt-1 text-base font-semibold tracking-tight text-white">
-          Upgrade éditorial{" "}
-          <em className="italic text-gray-400">de toute la boutique</em>
-        </h3>
-        <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-gray-500">
-          Re-rend hero, cutout, lifestyle (×3) et packaging via fal.ai en
-          composition studio luxe. Réécrit la copy en voix maison (Hermès /
-          Aesop / Le Labo). Bascule le template sur{" "}
-          <code className="font-mono text-gray-400">luxury-mono</code> et
-          propose un prix de vente à 15-20× le coût fournisseur.
-        </p>
-      </div>
-      <div className="space-y-3 p-5">
-        <ul className="space-y-1.5 text-xs leading-relaxed text-gray-400">
+    <AdminSection
+      title="Passage en mode luxe"
+      highlight
+      description="Re-rend hero, cutout, lifestyle (×3) et packaging via fal.ai. Réécrit la copy en voix maison. Bascule le template sur luxury-mono."
+    >
+      <div className="space-y-3">
+        <ul className="space-y-1.5 text-xs leading-relaxed text-zinc-400">
           <li>· 6 visuels régénérés (≈ 60s) + 1 vidéo hero 5s (≈ 60s)</li>
           <li>· Copy littéraire FR (hero, story, atelier, packaging, CTA)</li>
           <li>
@@ -127,11 +115,11 @@ export function LuxuryUpgradeButton({
           </p>
         )}
         {error && (
-          <p className="rounded-md bg-gray-900/50 px-3 py-2 text-xs text-gray-400 ring-1 ring-white/[0.08]">
+          <p className="rounded-md bg-admin-surface-inset px-3 py-2 text-xs text-zinc-400 ring-1 ring-admin-ring">
             {error}
           </p>
         )}
       </div>
-    </section>
+    </AdminSection>
   );
 }

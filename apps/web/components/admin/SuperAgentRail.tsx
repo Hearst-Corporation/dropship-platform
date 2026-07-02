@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils/cn";
 import {
   useSuperAgentChat,
+  setSuperAgentPage,
   type ChatMessage,
   type ChatStep,
 } from "./useSuperAgentChat";
@@ -69,13 +70,15 @@ function Bubble({ msg }: { msg: ChatMessage }) {
     <div className="space-y-1.5">
       {msg.steps && msg.steps.length > 0 && (
         <div className="space-y-1">
-          {msg.steps.map((s, i) => (
+          {msg.steps
+            .filter((s) => s.kind !== "thinking")
+            .map((s, i) => (
             <StepLine key={i} step={s} />
           ))}
         </div>
       )}
       {msg.text && (
-        <div className="max-w-[90%] whitespace-pre-wrap rounded-none bg-white/[0.03] px-4 py-3 text-sm text-zinc-100 border border-white/[0.08]">
+        <div className="max-w-[90%] whitespace-pre-wrap rounded-none bg-admin-surface-inset px-4 py-3 text-sm text-zinc-100 border border-admin-border">
           {msg.text}
         </div>
       )}
@@ -87,11 +90,11 @@ function Bubble({ msg }: { msg: ChatMessage }) {
 function TypingIndicator() {
   return (
     <div className="flex">
-      <div className="flex items-center gap-2 rounded-none bg-white/[0.03] px-4 py-4 border border-white/[0.08]">
+      <div className="flex items-center gap-2 rounded-none bg-admin-surface-inset px-4 py-4 border border-admin-border">
         {[0, 1, 2].map((i) => (
           <span
             key={i}
-            className="size-1.5 rounded-none bg-white/[0.20] animate-pulse"
+            className="size-1.5 rounded-none bg-admin-surface-dot animate-pulse"
             style={{ animationDelay: `${i * 150}ms` }}
           />
         ))}
@@ -158,9 +161,9 @@ function ChatBody({
         (!lastMessage.steps || lastMessage.steps.length === 0)));
 
   return (
-    <div className="flex h-full flex-col bg-white/[0.02]">
+    <div className="flex h-full flex-col bg-admin-surface-panel">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-white/[0.08] px-6 py-5">
+      <div className="flex items-center justify-between border-b border-admin-border px-6 py-5">
         <div className="flex items-center gap-3">
           <span className="flex size-3 shrink-0 items-center justify-center bg-indigo-600"></span>
           <div>
@@ -176,7 +179,7 @@ function ChatBody({
           type="button"
           onClick={reset}
           title="Nouvelle conversation"
-          className="rounded-none p-2 text-zinc-500 hover:bg-white/[0.03] hover:text-white transition-colors"
+          className="rounded-none p-2 text-zinc-500 hover:bg-admin-surface-inset hover:text-white transition-colors"
         >
           <ArrowPathIcon className="size-4" aria-hidden />
         </button>
@@ -202,15 +205,15 @@ function ChatBody({
         )}
         {waitingFirstOutput && <TypingIndicator />}
         {error && (
-          <div className="rounded-none bg-white/[0.03] px-4 py-3 text-xs text-zinc-400 border border-white/[0.08]">
+          <div className="rounded-none bg-admin-surface-inset px-4 py-3 text-xs text-zinc-400 border border-admin-border">
             {error}
           </div>
         )}
       </div>
 
       {/* Composer */}
-      <form onSubmit={submit} className="border-t border-white/[0.08] p-4">
-        <div className="flex items-end gap-2 bg-white/[0.03] p-2 border border-white/[0.08] focus-within:border-indigo-600 transition-colors">
+      <form onSubmit={submit} className="border-t border-admin-border p-4">
+        <div className="flex items-end gap-2 bg-admin-surface-inset p-2 border border-admin-border focus-within:border-indigo-600 transition-colors">
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -244,24 +247,23 @@ function ChatBody({
 export function SuperAgentRail() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
-  // Chat state is owned here so the docked rail and the drawer share one
-  // conversation: the Headless Dialog unmounts its children on close, and a
-  // ChatBody-local hook would lose the whole session every time.
-  const { messages, running, error, send, reset } = useSuperAgentChat(
-    pathname ?? "",
-  );
-  const [draft, setDraft] = useState("");
+
+  useEffect(() => {
+    setSuperAgentPage(pathname ?? "");
+  }, [pathname]);
+
+  const { messages, running, error, send, reset, draft, setDraft } =
+    useSuperAgentChat();
 
   const chatProps = { messages, running, error, send, reset, draft, setDraft };
 
   return (
     <>
-      {/* Desktop — fixed right rail, docked from xl only (at lg the content
-          area would drop to ~300px with the sidebar + rail both open) */}
+      {/* Desktop — fixed right rail from xl (matches xl:pr-96 content offset) */}
       <aside
         className={cn(
-          "hidden lg:fixed lg:inset-y-0 lg:right-0 lg:z-40 lg:flex lg:flex-col",
-          "border-l border-white/[0.08] bg-white/[0.02]",
+          "hidden xl:fixed xl:inset-y-0 xl:right-0 xl:z-40 xl:flex xl:flex-col",
+          "border-l border-admin-border bg-admin-surface-panel",
           RAIL_WIDTH,
         )}
       >
@@ -290,12 +292,12 @@ export function SuperAgentRail() {
         <div className="fixed inset-0 flex justify-end">
           <DialogPanel
             transition
-            className="relative flex w-full max-w-md transform flex-col bg-white/[0.02] ring-1 ring-white/[0.08] transition duration-300 ease-in-out data-closed:translate-x-full"
+            className="relative flex w-full max-w-md transform flex-col bg-admin-surface-panel ring-1 ring-admin-ring transition duration-300 ease-in-out data-closed:translate-x-full"
           >
             <button
               type="button"
               onClick={() => setMobileOpen(false)}
-              className="absolute right-3 top-3 z-10 rounded-md p-1.5 text-zinc-400 hover:bg-white/[0.03] hover:text-white"
+              className="absolute right-3 top-3 z-10 rounded-md p-1.5 text-zinc-400 hover:bg-admin-surface-inset hover:text-white"
               aria-label="Fermer"
             >
               <XMarkIcon className="size-5" aria-hidden />

@@ -103,7 +103,7 @@ export default async function CatalogPage({
       />
 
       {error ? (
-        <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5">
+        <div className="rounded-xl border border-admin-border bg-admin-surface-inset p-5">
           <div className="flex flex-wrap items-center gap-2">
             <Subheading level={2}>Connexion Medusa impossible</Subheading>
             <Badge color="zinc">Medusa</Badge>
@@ -116,7 +116,7 @@ export default async function CatalogPage({
           </div>
         </div>
       ) : count === 0 ? (
-        <div className="rounded-xl border border-white/[0.08] bg-white/[0.03]">
+        <div className="rounded-xl border border-admin-border bg-admin-surface-inset">
           <AdminEmptyState
             icon={CubeIcon}
             title="Aucun produit publié pour le moment"
@@ -127,7 +127,7 @@ export default async function CatalogPage({
           />
         </div>
       ) : products.length === 0 ? (
-        <div className="rounded-xl border border-white/[0.08] bg-white/[0.03]">
+        <div className="rounded-xl border border-admin-border bg-admin-surface-inset">
           <AdminEmptyState
             icon={CubeIcon}
             title="Cette page est vide"

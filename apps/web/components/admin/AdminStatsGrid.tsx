@@ -1,10 +1,11 @@
 import clsx from "clsx";
 import type React from "react";
-import { adminDivider } from "./admin-surface";
+import { adminKpiStrip } from "./admin-surface";
 
 /**
- * Responsive grid for AdminStatCard rows. Default breaks 1 -> 2 -> 4 columns.
- * Pass `cols={6}` for a wider KPI strip. Server-safe.
+ * Responsive grid for AdminStatCard rows. Default breaks 1 → 2 → 4 columns.
+ * Pass `cols={6}` for a wider KPI strip. Uses the indigo KPI strip token.
+ * Server-safe.
  */
 export interface AdminStatsGridProps {
   children: React.ReactNode;
@@ -26,14 +27,7 @@ export function AdminStatsGrid({
   className,
 }: AdminStatsGridProps) {
   return (
-    <div
-      className={clsx(
-        className,
-        "grid-cols-1 divide-y overflow-hidden rounded-xl border",
-        adminDivider,
-        colsClass[cols],
-      )}
-    >
+    <div className={clsx(className, adminKpiStrip, colsClass[cols])}>
       {children}
     </div>
   );

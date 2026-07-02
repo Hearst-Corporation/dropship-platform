@@ -20,7 +20,7 @@ export function AdminEmptyState({
   action,
 }: AdminEmptyStateProps) {
   return (
-    <div className="flex-col items-center justify-center px-6 py-20 text-center">
+    <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
       {Icon ? (
         <div
           className={clsx(

@@ -11,7 +11,6 @@ import { apiFetch } from "@/lib/client-fetch";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AssetKind } from "@/lib/agent/asset-regenerator";
-import { Subheading } from "@/components/catalyst/heading";
 import { Text, TextLink } from "@/components/catalyst/text";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
@@ -46,7 +45,7 @@ interface LogLine {
   ts: string;
 }
 
-const LABELS: Record<AssetKind, { title: string; hint: string }> = {
+export const ASSET_KIND_LABELS: Record<AssetKind, { title: string; hint: string }> = {
   hero: {
     title: "Hero",
     hint: "Plein cadre éditorial 16:9 servi en haut du storefront.",
@@ -101,7 +100,7 @@ export function AssetRegenerator({
   referenceImageUrl: string | null;
 }) {
   const router = useRouter();
-  const label = LABELS[kind];
+  const label = ASSET_KIND_LABELS[kind];
   const isVideo = kind === "promo";
 
   // Pre-fill the prompt textarea with the last used prompt, falling back to ''
@@ -222,12 +221,7 @@ export function AssetRegenerator({
 
   return (
     <div className="space-y-5">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <Badge color="zinc">{kind}</Badge>
-          <Subheading>{label.title}</Subheading>
-          <Text className="text-xs">{label.hint}</Text>
-        </div>
+      <div className="flex items-start justify-end gap-4">
         <div className="flex shrink-0 items-center gap-2">
           {!referenceImageUrl && (
             <Text className="max-w-[16rem] text-right text-xs text-gray-500">
@@ -263,7 +257,7 @@ export function AssetRegenerator({
                 href={currentUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="block overflow-hidden rounded-lg bg-white/[0.02] ring-1 ring-white/[0.08] no-underline transition-colors hover:ring-white/[0.12]"
+                className="block overflow-hidden rounded-lg bg-admin-surface-panel ring-1 ring-admin-ring no-underline transition-colors hover:ring-admin-ring-strong"
               >
                 {isVideo ? (
                   <video
@@ -283,7 +277,7 @@ export function AssetRegenerator({
                 )}
               </TextLink>
             ) : (
-              <div className="flex aspect-square items-center justify-center rounded-lg border border-dashed border-white/[0.10] bg-white/[0.03] text-xs text-zinc-500">
+              <div className="flex aspect-square items-center justify-center rounded-lg border border-dashed border-admin-border-soft bg-admin-surface-inset text-xs text-zinc-500">
                 Pas encore généré
               </div>
             )}
@@ -326,7 +320,7 @@ export function AssetRegenerator({
               </div>
 
               {logs.length > 0 && (
-                <div className="max-h-56 min-w-0 space-y-1 overflow-y-auto break-words rounded-lg bg-white/[0.02] p-3 font-mono text-xs text-zinc-400 ring-1 ring-white/[0.08]">
+                <div className="max-h-56 min-w-0 space-y-1 overflow-y-auto break-words rounded-lg bg-admin-surface-panel p-3 font-mono text-xs text-zinc-400 ring-1 ring-admin-ring">
                   {logs.map((l) => (
                     <div
                       key={l.id}
@@ -369,11 +363,11 @@ export function AssetRegenerator({
                     key={r.id}
                     className={
                       r.isCurrent
-                        ? "overflow-hidden rounded-lg bg-white/[0.03] ring-2 ring-indigo-500"
-                        : "overflow-hidden rounded-lg bg-white/[0.03] ring-1 ring-white/[0.08]"
+                        ? "overflow-hidden rounded-lg bg-admin-surface-inset ring-2 ring-indigo-500"
+                        : "overflow-hidden rounded-lg bg-admin-surface-inset ring-1 ring-admin-ring"
                     }
                   >
-                    <div className="relative aspect-square bg-white/[0.02]">
+                    <div className="relative aspect-square bg-admin-surface-panel">
                       {usable ? (
                         isVideo ? (
                           <video

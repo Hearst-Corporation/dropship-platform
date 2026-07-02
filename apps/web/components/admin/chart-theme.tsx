@@ -1,5 +1,12 @@
 "use client";
 
+import clsx from "clsx";
+import {
+  adminChartGridStroke,
+  adminChartPlaceholder,
+  adminPopover,
+} from "@/components/admin/admin-surface";
+
 /**
  * Thème partagé des charts admin (recharts). Source unique pour la palette,
  * les ticks d'axes, la grille, le tooltip et l'état vide — importé par
@@ -28,7 +35,7 @@ export const FUNNEL_COLORS = [
 ];
 
 export const AXIS_TICK = { fill: "#a1a1aa", fontSize: 12 };
-export const GRID_STROKE = "rgba(255,255,255,0.08)";
+export const GRID_STROKE = adminChartGridStroke;
 export const LEGEND_STYLE = { fontSize: 12, color: "#a1a1aa" };
 
 export interface ChartTooltipEntry {
@@ -52,7 +59,7 @@ export function ChartTooltip({
 }) {
   if (!active || !payload || payload.length === 0) return null;
   return (
-    <div className="rounded border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-white shadow-lg">
+    <div className={clsx(adminPopover, "px-3 py-2 text-xs text-white")}>
       {label !== undefined && (
         <div className="mb-1 font-medium text-zinc-500 text-zinc-400">
           {label}
@@ -80,7 +87,7 @@ export function ChartTooltip({
 export function ChartEmptyState({ height }: { height: number }) {
   return (
     <div
-      className="flex items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-sm text-zinc-400"
+      className={clsx(adminChartPlaceholder, "text-sm text-zinc-400")}
       style={{ height }}
     >
       Pas encore de données

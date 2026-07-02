@@ -391,17 +391,13 @@ export default async function StoreCampaignPage({
             </p>
           ) : null}
         </div>
-        <div className="shrink-0 text-right">
-          <p className="text-xs/5 font-medium text-zinc-500 text-zinc-400">
-            Budget quotidien
-          </p>
-          <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums text-white">
-            {eur(dailyBudget)}
-          </p>
-          <p className="mt-0.5 text-xs/5 text-zinc-500 text-zinc-400">
-            {eur(monthlyBudget)} sur 30 jours
-          </p>
-        </div>
+        <AdminStatsGrid cols={2} className="shrink-0">
+          <AdminStatCard
+            label="Budget quotidien"
+            value={eur(dailyBudget)}
+            hint={`${eur(monthlyBudget)} sur 30 jours`}
+          />
+        </AdminStatsGrid>
       </div>
 
       {/* Plan média par plateforme */}
@@ -409,40 +405,23 @@ export default async function StoreCampaignPage({
         title="Plan média par plateforme"
         description="Répartition du budget quotidien sur les trois plateformes de diffusion. France uniquement pour cette phase."
       >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <AdminStatsGrid cols={3}>
           {platforms.map((p) => (
-            <div
+            <AdminStatCard
               key={p.id}
-              className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5"
-            >
-              <div className="flex items-center gap-3">
-                <p.Logo className="size-8 shrink-0" />
-                <div className="min-w-0">
-                  <p className="truncate text-sm/6 font-semibold text-white">
-                    {p.name}
-                  </p>
-                  <p className="text-xs/5 text-zinc-500 text-zinc-400">
-                    {p.pct}% du budget
-                  </p>
-                </div>
-              </div>
-              <p className="mt-4 text-3xl font-semibold tracking-tight tabular-nums text-white">
-                {eur(p.dailyEur)}
-                <span className="ml-1 text-sm font-normal text-zinc-500 text-zinc-400">
-                  / jour
-                </span>
-              </p>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {p.connected ? (
-                  <Badge color="indigo">Connecté</Badge>
-                ) : (
-                  <Badge color="zinc">À connecter</Badge>
-                )}
-                {p.hasDraft ? <Badge color="zinc">Draft stagé</Badge> : null}
-              </div>
-            </div>
+              label={p.name}
+              value={
+                <>
+                  {eur(p.dailyEur)}
+                  <span className="ml-1 text-sm font-normal opacity-80">
+                    / jour
+                  </span>
+                </>
+              }
+              hint={`${p.pct}% du budget · ${p.connected ? "Connecté" : "À connecter"}${p.hasDraft ? " · Draft stagé" : ""}`}
+            />
           ))}
-        </div>
+        </AdminStatsGrid>
       </AdminSection>
 
       {/* Répartition du budget */}
@@ -507,7 +486,7 @@ export default async function StoreCampaignPage({
               />
             </AdminStatsGrid>
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5">
+              <div className="rounded-xl border border-admin-border bg-admin-surface-inset p-5">
                 <Subheading level={3}>Règle de coupe</Subheading>
                 <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-white">
                   {eur(targets.killThreshold.spendEurWithoutSale)}
@@ -519,7 +498,7 @@ export default async function StoreCampaignPage({
                   {targets.killThreshold.description}
                 </p>
               </div>
-              <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5">
+              <div className="rounded-xl border border-admin-border bg-admin-surface-inset p-5">
                 <Subheading level={3}>Règle de scaling</Subheading>
                 <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-white">
                   +{fr(targets.scaleRule.budgetStepPct)}%
@@ -555,17 +534,18 @@ export default async function StoreCampaignPage({
         </AdminSection>
       ) : null}
 
-      {/* Calendrier de lancement jour 1 */}
-      <div className="space-y-3">
-        <div>
-          <Subheading>Calendrier de lancement</Subheading>
-          <Text className="mt-1">
-            La publicité démarre au jour 1, dès que le site est terminé. Pas de
-            phase de mise en place du site.
-          </Text>
-        </div>
-        <AdminDataTable>
-          <Table dense>
+      <AdminSection
+        title="Calendrier de lancement"
+        description="La publicité démarre au jour 1, dès que le site est terminé. Pas de phase de mise en place du site."
+        flush
+      >
+        <AdminDataTable fixedLayout>
+          <Table dense bleed clip>
+            <colgroup>
+              <col style={{ width: "4.5rem" }} />
+              <col />
+              <col />
+            </colgroup>
             <TableHead>
               <TableRow>
                 <TableHeader>Jour</TableHeader>
@@ -592,7 +572,7 @@ export default async function StoreCampaignPage({
             </TableBody>
           </Table>
         </AdminDataTable>
-      </div>
+      </AdminSection>
 
       {/* Validations opérateur */}
       <AdminSection
@@ -600,7 +580,7 @@ export default async function StoreCampaignPage({
         description="Deux validations opérateur avant activation, persistées côté plateforme."
       >
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="flex flex-col rounded-xl border border-white/[0.08] bg-white/[0.03] p-5">
+          <div className="flex flex-col rounded-xl border border-admin-border bg-admin-surface-inset p-5">
             <Subheading level={3}>Validation du budget</Subheading>
             <DescriptionList className="mt-2">
               <DescriptionTerm>Budget / jour total</DescriptionTerm>
@@ -631,7 +611,7 @@ export default async function StoreCampaignPage({
               )}
             </div>
           </div>
-          <div className="flex flex-col rounded-xl border border-white/[0.08] bg-white/[0.03] p-5">
+          <div className="flex flex-col rounded-xl border border-admin-border bg-admin-surface-inset p-5">
             <Subheading level={3}>Validation du calendrier</Subheading>
             <ul className="mt-2 space-y-1.5 text-sm/6 text-zinc-400">
               {MILESTONES.map((m) => (
@@ -673,13 +653,18 @@ export default async function StoreCampaignPage({
       >
         <div className="space-y-6">
           {!launched ? (
-            <div className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sm/6 text-zinc-400">
+            <div className="rounded-lg border border-admin-border bg-admin-surface-inset px-4 py-3 text-sm/6 text-zinc-400">
               En attente du lancement. Les données réelles apparaîtront dès la
               première diffusion.
             </div>
           ) : null}
-          <AdminDataTable>
-            <Table dense>
+          <AdminDataTable fixedLayout>
+            <Table dense bleed clip>
+              <colgroup>
+                <col />
+                <col style={{ width: "6rem" }} />
+                <col style={{ width: "6rem" }} />
+              </colgroup>
               <TableHead>
                 <TableRow>
                   <TableHeader>Indicateur</TableHeader>
@@ -751,7 +736,7 @@ export default async function StoreCampaignPage({
                 {plan.headlines.slice(0, 5).map((h, i) => (
                   <li
                     key={i}
-                    className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm/6 text-white"
+                    className="rounded-lg border border-admin-border bg-admin-surface-inset px-3 py-2 text-sm/6 text-white"
                   >
                     {h}
                   </li>
@@ -766,7 +751,7 @@ export default async function StoreCampaignPage({
                 {plan.descriptions.slice(0, 3).map((d, i) => (
                   <li
                     key={i}
-                    className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm/6 text-zinc-400"
+                    className="rounded-lg border border-admin-border bg-admin-surface-inset px-3 py-2 text-sm/6 text-zinc-400"
                   >
                     {d}
                   </li>

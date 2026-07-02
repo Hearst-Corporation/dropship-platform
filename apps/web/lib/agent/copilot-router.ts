@@ -523,7 +523,6 @@ export async function* runCopilotTurn(
           const assistantText = textBlocks.map((b) => b.text).join('\n').trim();
 
           if (assistantText) {
-            emit({ type: 'thinking', data: { text: assistantText } });
             finalAssistantText = assistantText;
           }
 
@@ -544,7 +543,9 @@ export async function* runCopilotTurn(
             return;
           }
 
+          // Preamble before tool calls — thinking strip only, not duplicated in the final bubble.
           if (assistantText) {
+            emit({ type: 'thinking', data: { text: assistantText } });
             await insertMessage(sessionId, { role: 'assistant', content: assistantText });
           }
 

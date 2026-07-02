@@ -168,16 +168,24 @@ export function CatalogTable({ products }: { products: MedusaProduct[] }) {
           />
         </AdminDataTable>
       ) : (
-        <AdminDataTable>
-          <Table dense>
+        <AdminDataTable fixedLayout>
+          <Table dense bleed clip>
+            <colgroup>
+              <col />
+              <col style={{ width: "5.5rem" }} />
+              <col style={{ width: "6.5rem" }} />
+              <col style={{ width: "3.5rem" }} />
+            </colgroup>
             <TableHead>
               <TableRow>
                 <TableHeader>Produit</TableHeader>
-                <TableHeader className="text-right">Prix</TableHeader>
-                <TableHeader className="hidden sm:table-cell">
+                <TableHeader className="whitespace-nowrap text-right">
+                  Prix
+                </TableHeader>
+                <TableHeader className="whitespace-nowrap hidden sm:table-cell">
                   Statut
                 </TableHeader>
-                <TableHeader className="w-12 text-right">
+                <TableHeader className="whitespace-nowrap text-right">
                   <span className="sr-only">Actions</span>
                 </TableHeader>
               </TableRow>
@@ -188,18 +196,10 @@ export function CatalogTable({ products }: { products: MedusaProduct[] }) {
                 return (
                   <TableRow
                     key={p.id}
-                    className="hover:bg-white/[0.02] hover:bg-white/[0.025]"
+                    className="hover:bg-admin-surface-panel hover:bg-admin-surface-raised"
                   >
-                    {/*
-                      w-full on the td gives the flexible space to the product
-                      column; the max-w on the inner cell (not on the td, which
-                      would be ignored in auto table layout) caps its intrinsic
-                      width so long AliExpress titles truncate instead of
-                      forcing horizontal scroll.
-                    */}
-                    <TableCell className="w-full">
+                    <TableCell className="min-w-0">
                       <AdminAssetCell
-                        className="w-full max-w-lg"
                         imageUrl={p.thumbnail}
                         title={p.title}
                         subtitle={buildDetails(p)}

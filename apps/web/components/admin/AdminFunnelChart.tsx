@@ -13,7 +13,7 @@ export interface AdminFunnelChartProps {
 function EmptyState({ height }: { height: number }) {
   return (
     <div
-      className="flex items-center justify-center bg-white/[0.03] text-[10px] font-bold uppercase tracking-widest text-zinc-500"
+      className="flex items-center justify-center bg-admin-surface-inset text-[10px] font-bold uppercase tracking-widest text-zinc-500"
       style={{ height }}
     >
       Pas encore de données
@@ -47,8 +47,8 @@ export default function AdminFunnelChart({
             {/* Connecting line & conversion badge */}
             {i > 0 && (
               <div className="relative flex h-10 w-full items-center">
-                <div className="absolute left-24 sm:left-[8.5rem] top-0 h-full w-px bg-white/[0.03]" />
-                <div className="absolute left-24 sm:left-[8.5rem] top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/[0.08] bg-white/[0.02] px-2 py-0.5 text-[10px] font-semibold text-zinc-400">
+                <div className="absolute left-24 sm:left-[8.5rem] top-0 h-full w-px bg-admin-surface-inset" />
+                <div className="absolute left-24 sm:left-[8.5rem] top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-admin-border bg-admin-surface-panel px-2 py-0.5 text-[10px] font-semibold text-zinc-400">
                   {convFromPrev ?? "0.0"}%
                 </div>
               </div>

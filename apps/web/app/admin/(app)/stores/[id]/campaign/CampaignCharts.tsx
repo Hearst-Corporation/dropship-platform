@@ -1,5 +1,6 @@
 "use client";
 
+import clsx from "clsx";
 import {
   Bar,
   BarChart,
@@ -13,6 +14,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import {
+  adminChartGridStroke,
+  adminChartSurfaceFill,
+  adminPopover,
+} from "@/components/admin/admin-surface";
 
 /**
  * Client charts for the store campaign page.
@@ -27,11 +33,10 @@ import {
  */
 
 const AXIS_TICK = { fill: "#a1a1aa", fontSize: 12 };
-const GRID_STROKE = "rgba(255,255,255,0.08)";
+const GRID_STROKE = adminChartGridStroke;
 const ACCENT = "#6366f1";
 const SECONDARY = "#38bdf8";
-/** Fond des surfaces admin sombres (zinc-900), pour détourer les parts. */
-const SURFACE = "#18181b";
+const SURFACE = adminChartSurfaceFill;
 
 function formatEur(n: number): string {
   return `${n.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €`;
@@ -48,7 +53,7 @@ function DarkTooltip({
 }) {
   if (!active || !payload || payload.length === 0) return null;
   return (
-    <div className="rounded border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-zinc-100 shadow-lg">
+    <div className={clsx(adminPopover, "px-3 py-2 text-xs text-zinc-100")}>
       {label !== undefined && (
         <div className="mb-1 font-medium text-zinc-400">{label}</div>
       )}
@@ -129,7 +134,7 @@ export function PlatformSplitDonut({
         {splits.map((s) => (
           <li key={s.name} className="flex items-center gap-3">
             <span
-              className="inline-block size-3 shrink-0 rounded-full ring-1 ring-white/[0.12]"
+              className="inline-block size-3 shrink-0 rounded-full ring-1 ring-admin-ring-strong"
               style={{ backgroundColor: s.color }}
               aria-hidden
             />

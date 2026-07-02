@@ -313,7 +313,7 @@ function NewStoreForm() {
               </FieldGroup>
             </Fieldset>
 
-            <div className="mt-8 flex items-center justify-between gap-3 border-t border-white/[0.08] pt-6 border-white/[0.08]">
+            <div className="mt-8 flex items-center justify-between gap-3 border-t border-admin-border pt-6 border-admin-border">
               <Text className="min-h-5 text-xs" aria-live="polite">
                 {disabledHint}
               </Text>
@@ -365,7 +365,7 @@ function CreationScreen({
 
   if (result) {
     return (
-      <div className="mx-auto w-full max-w-2xl rounded-lg p-8 text-center ring-1 ring-white/[0.08]">
+      <div className="mx-auto w-full max-w-2xl rounded-lg p-8 text-center ring-1 ring-admin-ring">
         <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-indigo-500/10 ring-1 ring-indigo-500/20">
           <CheckCircleIcon
             className="size-7 text-indigo-500 text-indigo-400"
@@ -407,10 +407,10 @@ function CreationScreen({
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl overflow-hidden rounded-lg ring-1 ring-white/[0.08]">
+    <div className="mx-auto w-full max-w-3xl overflow-hidden rounded-lg ring-1 ring-admin-ring">
       <div>
         {/* Header */}
-        <div className="flex items-center justify-between gap-4 border-b border-white/[0.08] px-5 py-3 border-white/[0.08]">
+        <div className="flex items-center justify-between gap-4 border-b border-admin-border px-5 py-3 border-admin-border">
           <div className="flex min-w-0 items-center gap-3">
             <AdminBadge status={running ? "en cours" : "error"}>
               {running ? "En cours" : "Erreur"}
@@ -441,7 +441,7 @@ function CreationScreen({
         </div>
 
         {/* Barre de progression */}
-        <div className="h-0.5 bg-white/[0.03]">
+        <div className="h-0.5 bg-admin-surface-inset">
           <div
             className="h-full bg-indigo-500 transition-[width] duration-500"
             style={{ width: `${Math.max(2, Math.min(100, percent))}%` }}
@@ -450,14 +450,14 @@ function CreationScreen({
 
         {/* Étape courante */}
         {currentStep && (
-          <div className="border-b border-white/[0.08] bg-white/[0.03] px-5 py-2">
+          <div className="border-b border-admin-border bg-admin-surface-inset px-5 py-2">
             <Text className="truncate italic">{currentStep}</Text>
           </div>
         )}
 
         {/* Error banner */}
         {error && (
-          <div className="border-b border-white/[0.08] bg-white/[0.02] px-5 py-3">
+          <div className="border-b border-admin-border bg-admin-surface-panel px-5 py-3">
             <Text className="flex items-center gap-1.5 font-medium">
               <ExclamationTriangleIcon className="size-4" aria-hidden="true" />
               Erreur de création

@@ -18,7 +18,7 @@ export function AdminTimeframeSelector() {
             {stepIdx !== 0 && (
               <div
                 aria-hidden="true"
-                className="h-[2px] w-3 bg-white/[0.03] mx-2"
+                className="h-[2px] w-3 bg-admin-surface-inset mx-2"
               />
             )}
             {step.status === "complete" ? (
@@ -45,7 +45,7 @@ export function AdminTimeframeSelector() {
                 className="group relative flex items-center gap-1.5"
               >
                 <span aria-hidden="true" className="flex h-5 items-center">
-                  <span className="relative z-10 flex size-3.5 items-center justify-center rounded-full border-2 border-indigo-500 bg-white/[0.02]">
+                  <span className="relative z-10 flex size-3.5 items-center justify-center rounded-full border-2 border-indigo-500 bg-admin-surface-panel">
                     <span className="size-1.5 rounded-full bg-indigo-500" />
                   </span>
                 </span>
@@ -59,8 +59,8 @@ export function AdminTimeframeSelector() {
                 className="group relative flex items-center gap-1.5"
               >
                 <span aria-hidden="true" className="flex h-5 items-center">
-                  <span className="relative z-10 flex size-3.5 items-center justify-center rounded-full border-2 border-white/[0.08] bg-white/[0.02] group-hover:border-white/[0.12]">
-                    <span className="size-1.5 rounded-full bg-transparent group-hover:bg-white/[0.08]" />
+                  <span className="relative z-10 flex size-3.5 items-center justify-center rounded-full border-2 border-admin-border bg-admin-surface-panel group-hover:border-admin-border-strong">
+                    <span className="size-1.5 rounded-full bg-transparent group-hover:bg-admin-surface-muted" />
                   </span>
                 </span>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">

@@ -16,6 +16,8 @@ import {
 } from "@/components/catalyst/table";
 import { AdminDataTable } from "@/components/admin/AdminDataTable";
 import { AdminBadge } from "@/components/admin/AdminBadge";
+import { AdminStoreCell } from "@/components/admin/AdminStoreCell";
+import { AdminTruncatedText } from "@/components/admin/AdminTruncatedText";
 import { AdminToolbar } from "@/components/admin/AdminToolbar";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 import { StoreActions } from "./StoreActions";
@@ -145,19 +147,28 @@ export function StoresTable({ rows, paginated = false }: StoresTableProps) {
           }
         />
       ) : (
-        <AdminDataTable>
-          <Table dense>
+        <AdminDataTable fixedLayout>
+          <Table dense bleed clip>
+            <colgroup>
+              <col />
+              <col style={{ width: "10rem" }} />
+              <col style={{ width: "4.5rem" }} />
+              <col style={{ width: "6.5rem" }} />
+              <col style={{ width: "11.5rem" }} />
+            </colgroup>
             <TableHead>
               <TableRow>
                 <TableHeader>Store</TableHeader>
-                <TableHeader>Statut</TableHeader>
-                <TableHeader className="text-right hidden sm:table-cell">
+                <TableHeader className="whitespace-nowrap">Statut</TableHeader>
+                <TableHeader className="whitespace-nowrap text-right hidden sm:table-cell">
                   Produits
                 </TableHeader>
-                <TableHeader className="text-right hidden md:table-cell">
+                <TableHeader className="whitespace-nowrap text-right hidden md:table-cell">
                   Créé
                 </TableHeader>
-                <TableHeader className="text-right">Actions</TableHeader>
+                <TableHeader className="whitespace-nowrap text-right">
+                  Actions
+                </TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -166,67 +177,58 @@ export function StoresTable({ rows, paginated = false }: StoresTableProps) {
                   store.status === "failed" ||
                   store.status === "error" ||
                   store.status === "needs_repair";
-                const subtext = [`/shop/${store.slug}`, store.niche || null]
-                  .filter(Boolean)
-                  .join(" · ");
                 return (
                   <TableRow key={store.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="relative size-9 shrink-0 overflow-hidden rounded-lg bg-white/[0.02] ring-1 ring-white/[0.08]">
-                          {store.cover ? (
-                            <Image
-                              src={store.cover}
-                              alt={store.name}
-                              fill
-                              sizes="36px"
-                              className="object-cover"
-                            />
-                          ) : (
-                            <StoreAvatar
-                              slug={store.slug}
-                              name={store.name}
-                              size={36}
-                              className="size-full rounded-none"
-                            />
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="truncate font-medium text-white">
-                            {store.name}
+                    <TableCell className="min-w-0">
+                      <AdminStoreCell
+                        name={store.name}
+                        slug={store.slug}
+                        niche={store.niche}
+                        media={
+                          <div className="relative size-9 overflow-hidden rounded-lg bg-admin-surface-panel ring-1 ring-admin-ring">
+                            {store.cover ? (
+                              <Image
+                                src={store.cover}
+                                alt={store.name}
+                                fill
+                                sizes="36px"
+                                className="object-cover"
+                              />
+                            ) : (
+                              <StoreAvatar
+                                slug={store.slug}
+                                name={store.name}
+                                size={36}
+                                className="size-full rounded-none"
+                              />
+                            )}
                           </div>
-                          <div
-                            className="truncate text-xs text-zinc-500"
-                            title={subtext}
-                          >
-                            {subtext}
-                          </div>
-                        </div>
-                      </div>
+                        }
+                      />
                     </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-1">
+                    <TableCell className="align-top">
+                      <div className="flex min-w-0 flex-col gap-1">
                         <AdminBadge status={store.status}>
                           {statusLabel(store.status)}
                         </AdminBadge>
                         {isFailed && store.error_message ? (
-                          <span
-                            className="max-w-[18rem] truncate text-xs text-zinc-500"
+                          <AdminTruncatedText
+                            className="text-xs text-zinc-500"
                             title={store.error_message}
                           >
                             {store.error_message}
-                          </span>
+                          </AdminTruncatedText>
                         ) : null}
                       </div>
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-zinc-500 hidden sm:table-cell">
                       {store.product_count}
                     </TableCell>
-                    <TableCell className="text-right whitespace-nowrap tabular-nums text-zinc-500 hidden md:table-cell">
+                    <TableCell className="text-right tabular-nums text-zinc-500 hidden md:table-cell">
                       {formatDate(store.created_at)}
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-2">
+                    <TableCell className="align-top">
+                      <div className="flex items-center justify-end gap-1 sm:gap-2">
                         <Button plain href={`/admin/stores/${store.id}`}>
                           Gérer
                         </Button>
