@@ -1,9 +1,9 @@
-import { ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid';
-import { medusa, type MedusaProduct } from '@/lib/medusa';
-import { Heading, Subheading } from '@/components/catalyst/heading';
-import { Text, Strong, Code } from '@/components/catalyst/text';
-import { AdminBadge } from '@/components/admin/AdminBadge';
-import { Button } from '@/components/catalyst/button';
+import { CubeIcon } from '@heroicons/react/24/outline'
+import { medusa, type MedusaProduct } from '@/lib/medusa'
+import { Subheading } from '@/components/catalyst/heading'
+import { Text } from '@/components/catalyst/text'
+import { Badge } from '@/components/catalyst/badge'
+import { Button } from '@/components/catalyst/button'
 import {
   Pagination,
   PaginationGap,
@@ -99,11 +99,12 @@ export default async function CatalogPage({
         }
       />
 
-      {error && (
-        <div>
-          <Subheading level={2}>
-            <AdminBadge status="error">Erreur Medusa</AdminBadge>
-          </Subheading>
+      {error ? (
+        <div className="rounded-xl border border-zinc-950/10 bg-white p-5 dark:border-white/10 dark:bg-zinc-900">
+          <div className="flex flex-wrap items-center gap-2">
+            <Subheading level={2}>Connexion Medusa impossible</Subheading>
+            <Badge color="zinc">Medusa</Badge>
+          </div>
           <Text className="mt-2">{error}</Text>
           <div className="mt-4">
             <Button outline href="/admin/catalog">
@@ -146,27 +147,18 @@ export default async function CatalogPage({
                   item === 'gap' ? (
                     <PaginationGap key={`gap-${index}`} />
                   ) : (
-                    <div className="size-11 rounded-lg bg-zinc-950/5 ring-1 ring-inset ring-zinc-950/10 dark:bg-white/5 dark:ring-white/10" />
-                  )}
-                </TableCell>
-                <TableCell className="font-medium">{p.title}</TableCell>
-                <TableCell>
-                  <Code>{p.handle}</Code>
-                </TableCell>
-                <TableCell>
-                  <AdminBadge status={p.status}>{p.status}</AdminBadge>
-                </TableCell>
-                <TableCell className="tabular-nums">{p.variants?.length ?? 0}</TableCell>
-                <TableCell className="text-right">
-                  <Button plain href={`/products/${p.handle}`} target="_blank" rel="noreferrer">
-                    Ouvrir
-                    <ArrowTopRightOnSquareIcon aria-hidden />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                    <PaginationPage key={item} href={`?page=${item}`} current={item === page}>
+                      {String(item)}
+                    </PaginationPage>
+                  ),
+                )}
+              </PaginationList>
+              <PaginationNext href={page < totalPages ? `?page=${page + 1}` : null}>
+                Suivant
+              </PaginationNext>
+            </Pagination>
+          ) : null}
+        </>
       )}
     </div>
   )

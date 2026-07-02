@@ -421,37 +421,15 @@ export default async function PortfolioDashboard() {
                 </TextLink>
               </div>
             </div>
-          ))}
-        </DescriptionList>
-      </section>
-
-      {/* Coût agent */}
-      <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
-        <Subheading>Coût Claude 30j — Observabilité agent</Subheading>
-        <DescriptionList className="mt-4">
-          <DescriptionTerm>Total des appels agent</DescriptionTerm>
-          <DescriptionDetails className="tabular-nums">
-            {totalCost.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-          </DescriptionDetails>
-          <DescriptionTerm>Runs</DescriptionTerm>
-          <DescriptionDetails className="tabular-nums">{cost.runs.toLocaleString('fr-FR')}</DescriptionDetails>
-          <DescriptionTerm>Coût moyen / run</DescriptionTerm>
-          <DescriptionDetails className="tabular-nums">{(avgPerRun * 1000).toFixed(3)} m€</DescriptionDetails>
-          <DescriptionTerm>Taux d&apos;erreur</DescriptionTerm>
-          <DescriptionDetails className="tabular-nums">
-            {errorRate > 5 ? (
-              <Badge color="zinc">{errorRate.toFixed(1)}%</Badge>
-            ) : (
-              <span>{errorRate.toFixed(1)}%</span>
-            )}
-          </DescriptionDetails>
-        </DescriptionList>
-        <div className="mt-6">
-          <Button href="/admin/observability" outline>
-            Détail par step
-          </Button>
-        </div>
-      </section>
+          ) : (
+            <AdminEmptyState
+              icon={CheckCircleIcon}
+              title="Aucune alerte"
+              description="Le taux d'erreur agent est nominal sur les 30 derniers jours."
+            />
+          )}
+        </AdminSection>
+      </div>
     </div>
   );
 }

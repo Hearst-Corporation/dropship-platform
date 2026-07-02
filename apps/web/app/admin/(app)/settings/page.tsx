@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/16/solid';
 import { getDbRead } from '@/lib/db';
 import { Text, TextLink, Strong, Code } from '@/components/catalyst/text';
-import { AdminBadge } from '@/components/admin/AdminBadge';
+import { Subheading } from '@/components/catalyst/heading';
 import { Badge } from '@/components/catalyst/badge';
 import { Button } from '@/components/catalyst/button';
 import {
@@ -20,6 +20,10 @@ import { AdminDataTable } from '@/components/admin/AdminDataTable';
 import { AdminEmptyState } from '@/components/admin/AdminEmptyState';
 
 export const dynamic = 'force-dynamic';
+
+// Single accent (indigo) + neutral (zinc) only. Every non-positive state is zinc,
+// disambiguated by its label text, never by hue.
+type BadgeColor = 'zinc' | 'indigo';
 
 async function getSettings() {
   const db = getDbRead();
@@ -51,7 +55,7 @@ export default async function SettingsPage() {
   const expiresAt = aliExpires?.value ? new Date(parseInt(aliExpires.value)) : null;
   const isExpired = expiresAt ? Date.now() > expiresAt.getTime() : false;
 
-  const aliStatus = isConnected && !isExpired ? 'connected' : isConnected ? 'pending' : 'offline';
+  const aliColor: BadgeColor = isConnected && !isExpired ? 'indigo' : 'zinc';
   const aliLabel = isConnected && !isExpired ? 'Connecté' : isConnected ? 'Token expiré' : 'Non connecté';
 
   const cjEmail = (process.env.CJ_DROPSHIPPING_EMAIL || '').trim();
@@ -74,11 +78,10 @@ export default async function SettingsPage() {
         }
       />
 
-      <ProviderSection
-        name="AliExpress DS API"
-        meta="AppKey 531346 · App Category: Drop Shipping"
-        badge={<AdminBadge status={aliStatus}>{aliLabel}</AdminBadge>}
-        first
+      {/* ── Identifiants fournisseurs ──────────────────────────────────────── */}
+      <AdminSection
+        title="Identifiants fournisseurs"
+        description="L'agent a besoin de ces clés pour interroger AliExpress et CJ. Les jetons OAuth expirent, vérifie l'état avant chaque grosse session."
       >
         <div className="divide-y divide-zinc-950/10 dark:divide-white/10">
           <IntegrationRow
@@ -147,10 +150,11 @@ export default async function SettingsPage() {
         </div>
       </AdminSection>
 
-      <ProviderSection
-        name="CJ Dropshipping API"
-        meta="Email: adriennejkovic@gmail.com"
-        badge={<AdminBadge status="missing-key">API Key manquante</AdminBadge>}
+      {/* ── Politique dropshipping ─────────────────────────────────────────── */}
+      <AdminSection
+        title="Politique dropshipping"
+        description="Vue en lecture seule de tous les fournisseurs connus, classée par statut."
+        flush
       >
         <SupplierPolicyTable rows={supplierRows} />
       </AdminSection>
@@ -226,17 +230,49 @@ const CAPABILITY_SHORT: Record<string, string> = {
 
 const CAPABILITY_KEYS = Object.keys(CAPABILITY_LABELS);
 
-function CapabilityIcon({ ok }: { ok: boolean }) {
-  if (ok) {
-    return (
-      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
-        <svg className="h-2.5 w-2.5" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
-          <path
-            fillRule="evenodd"
-            d="M8.485 2.07a.75.75 0 0 1 .045 1.06l-4.5 4.875a.75.75 0 0 1-1.097.015L.97 5.486A.75.75 0 0 1 2.03 4.514l1.47 1.572L7.424 2.116a.75.75 0 0 1 1.06-.045Z"
-            clipRule="evenodd"
-          />
-        </svg>
+// Only the "active" state carries the accent (indigo). Every other status is
+// neutral zinc, disambiguated by its label text.
+const STATUS_META: Record<string, { color: BadgeColor; label: string }> = {
+  active: { color: 'indigo', label: 'Actif' },
+  'feed-only': { color: 'zinc', label: 'Feed seul' },
+  search_only: { color: 'zinc', label: 'Sourcing seul' },
+  automation: { color: 'zinc', label: 'Automatisation' },
+  excluded: { color: 'zinc', label: 'Exclu' },
+};
+
+function statusMeta(status: string): { color: BadgeColor; label: string } {
+  return STATUS_META[status] ?? { color: 'zinc', label: status };
+}
+
+// Only "connected" carries the accent; error / missing-key are zinc.
+// "unknown" renders as a plain dash in the cell, not a badge.
+const CONNECTION_META: Record<string, { color: BadgeColor; label: string }> = {
+  connected: { color: 'indigo', label: 'Connecté' },
+  error: { color: 'zinc', label: 'Erreur' },
+  'missing-key': { color: 'zinc', label: 'Clé manquante' },
+};
+
+/**
+ * Readable capability chips: a tabular counter (n/8) followed by one small
+ * zinc text chip per satisfied criterion (short label visible, full label in
+ * the title). Missing criteria are implied by the counter. Visible text keeps
+ * the column scannable and accessible on touch and keyboard.
+ */
+function CapabilityChips({
+  capabilities,
+  hasData,
+}: {
+  capabilities: Record<string, boolean>;
+  hasData: boolean;
+}) {
+  if (!hasData) {
+    return <span className="text-xs text-zinc-400 dark:text-zinc-600">–</span>;
+  }
+  const satisfied = CAPABILITY_KEYS.filter((key) => !!capabilities[key]);
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+        {satisfied.length}/{CAPABILITY_KEYS.length}
       </span>
       {satisfied.map((key) => (
         <Badge key={key} color="zinc" title={CAPABILITY_LABELS[key]}>
@@ -263,98 +299,6 @@ function SupplierPolicyTable({ rows }: { rows: SupplierPolicyRow[] }) {
       </div>
     );
   }
-  return (
-    <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-      <svg className="h-2.5 w-2.5" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
-        <path
-          fillRule="evenodd"
-          d="M5 1a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 5 1ZM5 8a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"
-          clipRule="evenodd"
-        />
-      </svg>
-    </span>
-  );
-}
-
-function ConnectionBadge({ state }: { state: string }) {
-  const map: Record<string, { status: string; label: string }> = {
-    connected: { status: 'connected', label: 'Connecté' },
-    error: { status: 'error', label: 'Erreur' },
-    'missing-key': { status: 'missing-key', label: 'Clé manquante' },
-    unknown: { status: 'unknown', label: 'Inconnu' },
-  };
-  const { status, label } = map[state] ?? { status: state, label: state };
-  return <AdminBadge status={status}>{label}</AdminBadge>;
-}
-
-function ActiveSupplierCard({ row }: { row: SupplierPolicyRow }) {
-  const isLimitedSourcing = row.status === 'feed-only' || row.status === 'search_only';
-  return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="flex min-w-0 items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-zinc-900 dark:text-white">{row.label}</span>
-            {row.tier && (
-              <Badge color="indigo">{row.tier}</Badge>
-            )}
-            <ConnectionBadge state={row.connectionState} />
-          </div>
-          {isLimitedSourcing && (
-            <p className="mt-1 text-xs text-zinc-500">
-              Sourcing seul - pas d auto-forward
-            </p>
-          )}
-        </div>
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-4">
-        {CAPABILITY_KEYS.map((key) => (
-          <div key={key} className="flex items-center gap-1.5">
-            <CapabilityIcon ok={!!row.capabilities[key]} />
-            <span className="text-xs text-zinc-600 dark:text-zinc-400">{CAPABILITY_LABELS[key]}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function AutomationCard({ row }: { row: SupplierPolicyRow }) {
-  return (
-    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
-      <div className="flex items-center gap-3">
-        <div className="flex-1">
-          <span className="text-sm font-semibold text-zinc-900 dark:text-white">{row.label}</span>
-        </div>
-        <Badge color="zinc">Automatisation</Badge>
-      </div>
-      <Text className="mt-1.5 text-xs text-zinc-500">
-        Couche d automatisation - pas un fournisseur valide
-      </Text>
-    </div>
-  );
-}
-
-function ExcludedRow({ row }: { row: SupplierPolicyRow }) {
-  return (
-    <div className="flex flex-col gap-1 rounded-lg border border-zinc-100 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900 sm:flex-row sm:items-start sm:gap-4">
-      <div className="flex shrink-0 items-center gap-2">
-        <Badge color="zinc">Exclu</Badge>
-        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{row.label}</span>
-      </div>
-      {row.exclusionNote && (
-        <Text className="text-xs text-zinc-500">{row.exclusionNote}</Text>
-      )}
-    </div>
-  );
-}
-
-function SupplierPolicySection({ rows }: { rows: SupplierPolicyRow[] }) {
-  const activeSourcing = rows.filter(
-    (r) => r.status === 'active' || r.status === 'feed-only' || r.status === 'search_only',
-  );
-  const automation = rows.filter((r) => r.status === 'automation');
-  const excluded = rows.filter((r) => r.status === 'excluded');
 
   return (
     <AdminDataTable minWidth="min-w-[44rem]" bare>
