@@ -1,15 +1,15 @@
-import { notFound } from 'next/navigation';
-import { getDbRead } from '@/lib/db';
-import { resolveStoreId } from '@/lib/resolve-store';
-import { Heading } from '@/components/catalyst/heading';
-import { Text } from '@/components/catalyst/text';
-import { StoreTemplateForm } from '../StoreTemplateForm';
-import { LuxuryUpgradeButton } from '../LuxuryUpgradeButton';
-import { StoreCustomDomainForm } from '../StoreCustomDomainForm';
-import { StoreAnalyticsForm } from '../StoreAnalyticsForm';
-import type { StoreTemplate } from '@/lib/template-catalog';
+import { notFound } from "next/navigation";
+import { getDbRead } from "@/lib/db";
+import { resolveStoreId } from "@/lib/resolve-store";
+import { Heading } from "@/components/catalyst/heading";
+import { Text } from "@/components/catalyst/text";
+import { StoreTemplateForm } from "../StoreTemplateForm";
+import { LuxuryUpgradeButton } from "../LuxuryUpgradeButton";
+import { StoreCustomDomainForm } from "../StoreCustomDomainForm";
+import { StoreAnalyticsForm } from "../StoreAnalyticsForm";
+import type { StoreTemplate } from "@/lib/template-catalog";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 interface SettingsRow {
   id: string;
@@ -27,7 +27,11 @@ interface SettingsRow {
   google_merchant_id: string | null;
 }
 
-export default async function StoreSettingsPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function StoreSettingsPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const storeId = await resolveStoreId(id);
   if (!storeId) notFound();
@@ -47,10 +51,13 @@ export default async function StoreSettingsPage({ params }: { params: Promise<{ 
   return (
     <div className="space-y-8">
       <div className="min-w-0">
-        <Text className="text-xs/5 font-medium uppercase tracking-wider">Réglages</Text>
+        <Text className="text-xs/5 font-medium uppercase tracking-wider">
+          Réglages
+        </Text>
         <Heading>Configuration du store</Heading>
         <Text className="mt-1">
-          Rendu, domaine et tokens analytics. Tous les changements sont instantanés, sans rebuild.
+          Rendu, domaine et tokens analytics. Tous les changements sont
+          instantanés, sans rebuild.
         </Text>
       </div>
 
@@ -60,25 +67,28 @@ export default async function StoreSettingsPage({ params }: { params: Promise<{ 
         initial={store.template}
       />
 
-      <LuxuryUpgradeButton storeId={store.id} currentTemplate={store.template} />
+      <LuxuryUpgradeButton
+        storeId={store.id}
+        currentTemplate={store.template}
+      />
 
       <StoreCustomDomainForm
         storeId={store.id}
-        initial={store.custom_domain ?? ''}
+        initial={store.custom_domain ?? ""}
       />
 
       <StoreAnalyticsForm
         storeId={store.id}
         initial={{
-          ga4MeasurementId: store.ga4_measurement_id ?? '',
-          ga4ApiSecret: store.ga4_api_secret ?? '',
-          metaPixelId: store.meta_pixel_id ?? '',
-          metaCapiToken: store.meta_capi_token ?? '',
-          tiktokPixelId: store.tiktok_pixel_id ?? '',
-          tiktokEventsToken: store.tiktok_events_token ?? '',
-          clarityId: store.clarity_id ?? '',
-          googleAdsConversionAction: store.google_ads_conversion_action ?? '',
-          googleAdsMerchantId: store.google_merchant_id ?? '',
+          ga4MeasurementId: store.ga4_measurement_id ?? "",
+          ga4ApiSecret: store.ga4_api_secret ?? "",
+          metaPixelId: store.meta_pixel_id ?? "",
+          metaCapiToken: store.meta_capi_token ?? "",
+          tiktokPixelId: store.tiktok_pixel_id ?? "",
+          tiktokEventsToken: store.tiktok_events_token ?? "",
+          clarityId: store.clarity_id ?? "",
+          googleAdsConversionAction: store.google_ads_conversion_action ?? "",
+          googleAdsMerchantId: store.google_merchant_id ?? "",
         }}
       />
     </div>

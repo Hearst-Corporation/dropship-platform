@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { apiFetch } from '@/lib/client-fetch';
+import { apiFetch } from "@/lib/client-fetch";
 
 /**
  * Client component rendering one asset section (current preview, regen panel,
@@ -8,74 +8,79 @@ import { apiFetch } from '@/lib/client-fetch';
  * read the same `{type, message}` event shape as `/admin/stores/new`.
  */
 
-import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import type { AssetKind } from '@/lib/agent/asset-regenerator';
-import { Subheading } from '@/components/catalyst/heading';
-import { Text, TextLink } from '@/components/catalyst/text';
-import { Badge } from '@/components/catalyst/badge';
-import { Button } from '@/components/catalyst/button';
-import { Textarea } from '@/components/catalyst/textarea';
-import { Fieldset, Field, Label, Description } from '@/components/catalyst/fieldset';
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { AssetKind } from "@/lib/agent/asset-regenerator";
+import { Subheading } from "@/components/catalyst/heading";
+import { Text, TextLink } from "@/components/catalyst/text";
+import { Badge } from "@/components/catalyst/badge";
+import { Button } from "@/components/catalyst/button";
+import { Textarea } from "@/components/catalyst/textarea";
+import {
+  Fieldset,
+  Field,
+  Label,
+  Description,
+} from "@/components/catalyst/fieldset";
 
 interface RunLite {
   id: string;
   prompt: string | null;
   resultUrl: string | null;
-  status: 'pending' | 'running' | 'success' | 'error';
+  status: "pending" | "running" | "success" | "error";
   errorMessage: string | null;
   isCurrent: boolean;
   createdAt: string;
 }
 
 interface AgentEvent {
-  type: 'step' | 'progress' | 'success' | 'error' | 'done';
+  type: "step" | "progress" | "success" | "error" | "done";
   message: string;
   data?: Record<string, unknown>;
 }
 
 interface LogLine {
   id: number;
-  type: AgentEvent['type'];
+  type: AgentEvent["type"];
   message: string;
   ts: string;
 }
 
 const LABELS: Record<AssetKind, { title: string; hint: string }> = {
   hero: {
-    title: 'Hero',
-    hint: 'Plein cadre éditorial 16:9 servi en haut du storefront.',
+    title: "Hero",
+    hint: "Plein cadre éditorial 16:9 servi en haut du storefront.",
   },
   cutout: {
-    title: 'Cutout',
-    hint: 'Produit centré sur fond studio sombre. Sert aussi de source à la vidéo promo.',
+    title: "Cutout",
+    hint: "Produit centré sur fond studio sombre. Sert aussi de source à la vidéo promo.",
   },
-  'lifestyle-1': {
-    title: 'Lifestyle 1',
-    hint: 'Premier moment de vie : contexte intérieur lumineux.',
+  "lifestyle-1": {
+    title: "Lifestyle 1",
+    hint: "Premier moment de vie : contexte intérieur lumineux.",
   },
-  'lifestyle-2': {
-    title: 'Lifestyle 2',
-    hint: 'Deuxième moment de vie : contexte extérieur ou alternatif.',
+  "lifestyle-2": {
+    title: "Lifestyle 2",
+    hint: "Deuxième moment de vie : contexte extérieur ou alternatif.",
   },
-  'lifestyle-3': {
-    title: 'Lifestyle 3',
-    hint: 'Troisième moment de vie : usage situé, distinct des deux précédents.',
+  "lifestyle-3": {
+    title: "Lifestyle 3",
+    hint: "Troisième moment de vie : usage situé, distinct des deux précédents.",
   },
   promo: {
-    title: 'Vidéo promo',
-    hint: '5 secondes 9:16, image-to-video à partir du cutout.',
+    title: "Vidéo promo",
+    hint: "5 secondes 9:16, image-to-video à partir du cutout.",
   },
 };
 
 function formatRunDate(iso: string): string {
   try {
     const d = new Date(iso);
-    return d.toLocaleString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
+    return d.toLocaleString("fr-FR", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   } catch {
     return iso;
@@ -97,11 +102,11 @@ export function AssetRegenerator({
 }) {
   const router = useRouter();
   const label = LABELS[kind];
-  const isVideo = kind === 'promo';
+  const isVideo = kind === "promo";
 
   // Pre-fill the prompt textarea with the last used prompt, falling back to ''
   // so the user can write from scratch.
-  const lastPrompt = runs.find((r) => r.prompt)?.prompt ?? '';
+  const lastPrompt = runs.find((r) => r.prompt)?.prompt ?? "";
 
   const [panelOpen, setPanelOpen] = useState(false);
   const [prompt, setPrompt] = useState(lastPrompt);
@@ -114,11 +119,11 @@ export function AssetRegenerator({
 
   useEffect(() => {
     if (logs.length > 0) {
-      logsEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      logsEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
     }
   }, [logs.length]);
 
-  const pushLog = (type: AgentEvent['type'], message: string) => {
+  const pushLog = (type: AgentEvent["type"], message: string) => {
     counterRef.current += 1;
     setLogs((prev) => [
       ...prev,
@@ -126,7 +131,11 @@ export function AssetRegenerator({
         id: counterRef.current,
         type,
         message,
-        ts: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        ts: new Date().toLocaleTimeString("fr-FR", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }),
       },
     ]);
   };
@@ -134,7 +143,7 @@ export function AssetRegenerator({
   const launch = async () => {
     if (running) return;
     if (!referenceImageUrl) {
-      setError('Aucune image produit de référence.');
+      setError("Aucune image produit de référence.");
       return;
     }
     setRunning(true);
@@ -142,34 +151,40 @@ export function AssetRegenerator({
     setLogs([]);
 
     try {
-      const res = await apiFetch(`/api/agent/stores/${storeId}/assets/regenerate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind, customPrompt: prompt.trim() || undefined }),
-      });
+      const res = await apiFetch(
+        `/api/agent/stores/${storeId}/assets/regenerate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            kind,
+            customPrompt: prompt.trim() || undefined,
+          }),
+        },
+      );
       if (!res.ok || !res.body) {
-        const t = await res.text().catch(() => '');
+        const t = await res.text().catch(() => "");
         throw new Error(`Erreur serveur (${res.status}). ${t}`.trim());
       }
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
-        const parts = buffer.split('\n\n');
-        buffer = parts.pop() ?? '';
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() ?? "";
         for (const part of parts) {
           const line = part.trim();
-          if (!line.startsWith('data:')) continue;
+          if (!line.startsWith("data:")) continue;
           try {
             const event = JSON.parse(line.slice(5).trim()) as AgentEvent;
             pushLog(event.type, event.message);
-            if (event.type === 'error') setError(event.message);
-            if (event.type === 'done') {
+            if (event.type === "error") setError(event.message);
+            if (event.type === "done") {
               router.refresh();
             }
           } catch {
@@ -178,7 +193,7 @@ export function AssetRegenerator({
         }
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erreur réseau');
+      setError(e instanceof Error ? e.message : "Erreur réseau");
     } finally {
       setRunning(false);
     }
@@ -189,21 +204,21 @@ export function AssetRegenerator({
     setPendingSetId(runId);
     try {
       const res = await apiFetch(`/api/agent/stores/${storeId}/assets`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ runId, kind }),
       });
       const data = (await res.json()) as { ok?: boolean; error?: string };
-      if (!res.ok || !data.ok) throw new Error(data.error || 'Erreur');
+      if (!res.ok || !data.ok) throw new Error(data.error || "Erreur");
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erreur');
+      setError(e instanceof Error ? e.message : "Erreur");
     } finally {
       setPendingSetId(null);
     }
   };
 
-  const successRuns = runs.filter((r) => r.status === 'success' && r.resultUrl);
+  const successRuns = runs.filter((r) => r.status === "success" && r.resultUrl);
 
   return (
     <div className="space-y-5">
@@ -224,10 +239,14 @@ export function AssetRegenerator({
             color="indigo"
             onClick={() => setPanelOpen((v) => !v)}
             disabled={running || !referenceImageUrl}
-            title={!referenceImageUrl ? 'Génère d’abord un cutout produit' : undefined}
+            title={
+              !referenceImageUrl
+                ? "Génère d’abord un cutout produit"
+                : undefined
+            }
             className="shrink-0"
           >
-            {panelOpen ? 'Fermer' : 'Régénérer'}
+            {panelOpen ? "Fermer" : "Régénérer"}
           </Button>
         </div>
       </div>
@@ -244,7 +263,7 @@ export function AssetRegenerator({
                 href={currentUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="block overflow-hidden rounded-lg bg-zinc-100 ring-1 ring-zinc-950/10 no-underline transition-colors hover:ring-zinc-950/20 dark:bg-zinc-950 dark:ring-white/10 dark:hover:ring-white/20"
+                className="block overflow-hidden rounded-lg bg-white/[0.02] ring-1 ring-white/[0.08] no-underline transition-colors hover:ring-white/[0.12]"
               >
                 {isVideo ? (
                   <video
@@ -264,7 +283,7 @@ export function AssetRegenerator({
                 )}
               </TextLink>
             ) : (
-              <div className="flex aspect-square items-center justify-center rounded-lg border border-dashed border-zinc-950/15 bg-zinc-950/2.5 text-xs text-zinc-500 dark:border-white/15 dark:bg-white/5">
+              <div className="flex aspect-square items-center justify-center rounded-lg border border-dashed border-white/[0.10] bg-white/[0.03] text-xs text-zinc-500">
                 Pas encore généré
               </div>
             )}
@@ -287,7 +306,8 @@ export function AssetRegenerator({
                     className="font-mono"
                   />
                   <Description className="text-xs">
-                    Vide = Claude réécrit le prompt à partir du produit et de la niche.
+                    Vide = Claude réécrit le prompt à partir du produit et de la
+                    niche.
                   </Description>
                 </Field>
               </Fieldset>
@@ -298,7 +318,7 @@ export function AssetRegenerator({
                   onClick={launch}
                   disabled={running || !referenceImageUrl}
                 >
-                  {running ? 'Génération en cours…' : 'Lancer'}
+                  {running ? "Génération en cours…" : "Lancer"}
                 </Button>
                 {error && (
                   <Text className="text-xs text-gray-400">{error}</Text>
@@ -306,21 +326,22 @@ export function AssetRegenerator({
               </div>
 
               {logs.length > 0 && (
-                <div className="max-h-56 min-w-0 space-y-1 overflow-y-auto break-words rounded-lg bg-zinc-950 p-3 font-mono text-xs text-zinc-400 ring-1 ring-white/10">
+                <div className="max-h-56 min-w-0 space-y-1 overflow-y-auto break-words rounded-lg bg-white/[0.02] p-3 font-mono text-xs text-zinc-400 ring-1 ring-white/[0.08]">
                   {logs.map((l) => (
                     <div
                       key={l.id}
                       className={
-                        l.type === 'error'
-                          ? 'text-gray-400'
-                          : l.type === 'success'
-                            ? 'text-indigo-400'
-                            : l.type === 'step'
-                              ? 'text-white'
-                              : 'text-zinc-400'
+                        l.type === "error"
+                          ? "text-gray-400"
+                          : l.type === "success"
+                            ? "text-indigo-400"
+                            : l.type === "step"
+                              ? "text-white"
+                              : "text-zinc-400"
                       }
                     >
-                      <span className="text-zinc-500">[{l.ts}]</span> {l.message}
+                      <span className="text-zinc-500">[{l.ts}]</span>{" "}
+                      {l.message}
                     </div>
                   ))}
                   <div ref={logsEndRef} />
@@ -336,21 +357,23 @@ export function AssetRegenerator({
             Historique des runs ({runs.length})
           </Text>
           {runs.length === 0 ? (
-            <Text className="text-xs italic">Aucune régénération enregistrée.</Text>
+            <Text className="text-xs italic">
+              Aucune régénération enregistrée.
+            </Text>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {runs.map((r) => {
-                const usable = r.status === 'success' && r.resultUrl;
+                const usable = r.status === "success" && r.resultUrl;
                 return (
                   <div
                     key={r.id}
                     className={
                       r.isCurrent
-                        ? 'overflow-hidden rounded-lg bg-white ring-2 ring-indigo-500 dark:bg-zinc-900'
-                        : 'overflow-hidden rounded-lg bg-white ring-1 ring-zinc-950/10 dark:bg-zinc-900 dark:ring-white/10'
+                        ? "overflow-hidden rounded-lg bg-white/[0.03] ring-2 ring-indigo-500"
+                        : "overflow-hidden rounded-lg bg-white/[0.03] ring-1 ring-white/[0.08]"
                     }
                   >
-                    <div className="relative aspect-square bg-zinc-100 dark:bg-zinc-950">
+                    <div className="relative aspect-square bg-white/[0.02]">
                       {usable ? (
                         isVideo ? (
                           <video
@@ -369,7 +392,11 @@ export function AssetRegenerator({
                         )
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">
-                          {r.status === 'error' ? 'Échec' : r.status === 'running' ? 'En cours…' : '—'}
+                          {r.status === "error"
+                            ? "Échec"
+                            : r.status === "running"
+                              ? "En cours…"
+                              : "—"}
                         </div>
                       )}
                       {r.isCurrent && (
@@ -383,15 +410,15 @@ export function AssetRegenerator({
                         Run du {formatRunDate(r.createdAt)}
                       </Text>
                       {r.prompt && (
-                        <Text
-                          className="line-clamp-2 text-xs"
-                          title={r.prompt}
-                        >
+                        <Text className="line-clamp-2 text-xs" title={r.prompt}>
                           {r.prompt}
                         </Text>
                       )}
                       {r.errorMessage && (
-                        <Text className="line-clamp-2 text-xs text-gray-400" title={r.errorMessage}>
+                        <Text
+                          className="line-clamp-2 text-xs text-gray-400"
+                          title={r.errorMessage}
+                        >
                           {r.errorMessage}
                         </Text>
                       )}
@@ -404,7 +431,9 @@ export function AssetRegenerator({
                           aria-busy={pendingSetId === r.id}
                           className="w-full"
                         >
-                          {pendingSetId === r.id ? '…' : 'Définir comme courant'}
+                          {pendingSetId === r.id
+                            ? "…"
+                            : "Définir comme courant"}
                         </Button>
                       )}
                     </div>
@@ -414,7 +443,9 @@ export function AssetRegenerator({
             </div>
           )}
           {successRuns.length === 0 && runs.length > 0 && (
-            <Text className="mt-2 text-xs">Aucun run réussi pour le moment.</Text>
+            <Text className="mt-2 text-xs">
+              Aucun run réussi pour le moment.
+            </Text>
           )}
         </div>
       </div>

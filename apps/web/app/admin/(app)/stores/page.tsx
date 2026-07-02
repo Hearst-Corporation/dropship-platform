@@ -4,23 +4,23 @@ import {
   ClockIcon,
   ExclamationTriangleIcon,
   CubeIcon,
-} from '@heroicons/react/16/solid';
-import { getDbRead } from '@/lib/db';
-import { Text } from '@/components/catalyst/text';
-import { Button } from '@/components/catalyst/button';
+} from "@heroicons/react/16/solid";
+import { getDbRead } from "@/lib/db";
+import { Text } from "@/components/catalyst/text";
+import { Button } from "@/components/catalyst/button";
 import {
   Pagination,
   PaginationPrevious,
   PaginationNext,
   PaginationList,
-} from '@/components/catalyst/pagination';
-import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
-import { AdminStatsGrid } from '@/components/admin/AdminStatsGrid';
-import { AdminStatCard } from '@/components/admin/AdminStatCard';
-import { AdminEmptyState } from '@/components/admin/AdminEmptyState';
-import { StoresTable, type StoresTableRow } from './StoresTable';
+} from "@/components/catalyst/pagination";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { AdminStatsGrid } from "@/components/admin/AdminStatsGrid";
+import { AdminStatCard } from "@/components/admin/AdminStatCard";
+import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
+import { StoresTable, type StoresTableRow } from "./StoresTable";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 interface StoreRow {
   id: string;
@@ -43,7 +43,9 @@ interface StoreRow {
 function pickStoreCover(s: StoreRow): string | null {
   if (s.hero_image_url) return s.hero_image_url;
   const lifestyles = Array.isArray(s.lifestyle_images)
-    ? (s.lifestyle_images as unknown[]).filter((u): u is string => typeof u === 'string')
+    ? (s.lifestyle_images as unknown[]).filter(
+        (u): u is string => typeof u === "string",
+      )
     : [];
   if (lifestyles[0]) return lifestyles[0];
   if (s.cutout_image_url) return s.cutout_image_url;
@@ -56,7 +58,7 @@ export default async function StoresPage({
   searchParams: Promise<{ page?: string }>;
 }) {
   const { page: pageParam } = await searchParams;
-  const page = Math.max(1, parseInt(pageParam ?? '1', 10) || 1);
+  const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
   const pageSize = 24;
   const offset = (page - 1) * pageSize;
 
@@ -78,7 +80,13 @@ export default async function StoresPage({
             COALESCE(SUM(product_count) FILTER (WHERE status = 'active'), 0)::int AS total_products
      FROM dropship_stores`,
   );
-  const stats = statsRes.rows[0] ?? { total: 0, active: 0, creating: 0, failed: 0, total_products: 0 };
+  const stats = statsRes.rows[0] ?? {
+    total: 0,
+    active: 0,
+    creating: 0,
+    failed: 0,
+    total_products: 0,
+  };
   const total = stats.total;
   const totalPages = Math.ceil(total / pageSize);
 
@@ -109,7 +117,7 @@ export default async function StoresPage({
         subtitle="L'agent recherche les produits, enrichit les fiches puis publie le store Medusa complet."
         meta={
           <>
-            <span className="inline-flex items-center gap-1.5 rounded-md bg-indigo-500/10 px-2 py-0.5 font-medium uppercase tracking-wide text-indigo-600 ring-1 ring-inset ring-indigo-500/20 dark:text-indigo-400 dark:ring-indigo-400/25">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-indigo-500/10 px-2 py-0.5 font-medium uppercase tracking-wide text-indigo-400 ring-1 ring-inset ring-indigo-500/20 text-indigo-400 ring-indigo-400/25">
               Production · Agent IA
             </span>
           </>
@@ -122,10 +130,26 @@ export default async function StoresPage({
       />
 
       <AdminStatsGrid>
-        <AdminStatCard label="En ligne" value={stats.active} icon={CheckCircleIcon} />
-        <AdminStatCard label="En création" value={stats.creating} icon={ClockIcon} />
-        <AdminStatCard label="En erreur" value={stats.failed} icon={ExclamationTriangleIcon} />
-        <AdminStatCard label="Produits publiés" value={stats.total_products} icon={CubeIcon} />
+        <AdminStatCard
+          label="En ligne"
+          value={stats.active}
+          icon={CheckCircleIcon}
+        />
+        <AdminStatCard
+          label="En création"
+          value={stats.creating}
+          icon={ClockIcon}
+        />
+        <AdminStatCard
+          label="En erreur"
+          value={stats.failed}
+          icon={ExclamationTriangleIcon}
+        />
+        <AdminStatCard
+          label="Produits publiés"
+          value={stats.total_products}
+          icon={CubeIcon}
+        />
       </AdminStatsGrid>
 
       {total === 0 ? (
@@ -145,7 +169,9 @@ export default async function StoresPage({
 
       {totalPages > 1 && (
         <Pagination className="pt-2">
-          <PaginationPrevious href={page > 1 ? `/admin/stores?page=${page - 1}` : null}>
+          <PaginationPrevious
+            href={page > 1 ? `/admin/stores?page=${page - 1}` : null}
+          >
             Précédent
           </PaginationPrevious>
           <PaginationList>
@@ -153,7 +179,9 @@ export default async function StoresPage({
               Page {page} / {totalPages}
             </Text>
           </PaginationList>
-          <PaginationNext href={page < totalPages ? `/admin/stores?page=${page + 1}` : null}>
+          <PaginationNext
+            href={page < totalPages ? `/admin/stores?page=${page + 1}` : null}
+          >
             Suivant
           </PaginationNext>
         </Pagination>

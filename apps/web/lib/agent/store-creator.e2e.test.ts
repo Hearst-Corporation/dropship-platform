@@ -406,12 +406,12 @@ describe('createStore — JSON resilience (Roadly regression)', () => {
     expect(events.find((e) => e.type === 'success')).toBeUndefined();
     expect(events[events.length - 1]!.type).toBe('done');
 
-    // Store row flipped to 'error' with the same message persisted.
+    // Store row flipped to 'failed' with the same message persisted.
     const errorUpdates = captured.filter(
-      (q) => q.sql.includes('UPDATE dropship_stores') && q.sql.includes("status='error'"),
+      (q) => q.sql.includes('UPDATE dropship_stores') && q.sql.includes('status = $1') && q.params[0] === 'failed',
     );
     expect(errorUpdates).toHaveLength(1);
-    expect(errorUpdates[0]!.params[0]).toMatch(/tronquée/i);
+    expect(errorUpdates[0]!.params[1]).toMatch(/tronquée/i);
   });
 
   it('requests a token budget large enough to avoid truncation (root-cause wiring)', async () => {

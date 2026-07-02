@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { TrashIcon } from '@heroicons/react/24/outline';
-import { Button } from '@/components/catalyst/button';
-import { AdminConfirmDialog } from '@/components/admin/AdminConfirmDialog';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { TrashIcon } from "@heroicons/react/24/outline";
+import { Button } from "@/components/catalyst/button";
+import { AdminConfirmDialog } from "@/components/admin/AdminConfirmDialog";
 
 export function StoreActions({
   storeId,
@@ -25,8 +25,10 @@ export function StoreActions({
     setDeleting(true);
     setError(null);
     try {
-      const base = typeof window !== 'undefined' ? window.location.origin : '';
-      const res = await fetch(`${base}/api/agent/stores/${storeId}`, { method: 'DELETE' });
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const res = await fetch(`${base}/api/agent/stores/${storeId}`, {
+        method: "DELETE",
+      });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
         setError(data.error || `HTTP ${res.status}`);
@@ -34,13 +36,13 @@ export function StoreActions({
       }
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erreur réseau');
+      setError(e instanceof Error ? e.message : "Erreur réseau");
     } finally {
       setDeleting(false);
     }
   };
 
-  const iconCls = compact ? 'size-3.5' : 'size-4';
+  const iconCls = compact ? "size-3.5" : "size-4";
   return (
     <>
       <Button
@@ -50,14 +52,14 @@ export function StoreActions({
         disabled={deleting}
         aria-label={`Supprimer ${storeName}`}
         title={error || `Supprimer ${storeName}`}
-        className={error ? 'text-zinc-500' : undefined}
+        className={error ? "text-zinc-500" : undefined}
       >
         <TrashIcon className={iconCls} aria-hidden />
       </Button>
       {error && (
         <span
           role="alert"
-          className="max-w-40 truncate text-xs text-zinc-500 dark:text-zinc-400"
+          className="max-w-40 truncate text-xs text-zinc-500 text-zinc-400"
           title={error}
         >
           Échec : {error}

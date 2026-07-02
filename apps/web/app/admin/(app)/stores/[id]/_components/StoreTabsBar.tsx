@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Squares2X2Icon,
   ChartBarIcon,
@@ -9,7 +9,7 @@ import {
   CubeIcon,
   AdjustmentsHorizontalIcon,
   PhotoIcon,
-} from '@heroicons/react/24/outline';
+} from "@heroicons/react/24/outline";
 
 // ── Tab definitions ───────────────────────────────────────────────────────────
 
@@ -27,40 +27,40 @@ interface StoreTab {
 
 const STORE_TABS: readonly StoreTab[] = [
   {
-    id: 'overview',
-    label: 'Détails',
-    routePattern: '/admin/stores/[id]',
+    id: "overview",
+    label: "Détails",
+    routePattern: "/admin/stores/[id]",
     Icon: Squares2X2Icon,
     exact: true,
   },
   {
-    id: 'analytics',
-    label: 'Analytics',
-    routePattern: '/admin/stores/[id]/analytics',
+    id: "analytics",
+    label: "Analytics",
+    routePattern: "/admin/stores/[id]/analytics",
     Icon: ChartBarIcon,
   },
   {
-    id: 'campaign',
-    label: 'Campagne',
-    routePattern: '/admin/stores/[id]/campaign',
+    id: "campaign",
+    label: "Campagne",
+    routePattern: "/admin/stores/[id]/campaign",
     Icon: MegaphoneIcon,
   },
   {
-    id: 'catalog',
-    label: 'Catalogue',
-    routePattern: '/admin/stores/[id]/catalog',
+    id: "catalog",
+    label: "Catalogue",
+    routePattern: "/admin/stores/[id]/catalog",
     Icon: CubeIcon,
   },
   {
-    id: 'settings',
-    label: 'Réglages',
-    routePattern: '/admin/stores/[id]/settings',
+    id: "settings",
+    label: "Réglages",
+    routePattern: "/admin/stores/[id]/settings",
     Icon: AdjustmentsHorizontalIcon,
   },
   {
-    id: 'assets',
-    label: 'Médias',
-    routePattern: '/admin/stores/[id]/assets',
+    id: "assets",
+    label: "Médias",
+    routePattern: "/admin/stores/[id]/assets",
     Icon: PhotoIcon,
   },
 ] as const;
@@ -72,23 +72,23 @@ interface StoreTabsBarProps {
 }
 
 export function StoreTabsBar({ storeId }: StoreTabsBarProps) {
-  const pathname = usePathname() ?? '';
+  const pathname = usePathname() ?? "";
 
   function resolveRoute(tab: StoreTab): string {
-    return tab.routePattern.replace('[id]', storeId);
+    return tab.routePattern.replace("[id]", storeId);
   }
 
   function isActive(tab: StoreTab): boolean {
     const route = resolveRoute(tab);
     if (tab.exact) return pathname === route;
-    return pathname === route || pathname.startsWith(route + '/');
+    return pathname === route || pathname.startsWith(route + "/");
   }
 
   return (
     <nav
       role="tablist"
       aria-label="Onglets du store"
-      className="flex shrink-0 gap-6 overflow-x-auto border-b border-zinc-950/10 dark:border-white/10"
+      className="flex shrink-0 gap-6 overflow-x-auto border-b border-white/[0.08]"
     >
       {STORE_TABS.map((tab) => {
         const active = isActive(tab);
@@ -99,11 +99,11 @@ export function StoreTabsBar({ storeId }: StoreTabsBarProps) {
             role="tab"
             aria-selected={active}
             className={[
-              'inline-flex items-center gap-2 whitespace-nowrap border-b-2 px-1 py-3 text-sm transition-colors',
+              "inline-flex items-center gap-2 whitespace-nowrap border-b-2 px-1 py-3 text-sm transition-colors",
               active
-                ? 'border-indigo-500 font-semibold text-zinc-950 dark:border-indigo-400 dark:text-white'
-                : 'border-transparent font-medium text-zinc-500 hover:border-zinc-950/20 hover:text-zinc-800 dark:text-zinc-400 dark:hover:border-white/20 dark:hover:text-zinc-200',
-            ].join(' ')}
+                ? "border-indigo-500 font-semibold text-white border-indigo-400 text-white"
+                : "border-transparent font-medium text-zinc-500 hover:border-white/[0.12] hover:text-zinc-400 hover:border-white/[0.12] hover:text-zinc-200",
+            ].join(" ")}
           >
             <tab.Icon className="size-4" aria-hidden />
             {tab.label}

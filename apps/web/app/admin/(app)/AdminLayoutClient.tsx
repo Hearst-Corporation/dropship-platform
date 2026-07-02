@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import {
   HomeIcon,
   BuildingStorefrontIcon,
@@ -10,8 +10,8 @@ import {
   Squares2X2Icon,
   ChartBarIcon,
   Cog6ToothIcon,
-} from '@heroicons/react/20/solid';
-import { SidebarLayout } from '@/components/catalyst/sidebar-layout';
+} from "@heroicons/react/20/solid";
+import { SidebarLayout } from "@/components/catalyst/sidebar-layout";
 import {
   Sidebar,
   SidebarBody,
@@ -19,28 +19,44 @@ import {
   SidebarItem,
   SidebarLabel,
   SidebarSection,
-} from '@/components/catalyst/sidebar';
-import { Navbar, NavbarItem, NavbarSection, NavbarSpacer } from '@/components/catalyst/navbar';
+} from "@/components/catalyst/sidebar";
+import {
+  Navbar,
+  NavbarItem,
+  NavbarSection,
+  NavbarSpacer,
+} from "@/components/catalyst/navbar";
 
 /**
  * Admin chrome — Catalyst SidebarLayout (official kit). Dark forced via the
  * `.dark` wrapper so Catalyst components render in dark mode.
  */
-type NavItem = { name: string; href: string; icon: typeof HomeIcon; exact?: boolean };
+type NavItem = {
+  name: string;
+  href: string;
+  icon: typeof HomeIcon;
+  exact?: boolean;
+};
 
 const NAV: NavItem[] = [
-  { name: 'Dashboard', href: '/admin', icon: HomeIcon, exact: true },
-  { name: 'Stores', href: '/admin/stores', icon: BuildingStorefrontIcon },
-  { name: 'Catalogue', href: '/admin/catalog', icon: CubeIcon },
-  { name: 'Commandes', href: '/admin/orders', icon: ShoppingBagIcon },
-  { name: 'Templates', href: '/admin/templates', icon: Squares2X2Icon },
-  { name: 'Observabilité', href: '/admin/observability', icon: ChartBarIcon },
-  { name: 'Réglages', href: '/admin/settings', icon: Cog6ToothIcon },
+  { name: "Dashboard", href: "/admin", icon: HomeIcon, exact: true },
+  { name: "Stores", href: "/admin/stores", icon: BuildingStorefrontIcon },
+  { name: "Catalogue", href: "/admin/catalog", icon: CubeIcon },
+  { name: "Commandes", href: "/admin/orders", icon: ShoppingBagIcon },
+  { name: "Templates", href: "/admin/templates", icon: Squares2X2Icon },
+  { name: "Observabilité", href: "/admin/observability", icon: ChartBarIcon },
+  { name: "Réglages", href: "/admin/settings", icon: Cog6ToothIcon },
 ];
 
-function isActive(pathname: string | null, href: string, exact?: boolean): boolean {
+function isActive(
+  pathname: string | null,
+  href: string,
+  exact?: boolean,
+): boolean {
   if (!pathname) return false;
-  return exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+  return exact
+    ? pathname === href
+    : pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
@@ -51,9 +67,9 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
   // document.body, OUTSIDE the wrapper. Mirror the class on <html> so the
   // portals (and the overscroll area) render dark too.
   useEffect(() => {
-    document.documentElement.classList.add('dark');
+    document.documentElement.classList.add("dark");
     return () => {
-      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.remove("dark");
     };
   }, []);
 
@@ -65,10 +81,10 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
             H
           </span>
           <div className="min-w-0">
-            <span className="block truncate text-sm font-semibold text-zinc-950 dark:text-white">
+            <span className="block truncate text-sm font-semibold text-white">
               Hearst Merchant
             </span>
-            <span className="block text-[10px] font-medium uppercase tracking-wider text-indigo-500 dark:text-indigo-400">
+            <span className="block text-[10px] font-medium uppercase tracking-wider text-indigo-500 text-indigo-400">
               Dropship
             </span>
           </div>
@@ -77,7 +93,11 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
       <SidebarBody>
         <SidebarSection>
           {NAV.map((item) => (
-            <SidebarItem key={item.name} href={item.href} current={isActive(pathname, item.href, item.exact)}>
+            <SidebarItem
+              key={item.name}
+              href={item.href}
+              current={isActive(pathname, item.href, item.exact)}
+            >
               <item.icon data-slot="icon" />
               <SidebarLabel>{item.name}</SidebarLabel>
             </SidebarItem>

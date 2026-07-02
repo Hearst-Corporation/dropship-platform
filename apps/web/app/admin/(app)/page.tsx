@@ -1,9 +1,9 @@
-import clsx from 'clsx';
-import { getDbRead } from '@/lib/db';
-import { StoreAvatar } from '@/components/ui';
-import { TextLink } from '@/components/catalyst/text';
-import { Badge } from '@/components/catalyst/badge';
-import { Button } from '@/components/catalyst/button';
+import clsx from "clsx";
+import { getDbRead } from "@/lib/db";
+import { StoreAvatar } from "@/components/ui";
+import { TextLink } from "@/components/catalyst/text";
+import { Badge } from "@/components/catalyst/badge";
+import { Button } from "@/components/catalyst/button";
 import {
   Table,
   TableHead,
@@ -11,20 +11,20 @@ import {
   TableRow,
   TableHeader,
   TableCell,
-} from '@/components/catalyst/table';
+} from "@/components/catalyst/table";
 import {
   DescriptionList,
   DescriptionTerm,
   DescriptionDetails,
-} from '@/components/catalyst/description-list';
-import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
-import { AdminSection } from '@/components/admin/AdminSection';
-import { AdminStatsGrid } from '@/components/admin/AdminStatsGrid';
-import { AdminStatCard } from '@/components/admin/AdminStatCard';
-import { AdminSparkline } from '@/components/admin/AdminSparkline';
-import { AdminDataTable } from '@/components/admin/AdminDataTable';
-import { AdminEmptyState } from '@/components/admin/AdminEmptyState';
-import { AdminTimeframeSelector } from '@/components/admin/AdminTimeframeSelector';
+} from "@/components/catalyst/description-list";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { AdminSection } from "@/components/admin/AdminSection";
+import { AdminStatsGrid } from "@/components/admin/AdminStatsGrid";
+import { AdminStatCard } from "@/components/admin/AdminStatCard";
+import { AdminSparkline } from "@/components/admin/AdminSparkline";
+import { AdminDataTable } from "@/components/admin/AdminDataTable";
+import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
+import { AdminTimeframeSelector } from "@/components/admin/AdminTimeframeSelector";
 import {
   BuildingStorefrontIcon,
   CubeIcon,
@@ -33,10 +33,10 @@ import {
   ShoppingBagIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
-} from '@heroicons/react/24/outline';
-import { DashboardTrend, DashboardFunnel } from './DashboardCharts';
+} from "@heroicons/react/24/outline";
+import { DashboardTrend, DashboardFunnel } from "./DashboardCharts";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 /**
@@ -98,13 +98,16 @@ async function safeQuery<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
   try {
     return await fn();
   } catch (e) {
-    console.error('[dashboard] query failed:', e instanceof Error ? e.message : e);
+    console.error(
+      "[dashboard] query failed:",
+      e instanceof Error ? e.message : e,
+    );
     return fallback;
   }
 }
 
 function eur(cents: number): string {
-  return `${(cents / 100).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} €`;
+  return `${(cents / 100).toLocaleString("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} €`;
 }
 
 // Gap-fill the 14-day window: the SQL GROUP BY only returns days with at
@@ -112,12 +115,14 @@ function eur(cents: number): string {
 // axis regular. Matched on a UTC 'YYYY-MM-DD' key (see the SQL's `AT TIME
 // ZONE 'UTC'` below) so the join can't drift from the app server's local
 // timezone — only the final display label is formatted DD/MM.
-function gapFillTrend(trend: TrendRow[]): Array<{ label: string; ca: number; commandes: number }> {
+function gapFillTrend(
+  trend: TrendRow[],
+): Array<{ label: string; ca: number; commandes: number }> {
   const byDay = new Map(trend.map((t) => [t.day, t]));
   return Array.from({ length: 14 }, (_, i) => {
     const d = new Date(Date.now() - (13 - i) * 86_400_000);
     const day = d.toISOString().slice(0, 10); // UTC 'YYYY-MM-DD'
-    const [, month, date] = day.split('-');
+    const [, month, date] = day.split("-");
     const row = byDay.get(day);
     return {
       label: `${date}/${month}`,
@@ -131,7 +136,7 @@ function formatDelta(current: number, previous: number) {
   if (previous === 0) return undefined;
   const pct = ((current - previous) / previous) * 100;
   const positive = pct >= 0;
-  const value = `${positive ? '+' : ''}${pct.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
+  const value = `${positive ? "+" : ""}${pct.toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
   return { value, positive };
 }
 
@@ -153,7 +158,14 @@ export default async function PortfolioDashboard() {
         );
         return rows[0]!;
       },
-      { active: 0, created_7d: 0, prev_created_7d: 0, total_products: 0, products_7d: 0, prev_products_7d: 0 },
+      {
+        active: 0,
+        created_7d: 0,
+        prev_created_7d: 0,
+        total_products: 0,
+        products_7d: 0,
+        prev_products_7d: 0,
+      },
     ),
     safeQuery<RevenueRow>(
       async () => {
@@ -173,7 +185,18 @@ export default async function PortfolioDashboard() {
         );
         return rows[0]!;
       },
-      { revenue_30d_cents: 0, prev_revenue_30d_cents: 0, revenue_7d_cents: 0, prev_revenue_7d_cents: 0, orders_30d: 0, prev_orders_30d: 0, orders_7d: 0, prev_orders_7d: 0, aov_30d_cents: 0, prev_aov_30d_cents: 0 },
+      {
+        revenue_30d_cents: 0,
+        prev_revenue_30d_cents: 0,
+        revenue_7d_cents: 0,
+        prev_revenue_7d_cents: 0,
+        orders_30d: 0,
+        prev_orders_30d: 0,
+        orders_7d: 0,
+        prev_orders_7d: 0,
+        aov_30d_cents: 0,
+        prev_aov_30d_cents: 0,
+      },
     ),
     safeQuery<FunnelRow>(
       async () => {
@@ -189,12 +212,18 @@ export default async function PortfolioDashboard() {
         );
         return rows[0]!;
       },
-      { view_content: 0, add_to_cart: 0, initiate_checkout: 0, purchase: 0, prev_view_content: 0, prev_purchase: 0 },
+      {
+        view_content: 0,
+        add_to_cart: 0,
+        initiate_checkout: 0,
+        purchase: 0,
+        prev_view_content: 0,
+        prev_purchase: 0,
+      },
     ),
-    safeQuery<TopStoreRow[]>(
-      async () => {
-        const { rows } = await db.query<TopStoreRow>(
-          `SELECT
+    safeQuery<TopStoreRow[]>(async () => {
+      const { rows } = await db.query<TopStoreRow>(
+        `SELECT
              s.slug, s.name, s.logo_emoji,
              COALESCE(SUM(f.value_minor), 0)::bigint AS revenue_cents,
              COUNT(f.id)::int AS orders
@@ -207,11 +236,9 @@ export default async function PortfolioDashboard() {
            GROUP BY s.slug, s.name, s.logo_emoji, s.created_at
            ORDER BY revenue_cents DESC NULLS LAST, s.created_at DESC
            LIMIT 7`,
-        );
-        return rows;
-      },
-      [],
-    ),
+      );
+      return rows;
+    }, []),
     safeQuery<CostRow>(
       async () => {
         const { rows } = await db.query<CostRow>(
@@ -225,12 +252,11 @@ export default async function PortfolioDashboard() {
         );
         return rows[0]!;
       },
-      { total_cost_eur: '0', runs: 0, errors: 0, avg_cost_per_run: '0' },
+      { total_cost_eur: "0", runs: 0, errors: 0, avg_cost_per_run: "0" },
     ),
-    safeQuery<TrendRow[]>(
-      async () => {
-        const { rows } = await db.query<TrendRow>(
-          `SELECT
+    safeQuery<TrendRow[]>(async () => {
+      const { rows } = await db.query<TrendRow>(
+        `SELECT
              to_char(date_trunc('day', created_at AT TIME ZONE 'UTC'), 'YYYY-MM-DD') AS day,
              COALESCE(SUM(value_minor) FILTER (WHERE event_name = 'purchase'), 0)::bigint AS revenue_cents,
              COUNT(*) FILTER (WHERE event_name = 'purchase')::int AS orders
@@ -238,11 +264,9 @@ export default async function PortfolioDashboard() {
            WHERE created_at > now() - interval '14 days'
            GROUP BY date_trunc('day', created_at AT TIME ZONE 'UTC')
            ORDER BY date_trunc('day', created_at AT TIME ZONE 'UTC')`,
-        );
-        return rows;
-      },
-      [],
-    ),
+      );
+      return rows;
+    }, []),
   ]);
 
   const revenue30dCents = Number(revenue.revenue_30d_cents);
@@ -251,26 +275,36 @@ export default async function PortfolioDashboard() {
   const totalCost = Number(cost.total_cost_eur || 0);
   const avgPerRun = Number(cost.avg_cost_per_run || 0);
   const errorRate = cost.runs ? (cost.errors / cost.runs) * 100 : 0;
-  const globalConv = funnel.view_content > 0 ? (funnel.purchase / funnel.view_content) * 100 : 0;
-  const prevGlobalConv = funnel.prev_view_content > 0 ? (funnel.prev_purchase / funnel.prev_view_content) * 100 : 0;
+  const globalConv =
+    funnel.view_content > 0 ? (funnel.purchase / funnel.view_content) * 100 : 0;
+  const prevGlobalConv =
+    funnel.prev_view_content > 0
+      ? (funnel.prev_purchase / funnel.prev_view_content) * 100
+      : 0;
 
   // Serialize DB rows (bigint/text -> number) for the client chart wrappers,
   // with the 14-day window gap-filled so the X axis stays regular.
   const trendData = gapFillTrend(trend);
 
   const funnelSteps = [
-    { label: 'Vues produit', value: funnel.view_content },
-    { label: 'Ajouts panier', value: funnel.add_to_cart },
-    { label: 'Checkouts initiés', value: funnel.initiate_checkout },
-    { label: 'Achats', value: funnel.purchase },
+    { label: "Vues produit", value: funnel.view_content },
+    { label: "Ajouts panier", value: funnel.add_to_cart },
+    { label: "Checkouts initiés", value: funnel.initiate_checkout },
+    { label: "Achats", value: funnel.purchase },
   ];
 
   // The top-stores query LEFT JOINs every active store, so rows at 0 orders
   // come back too: only stores with at least one sale count as "top sellers".
   const sellers = topStores.filter((s) => Number(s.orders) > 0);
-  const maxRevenue = sellers.length > 0 ? Math.max(...sellers.map(s => Number(s.revenue_cents))) : 0;
+  const maxRevenue =
+    sellers.length > 0
+      ? Math.max(...sellers.map((s) => Number(s.revenue_cents)))
+      : 0;
 
-  const deltaRev30 = formatDelta(revenue30dCents, Number(revenue.prev_revenue_30d_cents));
+  const deltaRev30 = formatDelta(
+    revenue30dCents,
+    Number(revenue.prev_revenue_30d_cents),
+  );
 
   return (
     <div className="space-y-8">
@@ -280,36 +314,51 @@ export default async function PortfolioDashboard() {
         subtitle="KPIs agrégés sur l'ensemble des stores actifs."
         actions={
           <>
-            <Button href="/admin/stores/new" color="indigo">Nouveau store</Button>
-            <Button href="/admin/orders" outline>Commandes</Button>
+            <Button href="/admin/stores/new" color="indigo">
+              Nouveau store
+            </Button>
+            <Button href="/admin/orders" outline>
+              Commandes
+            </Button>
           </>
         }
       />
 
       <AdminSection flush>
         <div className="grid grid-cols-1 lg:grid-cols-3">
-          <div className="flex flex-col justify-center border-b border-zinc-800 bg-zinc-950 p-6 lg:border-b-0 lg:border-r lg:p-8 dark:border-zinc-800 dark:bg-zinc-950">
-            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-400 dark:text-zinc-400">
+          <div className="flex flex-col justify-center border-b border-white/[0.08] bg-white/[0.02] p-6 lg:border-b-0 lg:border-r lg:p-8">
+            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-400">
               Performance
             </p>
-            <h2 className="mt-2 text-sm font-medium text-white dark:text-white">Chiffre d&apos;affaires (30j)</h2>
+            <h2 className="mt-2 text-sm font-medium text-white">
+              Chiffre d&apos;affaires (30j)
+            </h2>
             <div className="mt-4 flex items-baseline gap-3">
-              <span className="text-5xl font-bold tracking-tight text-white tabular-nums dark:text-white">
+              <span className="text-5xl font-bold tracking-tight text-white tabular-nums text-white">
                 {eur(revenue30dCents)}
               </span>
               {deltaRev30 && (
-                <span className={`text-sm font-bold ${deltaRev30.positive ? 'text-indigo-400 dark:text-indigo-400' : 'text-zinc-400 dark:text-zinc-400'}`}>
+                <span
+                  className={`text-sm font-bold ${deltaRev30.positive ? "text-indigo-400" : "text-zinc-400"}`}
+                >
                   {deltaRev30.value}
                 </span>
               )}
             </div>
-            <p className="mt-6 text-sm text-zinc-400 dark:text-zinc-400">
-              {revenue.orders_30d.toLocaleString('fr-FR')} commandes au total. Panier moyen de <span className="font-semibold text-white dark:text-white">{eur(aov30dCents)}</span>.
+            <p className="mt-6 text-sm text-zinc-400">
+              {revenue.orders_30d.toLocaleString("fr-FR")} commandes au total.
+              Panier moyen de{" "}
+              <span className="font-semibold text-white">
+                {eur(aov30dCents)}
+              </span>
+              .
             </p>
           </div>
-          <div className="p-6 bg-zinc-950 lg:col-span-2 lg:p-8 dark:bg-zinc-950">
+          <div className="p-6 bg-white/[0.02] lg:col-span-2 lg:p-8">
             <div className="mb-8 flex items-center justify-between gap-3">
-              <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-400 dark:text-zinc-400">Tendance</h3>
+              <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-400">
+                Tendance
+              </h3>
               <AdminTimeframeSelector />
             </div>
             <DashboardTrend data={trendData} />
@@ -321,14 +370,14 @@ export default async function PortfolioDashboard() {
       <AdminStatsGrid cols={4}>
         <AdminStatCard
           label="Stores actifs"
-          value={stores.active.toLocaleString('fr-FR')}
+          value={stores.active.toLocaleString("fr-FR")}
           delta={formatDelta(stores.created_7d, stores.prev_created_7d)}
           hint={`+${stores.created_7d} sur 7j`}
           icon={BuildingStorefrontIcon}
         />
         <AdminStatCard
           label="Produits"
-          value={stores.total_products.toLocaleString('fr-FR')}
+          value={stores.total_products.toLocaleString("fr-FR")}
           delta={formatDelta(stores.products_7d, stores.prev_products_7d)}
           hint={`+${stores.products_7d} sur 7j`}
           icon={CubeIcon}
@@ -336,18 +385,28 @@ export default async function PortfolioDashboard() {
         <AdminStatCard
           label="CA 7j"
           value={eur(revenue7dCents)}
-          delta={formatDelta(revenue7dCents, Number(revenue.prev_revenue_7d_cents))}
-          hint={`${revenue.orders_7d.toLocaleString('fr-FR')} commandes`}
+          delta={formatDelta(
+            revenue7dCents,
+            Number(revenue.prev_revenue_7d_cents),
+          )}
+          hint={`${revenue.orders_7d.toLocaleString("fr-FR")} commandes`}
           icon={CurrencyEuroIcon}
-          chart={<AdminSparkline data={trendData.map(d => d.ca)} color="black" />}
+          chart={
+            <AdminSparkline data={trendData.map((d) => d.ca)} color="black" />
+          }
         />
         <AdminStatCard
           label="Conversion globale 30j"
-          value={`${globalConv.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`}
+          value={`${globalConv.toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`}
           delta={formatDelta(globalConv, prevGlobalConv)}
-          hint={`${funnel.purchase.toLocaleString('fr-FR')} achats`}
+          hint={`${funnel.purchase.toLocaleString("fr-FR")} achats`}
           icon={FunnelIcon}
-          chart={<AdminSparkline data={funnelSteps.map(d => d.value)} color="black" />}
+          chart={
+            <AdminSparkline
+              data={funnelSteps.map((d) => d.value)}
+              color="black"
+            />
+          }
         />
       </AdminStatsGrid>
 
@@ -358,7 +417,11 @@ export default async function PortfolioDashboard() {
           description="Volume par étape du parcours d'achat."
           actions={
             <Badge color="indigo">
-              {globalConv.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} % conv.
+              {globalConv.toLocaleString("fr-FR", {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1,
+              })}{" "}
+              % conv.
             </Badge>
           }
         >
@@ -382,10 +445,14 @@ export default async function PortfolioDashboard() {
               <Table dense>
                 <TableHead>
                   <TableRow>
-                    <TableHeader className="w-10 text-right hidden sm:table-cell">#</TableHeader>
+                    <TableHeader className="w-10 text-right hidden sm:table-cell">
+                      #
+                    </TableHeader>
                     <TableHeader>Store</TableHeader>
                     <TableHeader className="text-right">CA 7j</TableHeader>
-                    <TableHeader className="text-right hidden sm:table-cell">Cmd</TableHeader>
+                    <TableHeader className="text-right hidden sm:table-cell">
+                      Cmd
+                    </TableHeader>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -393,22 +460,32 @@ export default async function PortfolioDashboard() {
                     const rev = Number(s.revenue_cents);
                     return (
                       <TableRow key={s.slug} href={`/admin/stores/${s.slug}`}>
-                        <TableCell className="text-right text-xs tabular-nums text-zinc-400 dark:text-zinc-400 hidden sm:table-cell">
+                        <TableCell className="text-right text-xs tabular-nums text-zinc-400 hidden sm:table-cell">
                           {idx + 1}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-4">
-                            <StoreAvatar slug={s.slug} name={s.name} size={32} />
+                            <StoreAvatar
+                              slug={s.slug}
+                              name={s.name}
+                              size={32}
+                            />
                             <div className="min-w-0">
-                              <div className="truncate font-bold text-white dark:text-white">{s.name}</div>
-                              <div className="truncate text-[10px] tracking-widest uppercase tabular-nums text-zinc-500 dark:text-zinc-400">
+                              <div className="truncate font-bold text-white">
+                                {s.name}
+                              </div>
+                              <div className="truncate text-[10px] tracking-widest uppercase tabular-nums text-zinc-500 text-zinc-400">
                                 /shop/{s.slug}
                               </div>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="text-right tabular-nums font-medium text-white dark:text-white">{eur(rev)}</TableCell>
-                        <TableCell className="text-right tabular-nums text-zinc-400 dark:text-zinc-400 hidden sm:table-cell">{s.orders.toLocaleString('fr-FR')}</TableCell>
+                        <TableCell className="text-right tabular-nums font-medium text-white">
+                          {eur(rev)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-zinc-400 hidden sm:table-cell">
+                          {s.orders.toLocaleString("fr-FR")}
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -434,25 +511,41 @@ export default async function PortfolioDashboard() {
           <DescriptionList className="px-5 pb-4 sm:px-6">
             <DescriptionTerm>Total des appels agent</DescriptionTerm>
             <DescriptionDetails className="text-right tabular-nums">
-              {totalCost.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+              {totalCost.toLocaleString("fr-FR", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}{" "}
+              €
             </DescriptionDetails>
             <DescriptionTerm>Runs</DescriptionTerm>
             <DescriptionDetails className="text-right tabular-nums">
-              {cost.runs.toLocaleString('fr-FR')}
+              {cost.runs.toLocaleString("fr-FR")}
             </DescriptionDetails>
             <DescriptionTerm>Coût moyen / run</DescriptionTerm>
             <DescriptionDetails className="text-right tabular-nums">
-              {avgPerRun.toLocaleString('fr-FR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })} €
+              {avgPerRun.toLocaleString("fr-FR", {
+                minimumFractionDigits: 4,
+                maximumFractionDigits: 4,
+              })}{" "}
+              €
             </DescriptionDetails>
             <DescriptionTerm>Taux d&apos;erreur</DescriptionTerm>
             <DescriptionDetails className="text-right tabular-nums">
               {errorRate > 5 ? (
                 <Badge color="zinc">
-                  {errorRate.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} % · élevé
+                  {errorRate.toLocaleString("fr-FR", {
+                    minimumFractionDigits: 1,
+                    maximumFractionDigits: 1,
+                  })}{" "}
+                  % · élevé
                 </Badge>
               ) : (
                 <span>
-                  {errorRate.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %
+                  {errorRate.toLocaleString("fr-FR", {
+                    minimumFractionDigits: 1,
+                    maximumFractionDigits: 1,
+                  })}{" "}
+                  %
                 </span>
               )}
             </DescriptionDetails>
@@ -464,18 +557,25 @@ export default async function PortfolioDashboard() {
           description="Signaux nécessitant une attention immédiate."
         >
           {errorRate > 5 ? (
-            <div className="flex items-start gap-4 border border-zinc-800 bg-zinc-950 p-5 dark:border-white/10 dark:bg-white/[0.02]">
-              <ExclamationTriangleIcon className="size-5 shrink-0 text-zinc-400 dark:text-zinc-500" />
+            <div className="flex items-start gap-4 border border-white/[0.08] bg-white/[0.02] p-5">
+              <ExclamationTriangleIcon className="size-5 shrink-0 text-zinc-400 text-zinc-500" />
               <div className="min-w-0">
-                <p className="text-sm font-bold text-white dark:text-white">
+                <p className="text-sm font-bold text-white">
                   Taux d&apos;erreur agent élevé
                 </p>
-                <p className="mt-1 text-xs/5 text-zinc-400 dark:text-zinc-400">
-                  {cost.errors.toLocaleString('fr-FR')} erreurs sur {cost.runs.toLocaleString('fr-FR')} runs (
-                  {errorRate.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %) sur les
-                  30 derniers jours.
+                <p className="mt-1 text-xs/5 text-zinc-400">
+                  {cost.errors.toLocaleString("fr-FR")} erreurs sur{" "}
+                  {cost.runs.toLocaleString("fr-FR")} runs (
+                  {errorRate.toLocaleString("fr-FR", {
+                    minimumFractionDigits: 1,
+                    maximumFractionDigits: 1,
+                  })}{" "}
+                  %) sur les 30 derniers jours.
                 </p>
-                <TextLink href="/admin/observability" className="mt-2 inline-block text-[10px] font-bold uppercase tracking-widest text-indigo-400">
+                <TextLink
+                  href="/admin/observability"
+                  className="mt-2 inline-block text-[10px] font-bold uppercase tracking-widest text-indigo-400"
+                >
                   Voir l&apos;observabilité
                 </TextLink>
               </div>

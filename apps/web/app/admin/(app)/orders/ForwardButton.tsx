@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import { apiFetch } from '@/lib/client-fetch';
+import { apiFetch } from "@/lib/client-fetch";
 
-import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogTitle,
   DialogDescription,
   DialogBody,
   DialogActions,
-} from '@/components/catalyst/dialog';
-import { Button } from '@/components/catalyst/button';
+} from "@/components/catalyst/dialog";
+import { Button } from "@/components/catalyst/button";
 
 interface Props {
   orderId: string;
@@ -42,7 +42,7 @@ interface PlaceOrderInput {
 /** Mirror of ForwardLeg from lib/agent/order-forwarder.ts. */
 interface ForwardLeg {
   supplier: string;
-  status: 'dry_run' | 'sent' | 'error';
+  status: "dry_run" | "sent" | "error";
   forwardId: string;
   supplierOrderId?: string;
   payload: PlaceOrderInput;
@@ -56,14 +56,14 @@ interface ForwardResult {
   partial?: boolean;
   forwards: ForwardLeg[];
   unmappedItems: { itemId: string; title: string; reason: string }[];
-  status: 'dry_run' | 'sent' | 'error';
+  status: "dry_run" | "sent" | "error";
   error?: string;
 }
 
 /** Human label for a supplier id (AliExpress gets the "AE" shorthand). */
 function legName(supplier: string): string {
-  return supplier === 'aliexpress'
-    ? 'AliExpress'
+  return supplier === "aliexpress"
+    ? "AliExpress"
     : supplier.charAt(0).toUpperCase() + supplier.slice(1);
 }
 
@@ -78,11 +78,11 @@ export function ForwardButton({ orderId, alreadySent }: Props) {
   const forward = useCallback(
     async (dryRun: boolean): Promise<ForwardResult> => {
       const res = await apiFetch(`/api/agent/orders/${orderId}/forward`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           dryRun,
-          ...(dryRun ? {} : { confirm: 'PLACE_REAL_ORDER' }),
+          ...(dryRun ? {} : { confirm: "PLACE_REAL_ORDER" }),
         }),
       });
       return (await res.json()) as ForwardResult;
@@ -99,10 +99,10 @@ export function ForwardButton({ orderId, alreadySent }: Props) {
       .catch((e) =>
         setDryRunResult({
           ok: false,
-          status: 'error',
+          status: "error",
           forwards: [],
           unmappedItems: [],
-          error: e instanceof Error ? e.message : 'Network error',
+          error: e instanceof Error ? e.message : "Network error",
         }),
       )
       .finally(() => setDryRunning(false));
@@ -129,14 +129,14 @@ export function ForwardButton({ orderId, alreadySent }: Props) {
       // order. Without the refresh the button stayed enabled and a re-click hit
       // the "already in-flight" 23505 error. Refresh on any sent leg so the row
       // reflects reality.
-      if (r.forwards?.some((f) => f.status === 'sent')) router.refresh();
+      if (r.forwards?.some((f) => f.status === "sent")) router.refresh();
     } catch (e) {
       setSentResult({
         ok: false,
-        status: 'error',
+        status: "error",
         forwards: [],
         unmappedItems: [],
-        error: e instanceof Error ? e.message : 'Network error',
+        error: e instanceof Error ? e.message : "Network error",
       });
     } finally {
       setSending(false);
@@ -146,11 +146,11 @@ export function ForwardButton({ orderId, alreadySent }: Props) {
   // Has something to send when there is at least one forward leg from dry-run.
   const canSend =
     dryRunResult?.ok &&
-    dryRunResult.status === 'dry_run' &&
+    dryRunResult.status === "dry_run" &&
     (dryRunResult.forwards.length ?? 0) > 0;
 
   const sentLegs = sentResult?.forwards ?? [];
-  const sentAny = sentLegs.some((f) => f.status === 'sent');
+  const sentAny = sentLegs.some((f) => f.status === "sent");
 
   return (
     <div className="flex flex-col items-end gap-1.5">
@@ -158,31 +158,40 @@ export function ForwardButton({ orderId, alreadySent }: Props) {
         color="indigo"
         disabled={alreadySent}
         onClick={openModal}
-        title={alreadySent ? 'Déjà envoyée au fournisseur' : 'Préparer et envoyer la commande'}
+        title={
+          alreadySent
+            ? "Déjà envoyée au fournisseur"
+            : "Préparer et envoyer la commande"
+        }
       >
-        {alreadySent ? 'Envoyée' : 'Envoyer'}
+        {alreadySent ? "Envoyée" : "Envoyer"}
       </Button>
 
       {sentResult && !modalOpen && (
         <div
           className={
             sentResult.ok || sentAny
-              ? 'max-w-xs rounded-md px-2.5 py-1.5 text-xs bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20'
-              : 'max-w-xs rounded-md px-2.5 py-1.5 text-xs bg-gray-800/50 text-gray-400 ring-1 ring-inset ring-white/10'
+              ? "max-w-xs rounded-md px-2.5 py-1.5 text-xs bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20"
+              : "max-w-xs rounded-md px-2.5 py-1.5 text-xs bg-gray-800/50 text-gray-400 ring-1 ring-inset ring-white/[0.08]"
           }
         >
           {sentLegs.length > 0 ? (
             <div className="flex flex-col gap-0.5">
               {sentLegs.map((leg, i) => (
-                <span key={i} className={leg.status === 'error' ? 'text-gray-400' : undefined}>
-                  {leg.status === 'sent'
-                    ? `Envoyée — ${leg.supplier === 'aliexpress' ? 'AE' : leg.supplier} #${leg.supplierOrderId}`
-                    : `Échec — ${legName(leg.supplier)}${leg.error ? ` : ${leg.error}` : ''}`}
+                <span
+                  key={i}
+                  className={
+                    leg.status === "error" ? "text-gray-400" : undefined
+                  }
+                >
+                  {leg.status === "sent"
+                    ? `Envoyée — ${leg.supplier === "aliexpress" ? "AE" : leg.supplier} #${leg.supplierOrderId}`
+                    : `Échec — ${legName(leg.supplier)}${leg.error ? ` : ${leg.error}` : ""}`}
                 </span>
               ))}
             </div>
           ) : (
-            sentResult.error ?? 'Erreur inconnue'
+            (sentResult.error ?? "Erreur inconnue")
           )}
         </div>
       )}
@@ -223,8 +232,8 @@ function ReviewModal({
   const forwards = dryRunResult?.forwards ?? [];
   const unmapped = dryRunResult?.unmappedItems ?? [];
   const sentLegs = sentResult?.forwards ?? [];
-  const sentAnyModal = sentLegs.some((f) => f.status === 'sent');
-  const erroredAnyModal = sentLegs.some((f) => f.status === 'error');
+  const sentAnyModal = sentLegs.some((f) => f.status === "sent");
+  const erroredAnyModal = sentLegs.some((f) => f.status === "error");
 
   return (
     // Catalyst Dialog handles focus trap, Escape, backdrop and scroll lock.
@@ -232,7 +241,8 @@ function ReviewModal({
     <Dialog open={open} onClose={sending ? () => {} : onClose} size="xl">
       <DialogTitle>Vérifier la commande fournisseur</DialogTitle>
       <DialogDescription>
-        Chaque leg sera créé chez son fournisseur. Le dry-run sauve le payload sans rien envoyer.
+        Chaque leg sera créé chez son fournisseur. Le dry-run sauve le payload
+        sans rien envoyer.
       </DialogDescription>
 
       <DialogBody className="space-y-4">
@@ -240,40 +250,42 @@ function ReviewModal({
           <div
             className={
               sentAnyModal
-                ? 'rounded-lg bg-indigo-500/10 px-4 py-3 ring-1 ring-inset ring-indigo-500/20'
-                : 'rounded-lg bg-zinc-950/40 px-4 py-3 ring-1 ring-inset ring-white/10'
+                ? "rounded-lg bg-indigo-500/10 px-4 py-3 ring-1 ring-inset ring-indigo-500/20"
+                : "rounded-lg bg-white/[0.03] px-4 py-3 ring-1 ring-inset ring-white/[0.08]"
             }
           >
             <p
               className={
                 sentAnyModal
-                  ? 'rounded-lg bg-indigo-500/10 px-4 py-3 ring-1 ring-inset ring-indigo-500/20'
-                  : 'rounded-lg bg-gray-800/50 px-4 py-3 ring-1 ring-inset ring-white/10'
+                  ? "rounded-lg bg-indigo-500/10 px-4 py-3 ring-1 ring-inset ring-indigo-500/20"
+                  : "rounded-lg bg-gray-800/50 px-4 py-3 ring-1 ring-inset ring-white/[0.08]"
               }
             >
               {erroredAnyModal
                 ? sentAnyModal
-                  ? 'Envoi partiel'
+                  ? "Envoi partiel"
                   : "Échec de l'envoi"
-                : 'Envoyée'}
+                : "Envoyée"}
             </p>
             {sentLegs.map((leg, i) =>
-              leg.status === 'sent' ? (
+              leg.status === "sent" ? (
                 <p key={i} className="mt-1 text-xs text-zinc-400">
-                  {leg.supplier === 'aliexpress'
+                  {leg.supplier === "aliexpress"
                     ? `AE #${leg.supplierOrderId} : connecte-toi sur aliexpress.com pour finaliser le paiement.`
                     : `${leg.supplier} #${leg.supplierOrderId}`}
                 </p>
               ) : (
                 <p key={i} className="mt-1 text-xs text-zinc-400">
-                  {legName(leg.supplier)} : {leg.error ?? 'erreur inconnue'}
+                  {legName(leg.supplier)} : {leg.error ?? "erreur inconnue"}
                 </p>
               ),
             )}
           </div>
-        ) : sentResult?.status === 'error' ? (
-          <div className="rounded-lg bg-zinc-950/40 px-4 py-3 ring-1 ring-inset ring-white/10">
-            <p className="text-sm font-medium text-white">Erreur lors de l&apos;envoi</p>
+        ) : sentResult?.status === "error" ? (
+          <div className="rounded-lg bg-white/[0.03] px-4 py-3 ring-1 ring-inset ring-white/[0.08]">
+            <p className="text-sm font-medium text-white">
+              Erreur lors de l&apos;envoi
+            </p>
             <p className="mt-1 text-xs text-zinc-400">{sentResult.error}</p>
           </div>
         ) : dryRunning ? (
@@ -281,10 +293,14 @@ function ReviewModal({
             <span className="h-2 w-2 animate-pulse rounded-full bg-indigo-400" />
             Préparation du payload fournisseur…
           </div>
-        ) : dryRunResult?.status === 'error' || !dryRunResult?.ok ? (
-          <div className="rounded-lg bg-zinc-950/40 px-4 py-3 ring-1 ring-inset ring-white/10">
-            <p className="text-sm font-medium text-white">Impossible de préparer la commande</p>
-            <p className="mt-1 text-xs text-zinc-400">{dryRunResult?.error ?? 'Erreur inconnue'}</p>
+        ) : dryRunResult?.status === "error" || !dryRunResult?.ok ? (
+          <div className="rounded-lg bg-white/[0.03] px-4 py-3 ring-1 ring-inset ring-white/[0.08]">
+            <p className="text-sm font-medium text-white">
+              Impossible de préparer la commande
+            </p>
+            <p className="mt-1 text-xs text-zinc-400">
+              {dryRunResult?.error ?? "Erreur inconnue"}
+            </p>
           </div>
         ) : (
           <>
@@ -292,9 +308,10 @@ function ReviewModal({
               const addr = leg.payload.address;
               const items = leg.payload.items;
               const legLabel =
-                leg.supplier === 'aliexpress'
-                  ? 'AliExpress'
-                  : leg.supplier.charAt(0).toUpperCase() + leg.supplier.slice(1);
+                leg.supplier === "aliexpress"
+                  ? "AliExpress"
+                  : leg.supplier.charAt(0).toUpperCase() +
+                    leg.supplier.slice(1);
               return (
                 <div key={legIdx} className="space-y-3">
                   <p className="text-xs font-semibold uppercase tracking-wider text-indigo-400">
@@ -303,26 +320,44 @@ function ReviewModal({
 
                   <Section title="Adresse de livraison">
                     <div className="text-sm leading-relaxed text-zinc-400">
-                      {addr.fullName && <div className="font-medium text-white">{addr.fullName}</div>}
+                      {addr.fullName && (
+                        <div className="font-medium text-white">
+                          {addr.fullName}
+                        </div>
+                      )}
                       {addr.address1 && <div>{addr.address1}</div>}
                       {addr.address2 && <div>{addr.address2}</div>}
                       <div>
-                        {[addr.zip, addr.city].filter(Boolean).join(' ')}
-                        {addr.countryCode && ` · ${addr.countryCode.toUpperCase()}`}
+                        {[addr.zip, addr.city].filter(Boolean).join(" ")}
+                        {addr.countryCode &&
+                          ` · ${addr.countryCode.toUpperCase()}`}
                       </div>
                     </div>
                   </Section>
 
                   <Section title={`Produits (${items.length})`}>
                     {items.length === 0 ? (
-                      <p className="text-xs text-zinc-400">Aucun produit mappable, envoi impossible.</p>
+                      <p className="text-xs text-zinc-400">
+                        Aucun produit mappable, envoi impossible.
+                      </p>
                     ) : (
                       <ul className="space-y-1.5">
                         {items.map((it, i) => (
-                          <li key={i} className="flex items-baseline gap-2 text-xs">
-                            <span className="font-mono text-zinc-400">{it.externalId}</span>
-                            <span className="text-zinc-500">×{it.quantity}</span>
-                            {it.skuAttr && <span className="font-mono text-zinc-500">{it.skuAttr}</span>}
+                          <li
+                            key={i}
+                            className="flex items-baseline gap-2 text-xs"
+                          >
+                            <span className="font-mono text-zinc-400">
+                              {it.externalId}
+                            </span>
+                            <span className="text-zinc-500">
+                              ×{it.quantity}
+                            </span>
+                            {it.skuAttr && (
+                              <span className="font-mono text-zinc-500">
+                                {it.skuAttr}
+                              </span>
+                            )}
                           </li>
                         ))}
                       </ul>
@@ -350,13 +385,17 @@ function ReviewModal({
 
       <DialogActions>
         <Button plain onClick={onClose} disabled={sending}>
-          {sentResult?.ok || sentAnyModal ? 'Fermer' : 'Annuler'}
+          {sentResult?.ok || sentAnyModal ? "Fermer" : "Annuler"}
         </Button>
         {/* Hide the confirm button once ANY leg was placed — a re-click on a
             partial send would only hit the 23505 "already in-flight" error. */}
         {!sentResult?.ok && !sentAnyModal && (
-          <Button color="indigo" onClick={onConfirm} disabled={!canSend || sending || dryRunning}>
-            {sending ? 'Envoi…' : "Confirmer l'envoi"}
+          <Button
+            color="indigo"
+            onClick={onConfirm}
+            disabled={!canSend || sending || dryRunning}
+          >
+            {sending ? "Envoi…" : "Confirmer l'envoi"}
           </Button>
         )}
       </DialogActions>
@@ -370,14 +409,14 @@ function Section({
 }: {
   title: string;
   children: React.ReactNode;
-  tone?: 'default' | 'warn';
+  tone?: "default" | "warn";
 }) {
   return (
     <section>
       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
         {title}
       </h3>
-      <div className="rounded-lg bg-gray-900/50 px-4 py-3 ring-1 ring-inset ring-white/10">
+      <div className="rounded-lg bg-gray-900/50 px-4 py-3 ring-1 ring-inset ring-white/[0.08]">
         {children}
       </div>
     </section>

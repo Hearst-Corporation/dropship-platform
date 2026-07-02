@@ -1,26 +1,26 @@
-import { Fragment } from 'react';
-import { notFound } from 'next/navigation';
-import { getDbRead } from '@/lib/db';
-import { resolveStoreId } from '@/lib/resolve-store';
-import { Heading, Subheading } from '@/components/catalyst/heading';
-import { Text } from '@/components/catalyst/text';
-import { AdminBadge } from '@/components/admin/AdminBadge';
-import { Badge } from '@/components/catalyst/badge';
-import { Button } from '@/components/catalyst/button';
-import { AdminEmptyState } from '@/components/admin/AdminEmptyState';
-import { EllipsisHorizontalIcon } from '@heroicons/react/16/solid';
+import { Fragment } from "react";
+import { notFound } from "next/navigation";
+import { getDbRead } from "@/lib/db";
+import { resolveStoreId } from "@/lib/resolve-store";
+import { Heading, Subheading } from "@/components/catalyst/heading";
+import { Text } from "@/components/catalyst/text";
+import { AdminBadge } from "@/components/admin/AdminBadge";
+import { Badge } from "@/components/catalyst/badge";
+import { Button } from "@/components/catalyst/button";
+import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
+import { EllipsisHorizontalIcon } from "@heroicons/react/16/solid";
 import {
   Dropdown,
   DropdownButton,
   DropdownItem,
   DropdownLabel,
   DropdownMenu,
-} from '@/components/catalyst/dropdown';
+} from "@/components/catalyst/dropdown";
 import {
   DescriptionList,
   DescriptionTerm,
   DescriptionDetails,
-} from '@/components/catalyst/description-list';
+} from "@/components/catalyst/description-list";
 import {
   Table,
   TableHead,
@@ -28,9 +28,9 @@ import {
   TableRow,
   TableHeader,
   TableCell,
-} from '@/components/catalyst/table';
+} from "@/components/catalyst/table";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 interface ProductRow {
   id: string;
@@ -55,7 +55,11 @@ interface StoreRow {
   niche: string;
 }
 
-export default async function StoreCatalogPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function StoreCatalogPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const storeId = await resolveStoreId(id);
   if (!storeId) notFound();
@@ -82,8 +86,10 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
   const totalRetailCents = products.reduce((s, p) => s + p.price_cents, 0);
   const totalCostCents = products.reduce((s, p) => s + p.cost_cents, 0);
   const totalMarginCents = totalRetailCents - totalCostCents;
-  const avgMargin = products.length > 0 ? totalMarginCents / products.length / 100 : 0;
-  const avgPrice = products.length > 0 ? totalRetailCents / products.length / 100 : 0;
+  const avgMargin =
+    products.length > 0 ? totalMarginCents / products.length / 100 : 0;
+  const avgPrice =
+    products.length > 0 ? totalRetailCents / products.length / 100 : 0;
 
   const supplierCounts = products.reduce<Record<string, number>>((acc, p) => {
     acc[p.supplier] = (acc[p.supplier] || 0) + 1;
@@ -91,20 +97,26 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
   }, {});
 
   const stats = [
-    { label: 'Produits', value: products.length.toString() },
-    { label: 'Prix moyen', value: `${avgPrice.toFixed(2)} €` },
-    { label: 'Marge moy.', value: `${avgMargin.toFixed(2)} €` },
-    { label: 'Fournisseurs', value: Object.keys(supplierCounts).length.toString() },
+    { label: "Produits", value: products.length.toString() },
+    { label: "Prix moyen", value: `${avgPrice.toFixed(2)} €` },
+    { label: "Marge moy.", value: `${avgMargin.toFixed(2)} €` },
+    {
+      label: "Fournisseurs",
+      value: Object.keys(supplierCounts).length.toString(),
+    },
   ];
 
   return (
     <div className="space-y-8">
       <div className="flex min-w-0 flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <Text className="text-xs/5 font-medium uppercase tracking-wider">Catalogue</Text>
+          <Text className="text-xs/5 font-medium uppercase tracking-wider">
+            Catalogue
+          </Text>
           <Heading>Produits du store</Heading>
           <Text>
-            Niche · {store.niche} · Géré par l&apos;agent à la création, modifiable via Curation.
+            Niche · {store.niche} · Géré par l&apos;agent à la création,
+            modifiable via Curation.
           </Text>
         </div>
         <Button color="indigo" href={`/admin/stores/${id}/copilot`}>
@@ -112,7 +124,7 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
         </Button>
       </div>
 
-      <div className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
+      <div className="border-t border-white/[0.08] pt-8 border-white/[0.08]">
         <Subheading>Aperçu</Subheading>
         <div className="grid grid-cols-1 gap-x-8 2xl:grid-cols-2">
           {[stats.slice(0, 2), stats.slice(2)].map((half, i) => (
@@ -120,7 +132,9 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
               {half.map((stat) => (
                 <Fragment key={stat.label}>
                   <DescriptionTerm>{stat.label}</DescriptionTerm>
-                  <DescriptionDetails className="tabular-nums">{stat.value}</DescriptionDetails>
+                  <DescriptionDetails className="tabular-nums">
+                    {stat.value}
+                  </DescriptionDetails>
                 </Fragment>
               ))}
             </DescriptionList>
@@ -128,16 +142,16 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
         </div>
       </div>
 
-      <div className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
+      <div className="border-t border-white/[0.08] pt-8 border-white/[0.08]">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Subheading>
-            {products.length} produit{products.length > 1 ? 's' : ''}
+            {products.length} produit{products.length > 1 ? "s" : ""}
           </Subheading>
           {Object.entries(supplierCounts).length > 0 ? (
             <Text className="text-xs">
               {Object.entries(supplierCounts)
                 .map(([s, c]) => `${s}·${c}`)
-                .join(' / ')}
+                .join(" / ")}
             </Text>
           ) : null}
         </div>
@@ -157,11 +171,19 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
             <TableHead>
               <TableRow>
                 <TableHeader>Produit</TableHeader>
-                <TableHeader className="hidden sm:table-cell">Source</TableHeader>
-                <TableHeader className="text-right hidden md:table-cell">Coût</TableHeader>
+                <TableHeader className="hidden sm:table-cell">
+                  Source
+                </TableHeader>
+                <TableHeader className="text-right hidden md:table-cell">
+                  Coût
+                </TableHeader>
                 <TableHeader className="text-right">Prix</TableHeader>
-                <TableHeader className="text-right hidden sm:table-cell">Marge</TableHeader>
-                <TableHeader className="text-right hidden lg:table-cell">Image</TableHeader>
+                <TableHeader className="text-right hidden sm:table-cell">
+                  Marge
+                </TableHeader>
+                <TableHeader className="text-right hidden lg:table-cell">
+                  Image
+                </TableHeader>
                 <TableHeader className="text-right">État</TableHeader>
                 <TableHeader className="relative w-0">
                   <span className="sr-only">Actions</span>
@@ -173,19 +195,21 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
                 const margin = (p.price_cents - p.cost_cents) / 100;
                 const marginPct =
                   p.cost_cents > 0
-                    ? Math.round(((p.price_cents - p.cost_cents) / p.cost_cents) * 100)
+                    ? Math.round(
+                        ((p.price_cents - p.cost_cents) / p.cost_cents) * 100,
+                      )
                     : 0;
-                const supplierColor = 'zinc';
+                const supplierColor = "zinc";
                 return (
                   <TableRow key={p.id}>
                     <TableCell>
                       <div className="flex min-w-0 items-center gap-3">
-                        <div className="size-10 shrink-0 overflow-hidden rounded-lg bg-zinc-100 ring-1 ring-zinc-950/5 dark:bg-white/5 dark:ring-white/10">
+                        <div className="size-10 shrink-0 overflow-hidden rounded-lg bg-white/[0.03] ring-1 ring-white/[0.05] bg-white/[0.03] ring-white/[0.08]">
                           {p.image_url ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={p.image_url}
-                              alt={p.enriched_title || 'Produit'}
+                              alt={p.enriched_title || "Produit"}
                               loading="lazy"
                               decoding="async"
                               className="size-full object-cover"
@@ -197,7 +221,7 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
                           )}
                         </div>
                         <div className="min-w-0">
-                          <div className="max-w-[28ch] truncate font-medium text-zinc-950 dark:text-white">
+                          <div className="max-w-[28ch] truncate font-medium text-white">
                             {p.enriched_title}
                           </div>
                           <Text className="mt-0.5 max-w-[36ch] truncate text-xs">
@@ -212,17 +236,21 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
                     <TableCell className="text-right tabular-nums text-zinc-500 hidden md:table-cell">
                       {(p.cost_cents / 100).toFixed(2)} €
                     </TableCell>
-                    <TableCell className="text-right font-medium tabular-nums text-zinc-950 dark:text-white">
+                    <TableCell className="text-right font-medium tabular-nums text-white">
                       {(p.price_cents / 100).toFixed(2)} €
                     </TableCell>
                     <TableCell className="text-right tabular-nums hidden sm:table-cell">
-                      <span className="font-medium text-indigo-500">+{margin.toFixed(2)} €</span>
-                      <span className="block text-xs text-zinc-500">{marginPct}%</span>
+                      <span className="font-medium text-indigo-500">
+                        +{margin.toFixed(2)} €
+                      </span>
+                      <span className="block text-xs text-zinc-500">
+                        {marginPct}%
+                      </span>
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-zinc-500 hidden lg:table-cell">
                       {p.image_quality_score != null
                         ? `${Math.round(parseFloat(p.image_quality_score) * 100)}%`
-                        : '—'}
+                        : "—"}
                     </TableCell>
                     <TableCell className="text-right">
                       {p.medusa_product_id ? (
@@ -234,16 +262,31 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
                     <TableCell>
                       <div className="-my-1.5 flex justify-end">
                         <Dropdown>
-                          <DropdownButton plain aria-label={`Actions pour ${p.enriched_title || 'ce produit'}`}>
+                          <DropdownButton
+                            plain
+                            aria-label={`Actions pour ${p.enriched_title || "ce produit"}`}
+                          >
                             <EllipsisHorizontalIcon data-slot="icon" />
                           </DropdownButton>
                           <DropdownMenu anchor="bottom end">
-                            <DropdownItem href={`/shop/${store.slug}`} target="_blank" rel="noreferrer">
-                              <DropdownLabel>Voir sur la boutique</DropdownLabel>
+                            <DropdownItem
+                              href={`/shop/${store.slug}`}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              <DropdownLabel>
+                                Voir sur la boutique
+                              </DropdownLabel>
                             </DropdownItem>
                             {p.supplier_url ? (
-                              <DropdownItem href={p.supplier_url} target="_blank" rel="noreferrer">
-                                <DropdownLabel>Ouvrir chez le fournisseur</DropdownLabel>
+                              <DropdownItem
+                                href={p.supplier_url}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                <DropdownLabel>
+                                  Ouvrir chez le fournisseur
+                                </DropdownLabel>
                               </DropdownItem>
                             ) : null}
                           </DropdownMenu>

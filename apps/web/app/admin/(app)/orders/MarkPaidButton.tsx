@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { apiFetch } from '@/lib/client-fetch';
+import { apiFetch } from "@/lib/client-fetch";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { AdminConfirmDialog } from '@/components/admin/AdminConfirmDialog';
-import { Button } from '@/components/catalyst/button';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { AdminConfirmDialog } from "@/components/admin/AdminConfirmDialog";
+import { Button } from "@/components/catalyst/button";
 
 interface Props {
   orderId: string;
@@ -26,7 +26,9 @@ export function MarkPaidButton({ orderId }: Props) {
     setBusy(true);
     setError(null);
     try {
-      const res = await apiFetch(`/api/agent/orders/${orderId}/mark-paid`, { method: 'POST' });
+      const res = await apiFetch(`/api/agent/orders/${orderId}/mark-paid`, {
+        method: "POST",
+      });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
         setError(data.error || `HTTP ${res.status}`);
@@ -34,7 +36,7 @@ export function MarkPaidButton({ orderId }: Props) {
       }
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Network error');
+      setError(e instanceof Error ? e.message : "Network error");
     } finally {
       setBusy(false);
     }
@@ -42,11 +44,17 @@ export function MarkPaidButton({ orderId }: Props) {
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <Button color="indigo" disabled={busy} onClick={() => setConfirmOpen(true)}>
-        {busy ? '…' : 'Marquer payée'}
+      <Button
+        color="indigo"
+        disabled={busy}
+        onClick={() => setConfirmOpen(true)}
+      >
+        {busy ? "…" : "Marquer payée"}
       </Button>
       {error && (
-        <span className="max-w-52 text-right text-xs text-zinc-500 dark:text-zinc-400">{error}</span>
+        <span className="max-w-52 text-right text-xs text-zinc-500 text-zinc-400">
+          {error}
+        </span>
       )}
       <AdminConfirmDialog
         open={confirmOpen}

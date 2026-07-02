@@ -1,13 +1,13 @@
-import { notFound } from 'next/navigation';
-import { getDbRead } from '@/lib/db';
-import { resolveStoreId } from '@/lib/resolve-store';
-import { ASSET_KINDS, type AssetKind } from '@/lib/agent/asset-regenerator';
-import { Heading, Subheading } from '@/components/catalyst/heading';
-import { Text, Code } from '@/components/catalyst/text';
-import { AdminBadge } from '@/components/admin/AdminBadge';
-import { AssetRegenerator } from './AssetRegenerator';
+import { notFound } from "next/navigation";
+import { getDbRead } from "@/lib/db";
+import { resolveStoreId } from "@/lib/resolve-store";
+import { ASSET_KINDS, type AssetKind } from "@/lib/agent/asset-regenerator";
+import { Heading, Subheading } from "@/components/catalyst/heading";
+import { Text, Code } from "@/components/catalyst/text";
+import { AdminBadge } from "@/components/admin/AdminBadge";
+import { AssetRegenerator } from "./AssetRegenerator";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 interface StoreRow {
   id: string;
@@ -22,11 +22,11 @@ interface StoreRow {
 
 interface RunRow {
   id: string;
-  asset_kind: AssetKind | 'all';
+  asset_kind: AssetKind | "all";
   prompt: string | null;
   reference_image_url: string | null;
   result_url: string | null;
-  status: 'pending' | 'running' | 'success' | 'error';
+  status: "pending" | "running" | "success" | "error";
   error_message: string | null;
   is_current: boolean;
   created_at: Date | string;
@@ -38,7 +38,11 @@ interface ProductRow {
   image_url: string | null;
 }
 
-export default async function StoreAssetsPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function StoreAssetsPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const storeId = await resolveStoreId(id);
   if (!storeId) notFound();
@@ -76,27 +80,29 @@ export default async function StoreAssetsPage({ params }: { params: Promise<{ id
   const grouped: Record<AssetKind, RunRow[]> = {
     hero: [],
     cutout: [],
-    'lifestyle-1': [],
-    'lifestyle-2': [],
-    'lifestyle-3': [],
+    "lifestyle-1": [],
+    "lifestyle-2": [],
+    "lifestyle-3": [],
     promo: [],
   };
   for (const r of runsRes.rows) {
     const k = r.asset_kind;
-    if (k === 'all') continue;
+    if (k === "all") continue;
     if (grouped[k].length < 10) grouped[k].push(r);
   }
 
   const lifestyleImages = Array.isArray(store.lifestyle_images)
-    ? (store.lifestyle_images as unknown[]).filter((u): u is string => typeof u === 'string')
+    ? (store.lifestyle_images as unknown[]).filter(
+        (u): u is string => typeof u === "string",
+      )
     : [];
 
   const currentUrlByKind: Record<AssetKind, string | null> = {
     hero: store.hero_image_url,
     cutout: store.cutout_image_url,
-    'lifestyle-1': lifestyleImages[0] ?? null,
-    'lifestyle-2': lifestyleImages[1] ?? null,
-    'lifestyle-3': lifestyleImages[2] ?? null,
+    "lifestyle-1": lifestyleImages[0] ?? null,
+    "lifestyle-2": lifestyleImages[1] ?? null,
+    "lifestyle-3": lifestyleImages[2] ?? null,
     promo: store.promo_video_url,
   };
 
@@ -106,9 +112,11 @@ export default async function StoreAssetsPage({ params }: { params: Promise<{ id
         <Text className="text-xs/5 font-medium uppercase tracking-wider">{`Production · Assets · ${store.niche}`}</Text>
         <Heading>Assets de {store.name}</Heading>
         <Text>
-          Régénère chaque visuel sans toucher au produit. Le prompt est éditable, l&apos;historique
-          conserve les 10 derniers runs et un clic suffit pour revenir à une version précédente. Le
-          storefront <Code>/shop/{store.slug}</Code> reflète immédiatement la version courante.
+          Régénère chaque visuel sans toucher au produit. Le prompt est
+          éditable, l&apos;historique conserve les 10 derniers runs et un clic
+          suffit pour revenir à une version précédente. Le storefront{" "}
+          <Code>/shop/{store.slug}</Code> reflète immédiatement la version
+          courante.
         </Text>
       </div>
 
@@ -119,9 +127,9 @@ export default async function StoreAssetsPage({ params }: { params: Promise<{ id
             <Subheading>Aucun produit de référence</Subheading>
           </div>
           <Text className="mt-2">
-            Aucune image produit n&apos;est associée à ce store, la régénération ne peut pas
-            s&apos;appuyer sur un visuel source. Importe un produit avec une image avant
-            d&apos;utiliser cette page.
+            Aucune image produit n&apos;est associée à ce store, la régénération
+            ne peut pas s&apos;appuyer sur un visuel source. Importe un produit
+            avec une image avant d&apos;utiliser cette page.
           </Text>
         </div>
       )}
@@ -140,7 +148,10 @@ export default async function StoreAssetsPage({ params }: { params: Promise<{ id
               status: r.status,
               errorMessage: r.error_message,
               isCurrent: r.is_current,
-              createdAt: typeof r.created_at === 'string' ? r.created_at : r.created_at.toISOString(),
+              createdAt:
+                typeof r.created_at === "string"
+                  ? r.created_at
+                  : r.created_at.toISOString(),
             }))}
             referenceImageUrl={product?.image_url ?? null}
           />

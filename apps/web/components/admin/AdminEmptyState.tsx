@@ -1,29 +1,52 @@
-import type React from 'react'
+import clsx from "clsx";
+import type React from "react";
+import { adminInset, adminText, adminTextMuted } from "./admin-surface";
 
 /**
  * Centered empty state for admin lists/tables. Optional icon, title,
  * description and a single call-to-action slot. Dark-mode aware. Server-safe.
  */
 export interface AdminEmptyStateProps {
-  icon?: React.ComponentType<{ className?: string }>
-  title: string
-  description?: string
-  action?: React.ReactNode
+  icon?: React.ComponentType<{ className?: string }>;
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
 }
 
-export function AdminEmptyState({ icon: Icon, title, description, action }: AdminEmptyStateProps) {
+export function AdminEmptyState({
+  icon: Icon,
+  title,
+  description,
+  action,
+}: AdminEmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center px-6 py-20 text-center bg-zinc-950">
+    <div className="flex-col items-center justify-center px-6 py-20 text-center">
       {Icon ? (
-        <div className="mb-6 flex size-12 items-center justify-center bg-zinc-900">
+        <div
+          className={clsx(
+            "mb-6 flex size-12 items-center justify-center rounded-xl",
+            adminInset,
+          )}
+        >
           <Icon className="size-6 text-zinc-500" />
         </div>
       ) : null}
-      <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-white">{title}</h3>
+      <h3
+        className={clsx(
+          "text-[10px] font-bold uppercase tracking-[0.15em]",
+          adminText,
+        )}
+      >
+        {title}
+      </h3>
       {description ? (
-        <p className="mt-2 max-w-sm text-sm font-medium text-zinc-500">{description}</p>
+        <p
+          className={clsx("mt-2 max-w-sm text-sm font-medium", adminTextMuted)}
+        >
+          {description}
+        </p>
       ) : null}
       {action ? <div className="mt-6">{action}</div> : null}
     </div>
-  )
+  );
 }

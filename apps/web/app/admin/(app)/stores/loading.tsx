@@ -4,11 +4,11 @@ export default function Loading() {
       {/* Header: titre + sous-titre + meta, action à droite */}
       <div className="flex flex-col gap-4 pb-6 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-2">
-          <div className="h-8 w-64 rounded-lg bg-zinc-100 dark:bg-white/5" />
-          <div className="h-4 w-96 max-w-full rounded bg-zinc-100 dark:bg-white/5" />
-          <div className="h-3 w-40 rounded bg-zinc-100 dark:bg-white/5" />
+          <div className="h-8 w-64 rounded-lg bg-white/[0.03]" />
+          <div className="h-4 w-96 max-w-full rounded bg-white/[0.03]" />
+          <div className="h-3 w-40 rounded bg-white/[0.03]" />
         </div>
-        <div className="h-9 w-36 shrink-0 rounded-lg bg-zinc-100 dark:bg-white/5" />
+        <div className="h-9 w-36 shrink-0 rounded-lg bg-white/[0.03]" />
       </div>
 
       {/* 4 stat cards */}
@@ -16,7 +16,7 @@ export default function Loading() {
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
-            className="h-24 rounded-xl border border-zinc-950/10 bg-white dark:border-white/10 dark:bg-zinc-900"
+            className="h-24 rounded-xl border border-white/[0.08] bg-white/[0.03]"
           />
         ))}
       </div>
@@ -24,10 +24,10 @@ export default function Loading() {
       {/* Toolbar (recherche + filtre statut) puis table */}
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="h-9 w-full max-w-xs rounded-lg bg-zinc-100 dark:bg-white/5" />
-          <div className="h-9 w-40 rounded-lg bg-zinc-100 dark:bg-white/5" />
+          <div className="h-9 w-full max-w-xs rounded-lg bg-white/[0.03]" />
+          <div className="h-9 w-40 rounded-lg bg-white/[0.03]" />
         </div>
-        <div className="h-96 rounded-xl border border-zinc-950/10 bg-white dark:border-white/10 dark:bg-zinc-900" />
+        <div className="h-96 rounded-xl border border-white/[0.08] bg-white/[0.03]" />
       </div>
     </div>
   );

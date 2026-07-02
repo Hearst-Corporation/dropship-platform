@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useState, useRef, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
-import { Dialog, DialogBackdrop, DialogPanel } from '@headlessui/react';
+import { useState, useRef, useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { Dialog, DialogBackdrop, DialogPanel } from "@headlessui/react";
 import {
   SparklesIcon,
   PaperAirplaneIcon,
@@ -10,9 +10,13 @@ import {
   ArrowPathIcon,
   ChatBubbleLeftRightIcon,
   WrenchScrewdriverIcon,
-} from '@heroicons/react/24/outline';
-import { cn } from '@/lib/utils/cn';
-import { useSuperAgentChat, type ChatMessage, type ChatStep } from './useSuperAgentChat';
+} from "@heroicons/react/24/outline";
+import { cn } from "@/lib/utils/cn";
+import {
+  useSuperAgentChat,
+  type ChatMessage,
+  type ChatStep,
+} from "./useSuperAgentChat";
 
 /**
  * SuperAgentRail — fixed right rail (desktop, docks at xl so lg laptops keep a
@@ -21,30 +25,38 @@ import { useSuperAgentChat, type ChatMessage, type ChatStep } from './useSuperAg
  * here, shared by both surfaces, so closing the drawer never loses the
  * conversation. Dark theme, indigo accent — matches the admin chrome.
  */
-const RAIL_WIDTH = 'xl:w-96';
+const RAIL_WIDTH = "xl:w-96";
 
 function StepLine({ step }: { step: ChatStep }) {
   const icon =
-    step.kind === 'thinking' ? null : step.kind === 'confirm' ? (
-      <SparklesIcon className="size-3.5 shrink-0 text-zinc-500 dark:text-zinc-600" aria-hidden />
+    step.kind === "thinking" ? null : step.kind === "confirm" ? (
+      <SparklesIcon
+        className="size-3.5 shrink-0 text-zinc-500 text-zinc-400"
+        aria-hidden
+      />
     ) : (
-      <WrenchScrewdriverIcon className="size-3.5 shrink-0 text-indigo-500" aria-hidden />
+      <WrenchScrewdriverIcon
+        className="size-3.5 shrink-0 text-indigo-500"
+        aria-hidden
+      />
     );
   return (
     <div
       className={cn(
-        'flex items-start gap-2 px-2 py-1.5 text-xs',
-        step.isError ? 'text-zinc-300' : 'text-zinc-500',
+        "flex items-start gap-2 px-2 py-1.5 text-xs",
+        step.isError ? "text-zinc-400" : "text-zinc-500",
       )}
     >
       {icon}
-      <span className="wrap-break-word font-mono leading-relaxed uppercase tracking-wider">{step.text}</span>
+      <span className="wrap-break-word font-mono leading-relaxed uppercase tracking-wider">
+        {step.text}
+      </span>
     </div>
   );
 }
 
 function Bubble({ msg }: { msg: ChatMessage }) {
-  if (msg.role === 'user') {
+  if (msg.role === "user") {
     return (
       <div className="flex justify-end">
         <div className="max-w-[85%] rounded-none bg-indigo-600 px-4 py-3 text-sm text-white">
@@ -63,7 +75,7 @@ function Bubble({ msg }: { msg: ChatMessage }) {
         </div>
       )}
       {msg.text && (
-        <div className="max-w-[90%] whitespace-pre-wrap rounded-none bg-zinc-900 px-4 py-3 text-sm text-zinc-100 border border-zinc-800">
+        <div className="max-w-[90%] whitespace-pre-wrap rounded-none bg-white/[0.03] px-4 py-3 text-sm text-zinc-100 border border-white/[0.08]">
           {msg.text}
         </div>
       )}
@@ -75,11 +87,11 @@ function Bubble({ msg }: { msg: ChatMessage }) {
 function TypingIndicator() {
   return (
     <div className="flex">
-      <div className="flex items-center gap-2 rounded-none bg-zinc-900 px-4 py-4 border border-zinc-800">
+      <div className="flex items-center gap-2 rounded-none bg-white/[0.03] px-4 py-4 border border-white/[0.08]">
         {[0, 1, 2].map((i) => (
           <span
             key={i}
-            className="size-1.5 rounded-none bg-zinc-500 animate-pulse"
+            className="size-1.5 rounded-none bg-white/[0.20] animate-pulse"
             style={{ animationDelay: `${i * 150}ms` }}
           />
         ))}
@@ -100,7 +112,16 @@ interface ChatBodyProps {
   onClose?: () => void;
 }
 
-function ChatBody({ messages, running, error, send, reset, draft, setDraft, onClose }: ChatBodyProps) {
+function ChatBody({
+  messages,
+  running,
+  error,
+  send,
+  reset,
+  draft,
+  setDraft,
+  onClose,
+}: ChatBodyProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastCountRef = useRef(0);
 
@@ -114,14 +135,17 @@ function ChatBody({ messages, running, error, send, reset, draft, setDraft, onCl
     const isNewMessage = messages.length !== lastCountRef.current;
     lastCountRef.current = messages.length;
     if (nearBottom) {
-      el.scrollTo({ top: el.scrollHeight, behavior: isNewMessage ? 'smooth' : 'auto' });
+      el.scrollTo({
+        top: el.scrollHeight,
+        behavior: isNewMessage ? "smooth" : "auto",
+      });
     }
   }, [messages]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const text = draft;
-    setDraft('');
+    setDraft("");
     void send(text);
   };
 
@@ -129,38 +153,48 @@ function ChatBody({ messages, running, error, send, reset, draft, setDraft, onCl
   const waitingFirstOutput =
     running &&
     (!lastMessage ||
-      lastMessage.role === 'user' ||
-      (!lastMessage.text && (!lastMessage.steps || lastMessage.steps.length === 0)));
+      lastMessage.role === "user" ||
+      (!lastMessage.text &&
+        (!lastMessage.steps || lastMessage.steps.length === 0)));
 
   return (
-    <div className="flex h-full flex-col bg-zinc-950">
+    <div className="flex h-full flex-col bg-white/[0.02]">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-5">
+      <div className="flex items-center justify-between border-b border-white/[0.08] px-6 py-5">
         <div className="flex items-center gap-3">
-          <span className="flex size-3 shrink-0 items-center justify-center bg-indigo-600">
-          </span>
+          <span className="flex size-3 shrink-0 items-center justify-center bg-indigo-600"></span>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white">Super Agent</p>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Assistant admin · OpenAI</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white">
+              Super Agent
+            </p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+              Assistant admin · OpenAI
+            </p>
           </div>
         </div>
         <button
           type="button"
           onClick={reset}
           title="Nouvelle conversation"
-          className="rounded-none p-2 text-zinc-500 hover:bg-zinc-900 hover:text-white transition-colors"
+          className="rounded-none p-2 text-zinc-500 hover:bg-white/[0.03] hover:text-white transition-colors"
         >
           <ArrowPathIcon className="size-4" aria-hidden />
         </button>
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
+      <div
+        ref={scrollRef}
+        className="flex-1 space-y-6 overflow-y-auto px-6 py-6"
+      >
         {messages.length === 0 && !running ? (
           <div className="flex h-full flex-col items-start justify-center">
-            <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-500">Demande à l&apos;agent</p>
+            <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-500">
+              Demande à l&apos;agent
+            </p>
             <p className="mt-2 text-sm text-zinc-400">
-              Gère tes stores, lance des recherches, interroge la base. Il agit sur l&apos;admin.
+              Gère tes stores, lance des recherches, interroge la base. Il agit
+              sur l&apos;admin.
             </p>
           </div>
         ) : (
@@ -168,27 +202,27 @@ function ChatBody({ messages, running, error, send, reset, draft, setDraft, onCl
         )}
         {waitingFirstOutput && <TypingIndicator />}
         {error && (
-          <div className="rounded-none bg-zinc-900 px-4 py-3 text-xs text-zinc-300 border border-zinc-800">
+          <div className="rounded-none bg-white/[0.03] px-4 py-3 text-xs text-zinc-400 border border-white/[0.08]">
             {error}
           </div>
         )}
       </div>
 
       {/* Composer */}
-      <form onSubmit={submit} className="border-t border-zinc-800 p-4">
-        <div className="flex items-end gap-2 bg-zinc-900 p-2 border border-zinc-800 focus-within:border-indigo-600 transition-colors">
+      <form onSubmit={submit} className="border-t border-white/[0.08] p-4">
+        <div className="flex items-end gap-2 bg-white/[0.03] p-2 border border-white/[0.08] focus-within:border-indigo-600 transition-colors">
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+              if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 submit(e);
               }
             }}
             rows={1}
             placeholder="MESSAGE À L'AGENT…"
-            className="max-h-32 min-h-6 flex-1 resize-none bg-transparent px-2 text-[10px] font-bold uppercase tracking-widest text-white placeholder:text-zinc-600 focus:outline-hidden"
+            className="max-h-32 min-h-6 flex-1 resize-none bg-transparent px-2 text-[10px] font-bold uppercase tracking-widest text-white placeholder:text-zinc-400 focus:outline-hidden"
           />
           <button
             type="submit"
@@ -213,8 +247,10 @@ export function SuperAgentRail() {
   // Chat state is owned here so the docked rail and the drawer share one
   // conversation: the Headless Dialog unmounts its children on close, and a
   // ChatBody-local hook would lose the whole session every time.
-  const { messages, running, error, send, reset } = useSuperAgentChat(pathname ?? '');
-  const [draft, setDraft] = useState('');
+  const { messages, running, error, send, reset } = useSuperAgentChat(
+    pathname ?? "",
+  );
+  const [draft, setDraft] = useState("");
 
   const chatProps = { messages, running, error, send, reset, draft, setDraft };
 
@@ -224,8 +260,8 @@ export function SuperAgentRail() {
           area would drop to ~300px with the sidebar + rail both open) */}
       <aside
         className={cn(
-          'hidden lg:fixed lg:inset-y-0 lg:right-0 lg:z-40 lg:flex lg:flex-col',
-          'border-l border-zinc-800 bg-zinc-950',
+          "hidden lg:fixed lg:inset-y-0 lg:right-0 lg:z-40 lg:flex lg:flex-col",
+          "border-l border-white/[0.08] bg-white/[0.02]",
           RAIL_WIDTH,
         )}
       >
@@ -242,20 +278,24 @@ export function SuperAgentRail() {
         <SparklesIcon className="size-5" aria-hidden />
       </button>
 
-      <Dialog open={mobileOpen} onClose={setMobileOpen} className="relative z-50 xl:hidden">
+      <Dialog
+        open={mobileOpen}
+        onClose={setMobileOpen}
+        className="relative z-50 xl:hidden"
+      >
         <DialogBackdrop
           transition
-          className="fixed inset-0 bg-zinc-950/80 transition-opacity duration-300 data-closed:opacity-0"
+          className="fixed inset-0 bg-black/80 transition-opacity duration-300 data-closed:opacity-0"
         />
         <div className="fixed inset-0 flex justify-end">
           <DialogPanel
             transition
-            className="relative flex w-full max-w-md transform flex-col bg-zinc-950 ring-1 ring-white/10 transition duration-300 ease-in-out data-closed:translate-x-full"
+            className="relative flex w-full max-w-md transform flex-col bg-white/[0.02] ring-1 ring-white/[0.08] transition duration-300 ease-in-out data-closed:translate-x-full"
           >
             <button
               type="button"
               onClick={() => setMobileOpen(false)}
-              className="absolute right-3 top-3 z-10 rounded-md p-1.5 text-zinc-400 hover:bg-white/5 hover:text-white"
+              className="absolute right-3 top-3 z-10 rounded-md p-1.5 text-zinc-400 hover:bg-white/[0.03] hover:text-white"
               aria-label="Fermer"
             >
               <XMarkIcon className="size-5" aria-hidden />

@@ -1,14 +1,14 @@
-import clsx from 'clsx'
-import type React from 'react'
-import { adminAccentTop, adminPanel } from './admin-surface'
+import clsx from "clsx";
+import type React from "react";
+import { adminPanel } from "./admin-surface";
 
 /**
  * Surface wrapper for a Catalyst <Table>. Wraps the table in a bordered,
  * rounded, dark-mode-aware panel that scrolls horizontally on its own.
  */
 export interface AdminDataTableProps {
-  children: React.ReactNode
-  className?: string
+  children: React.ReactNode;
+  className?: string;
 }
 
 export function AdminDataTable({ children, className }: AdminDataTableProps) {
@@ -16,10 +16,11 @@ export function AdminDataTable({ children, className }: AdminDataTableProps) {
     <div
       className={clsx(
         className,
-        'relative border-t border-zinc-800 bg-zinc-950',
+        adminPanel,
+        "relative overflow-hidden rounded-xl",
       )}
     >
-      <div className="[--gutter:--spacing(6)]">{children}</div>
+      <div className="overflow-x-auto">{children}</div>
     </div>
-  )
+  );
 }

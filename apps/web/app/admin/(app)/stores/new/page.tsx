@@ -1,7 +1,7 @@
-import { Suspense } from 'react';
-import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
-import { TextLink } from '@/components/catalyst/text';
-import { NewStoreForm } from './NewStoreForm';
+import { Suspense } from "react";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { TextLink } from "@/components/catalyst/text";
+import { NewStoreForm } from "./NewStoreForm";
 
 export default function NewStorePage() {
   return (
@@ -16,7 +16,11 @@ export default function NewStorePage() {
           subtitle="Renseigne une niche et un nom, l'agent construit le store de bout en bout."
         />
       </div>
-      <Suspense fallback={<div className="text-sm text-zinc-400">Chargement&hellip;</div>}>
+      <Suspense
+        fallback={
+          <div className="text-sm text-zinc-400">Chargement&hellip;</div>
+        }
+      >
         <NewStoreForm />
       </Suspense>
     </div>

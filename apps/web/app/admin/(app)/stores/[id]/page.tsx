@@ -1,18 +1,22 @@
-import { Fragment } from 'react';
-import { notFound } from 'next/navigation';
-import { getDbRead } from '@/lib/db';
-import { resolveStoreId } from '@/lib/resolve-store';
-import { loadStoreReport } from '@/lib/agent/store-report';
-import { StoreAvatar } from '@/components/ui';
-import { StoreActions } from '../StoreActions';
-import { RunReportSections } from './RunReportSections';
-import { Heading, Subheading } from '@/components/catalyst/heading';
-import { Text, TextLink, Strong, Code } from '@/components/catalyst/text';
-import { AdminBadge } from '@/components/admin/AdminBadge';
-import { Button } from '@/components/catalyst/button';
-import { DescriptionList, DescriptionTerm, DescriptionDetails } from '@/components/catalyst/description-list';
+import { Fragment } from "react";
+import { notFound } from "next/navigation";
+import { getDbRead } from "@/lib/db";
+import { resolveStoreId } from "@/lib/resolve-store";
+import { loadStoreReport } from "@/lib/agent/store-report";
+import { StoreAvatar } from "@/components/ui";
+import { StoreActions } from "../StoreActions";
+import { RunReportSections } from "./RunReportSections";
+import { Heading, Subheading } from "@/components/catalyst/heading";
+import { Text, TextLink, Strong, Code } from "@/components/catalyst/text";
+import { AdminBadge } from "@/components/admin/AdminBadge";
+import { Button } from "@/components/catalyst/button";
+import {
+  DescriptionList,
+  DescriptionTerm,
+  DescriptionDetails,
+} from "@/components/catalyst/description-list";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 interface StoreDetailRow {
   id: string;
@@ -40,7 +44,7 @@ interface StoreDetailRow {
   clarity_id: string | null;
   google_ads_conversion_action: string | null;
   google_merchant_id: string | null;
-  template: 'auto' | 'mono' | 'collection-grid' | 'collection-editorial';
+  template: "auto" | "mono" | "collection-grid" | "collection-editorial";
   custom_domain: string | null;
 }
 
@@ -57,7 +61,11 @@ interface ProductRow {
   created_at: string;
 }
 
-export default async function StoreDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function StoreDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const storeId = await resolveStoreId(id);
   if (!storeId) notFound();
@@ -90,26 +98,32 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
 
   const products = productsRes.rows;
 
-  const margin = products.length > 0
-    ? products.reduce((sum, p) => sum + (p.price_cents - p.cost_cents), 0) / products.length / 100
-    : 0;
+  const margin =
+    products.length > 0
+      ? products.reduce((sum, p) => sum + (p.price_cents - p.cost_cents), 0) /
+        products.length /
+        100
+      : 0;
 
-  const avgPrice = products.length > 0
-    ? products.reduce((sum, p) => sum + p.price_cents, 0) / products.length / 100
-    : 0;
+  const avgPrice =
+    products.length > 0
+      ? products.reduce((sum, p) => sum + p.price_cents, 0) /
+        products.length /
+        100
+      : 0;
 
   const supplierCounts = products.reduce<Record<string, number>>((acc, p) => {
     acc[p.supplier] = (acc[p.supplier] || 0) + 1;
     return acc;
   }, {});
 
-  const statusActive = store.status === 'active';
+  const statusActive = store.status === "active";
 
   const kpis = [
-    { label: 'Produits', value: products.length.toString() },
-    { label: 'Prix moyen', value: `${avgPrice.toFixed(2)} €` },
-    { label: 'Marge moy.', value: `${margin.toFixed(2)} €` },
-    { label: 'Statut', value: statusActive ? 'En ligne' : store.status },
+    { label: "Produits", value: products.length.toString() },
+    { label: "Prix moyen", value: `${avgPrice.toFixed(2)} €` },
+    { label: "Marge moy.", value: `${margin.toFixed(2)} €` },
+    { label: "Statut", value: statusActive ? "En ligne" : store.status },
   ];
 
   return (
@@ -140,21 +154,23 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
         </DescriptionList>
       </section>
 
-      <section className="border-t border-zinc-800 pt-8">
+      <section className="border-t border-white/[0.08] pt-8">
         <div className="flex items-start justify-between gap-4">
           <Subheading>Informations</Subheading>
-          <AdminBadge status={statusActive ? 'active' : store.status}>
-            {statusActive ? 'En ligne' : store.status}
+          <AdminBadge status={statusActive ? "active" : store.status}>
+            {statusActive ? "En ligne" : store.status}
           </AdminBadge>
         </div>
 
         <DescriptionList className="mt-4 sm:grid-cols-2">
           <DescriptionTerm>Niche</DescriptionTerm>
-          <DescriptionDetails>{store.niche || '—'}</DescriptionDetails>
+          <DescriptionDetails>{store.niche || "—"}</DescriptionDetails>
 
           <DescriptionTerm>Fournisseurs</DescriptionTerm>
           <DescriptionDetails>
-            {Object.entries(supplierCounts).map(([s, count]) => `${s} (${count})`).join(', ') || '—'}
+            {Object.entries(supplierCounts)
+              .map(([s, count]) => `${s} (${count})`)
+              .join(", ") || "—"}
           </DescriptionDetails>
 
           {store.medusa_publishable_key && (
@@ -174,7 +190,7 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
           )}
 
           <DescriptionTerm>Domaine</DescriptionTerm>
-          <DescriptionDetails>{store.custom_domain || '—'}</DescriptionDetails>
+          <DescriptionDetails>{store.custom_domain || "—"}</DescriptionDetails>
 
           {store.error_message && !statusActive && (
             <>
@@ -193,15 +209,20 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
         </DescriptionList>
       </section>
 
-      <section className="flex flex-wrap items-center justify-between gap-4 border-t border-zinc-800 pt-8">
+      <section className="flex flex-wrap items-center justify-between gap-4 border-t border-white/[0.08] pt-8">
         <div className="min-w-0">
           <Subheading>Catalogue</Subheading>
           <Text className="mt-1">
-            <Strong>{products.length}</Strong>{' '}
-            produit{products.length > 1 ? 's' : ''} import&eacute;{products.length > 1 ? 's' : ''}.
+            <Strong>{products.length}</Strong> produit
+            {products.length > 1 ? "s" : ""} import&eacute;
+            {products.length > 1 ? "s" : ""}.
           </Text>
         </div>
-        <Button color="indigo" href={`/admin/stores/${store.id}/catalog`} className="shrink-0">
+        <Button
+          color="indigo"
+          href={`/admin/stores/${store.id}/catalog`}
+          className="shrink-0"
+        >
           Voir le catalogue
         </Button>
       </section>

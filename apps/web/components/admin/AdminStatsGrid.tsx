@@ -1,34 +1,40 @@
-import clsx from 'clsx'
-import type React from 'react'
+import clsx from "clsx";
+import type React from "react";
+import { adminDivider } from "./admin-surface";
 
 /**
  * Responsive grid for AdminStatCard rows. Default breaks 1 -> 2 -> 4 columns.
  * Pass `cols={6}` for a wider KPI strip. Server-safe.
  */
 export interface AdminStatsGridProps {
-  children: React.ReactNode
+  children: React.ReactNode;
   /** Max columns at the xl breakpoint. Supported: 2, 3, 4, 6. Default 4. */
-  cols?: 2 | 3 | 4 | 6
-  className?: string
+  cols?: 2 | 3 | 4 | 6;
+  className?: string;
 }
 
-const colsClass: Record<NonNullable<AdminStatsGridProps['cols']>, string> = {
-  2: 'sm:grid-cols-2',
-  3: 'sm:grid-cols-2 xl:grid-cols-3',
-  4: 'sm:grid-cols-2 xl:grid-cols-4',
-  6: 'sm:grid-cols-3 xl:grid-cols-6',
-}
+const colsClass: Record<NonNullable<AdminStatsGridProps["cols"]>, string> = {
+  2: "sm:grid-cols-2",
+  3: "sm:grid-cols-2 xl:grid-cols-3",
+  4: "sm:grid-cols-2 xl:grid-cols-4",
+  6: "sm:grid-cols-3 xl:grid-cols-6",
+};
 
-export function AdminStatsGrid({ children, cols = 4, className }: AdminStatsGridProps) {
+export function AdminStatsGrid({
+  children,
+  cols = 4,
+  className,
+}: AdminStatsGridProps) {
   return (
-    <div 
+    <div
       className={clsx(
-        className, 
-        'grid grid-cols-1 bg-zinc-800 gap-px border border-zinc-800', 
-        colsClass[cols]
+        className,
+        "grid-cols-1 divide-y overflow-hidden rounded-xl border",
+        adminDivider,
+        colsClass[cols],
       )}
     >
       {children}
     </div>
-  )
+  );
 }

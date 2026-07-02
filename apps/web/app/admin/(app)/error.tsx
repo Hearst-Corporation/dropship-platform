@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import * as Sentry from '@sentry/nextjs';
-import { Button } from '@/components/catalyst/button';
-import { Heading } from '@/components/catalyst/heading';
+import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
+import { Button } from "@/components/catalyst/button";
+import { Heading } from "@/components/catalyst/heading";
 
 /**
  * Error boundary de la zone admin (segment (app)). Reste sur le shell sombre
@@ -27,9 +27,9 @@ export default function Error({
           Erreur
         </p>
         <Heading className="mb-3">Une erreur est survenue</Heading>
-        <p className="mb-8 text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
-          Le chargement de cette page a été interrompu. Réessayez ou rechargez la
-          page.
+        <p className="mb-8 text-sm leading-relaxed text-zinc-500 text-zinc-400">
+          Le chargement de cette page a été interrompu. Réessayez ou rechargez
+          la page.
         </p>
         <Button color="indigo" onClick={reset}>
           Réessayer

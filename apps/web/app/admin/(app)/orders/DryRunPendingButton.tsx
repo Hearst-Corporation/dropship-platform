@@ -1,15 +1,20 @@
-'use client';
+"use client";
 
-import { apiFetch } from '@/lib/client-fetch';
+import { apiFetch } from "@/lib/client-fetch";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/catalyst/button';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/catalyst/button";
 
 interface BatchResult {
   scanned: number;
   processed: number;
-  results: { medusaOrderId: string; status: string; ok: boolean; error?: string }[];
+  results: {
+    medusaOrderId: string;
+    status: string;
+    ok: boolean;
+    error?: string;
+  }[];
 }
 
 export function DryRunPendingButton() {
@@ -23,7 +28,9 @@ export function DryRunPendingButton() {
     setResult(null);
     setError(null);
     try {
-      const res = await apiFetch('/api/agent/orders/dry-run-pending', { method: 'POST' });
+      const res = await apiFetch("/api/agent/orders/dry-run-pending", {
+        method: "POST",
+      });
       if (!res.ok) {
         setError(`HTTP ${res.status}`);
         return;
@@ -32,7 +39,7 @@ export function DryRunPendingButton() {
       setResult(data);
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Network error');
+      setError(e instanceof Error ? e.message : "Network error");
     } finally {
       setBusy(false);
     }
@@ -47,15 +54,16 @@ export function DryRunPendingButton() {
         aria-label="Pré-calculer les dry-runs des commandes payées en attente"
         aria-busy={busy}
       >
-        {busy ? 'Pré-calcul…' : 'Pré-calculer les dry-runs'}
+        {busy ? "Pré-calcul…" : "Pré-calculer les dry-runs"}
       </Button>
       {result && (
-        <span className="text-xs text-zinc-500 dark:text-zinc-400">
-          {result.processed} traitée{result.processed > 1 ? 's' : ''} sur {result.scanned} payée{result.scanned > 1 ? 's' : ''}
+        <span className="text-xs text-zinc-500 text-zinc-400">
+          {result.processed} traitée{result.processed > 1 ? "s" : ""} sur{" "}
+          {result.scanned} payée{result.scanned > 1 ? "s" : ""}
         </span>
       )}
       {error && (
-        <span className="text-xs font-medium text-zinc-950 dark:text-white">Erreur : {error}</span>
+        <span className="text-xs font-medium text-white">Erreur : {error}</span>
       )}
     </div>
   );

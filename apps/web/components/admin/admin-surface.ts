@@ -1,17 +1,42 @@
 /**
  * Shared Tailwind surface tokens for the admin densify kit.
- * Single-accent policy: indigo is the only hue beyond zinc neutrals.
+ *
+ * Design policy (dark-only admin, Catalyst-like):
+ *   - The deep black page background lives ONLY in the Catalyst shell / layout.
+ *   - Admin sections/cards use a single subtle raised surface so they sit
+ *     slightly above the page without creating nested black boxes.
+ *   - Inset surfaces (tables, code, nested form wells) are a hair darker than panels.
+ *   - Borders are one consistent opacity family.
+ *   - No `dark:` variants are needed here: the admin root already forces `.dark`.
  */
-export const adminPanel =
-  'border border-zinc-800 bg-zinc-950 dark:border-zinc-800 dark:bg-zinc-950'
 
-/** Removed the gradient hairline, replaced with a strict flat accent if needed, but keeping it empty to maintain pure lines. */
-export const adminAccentTop = ''
+/** Primary card / panel / section surface. */
+export const adminPanel = "border border-white/[0.08] bg-white/[0.02]";
 
-/** Header row wash — plain flat background. */
+/** Header row inside a panel. */
 export const adminSectionHeader =
-  'border-b border-zinc-800 bg-zinc-950 dark:border-zinc-800 dark:bg-zinc-950'
+  "border-b border-white/[0.08] bg-white/[0.03]";
 
-/** Featured panel wash (dashboard hero, etc.). No gradient. */
-export const adminHighlightWash =
-  'bg-zinc-950 dark:bg-zinc-950'
+/** Slightly raised wash for highlighted panels (dashboard hero, etc.). */
+export const adminHighlightWash = "bg-white/[0.03]";
+
+/** Inset / well surface for tables, code blocks, nested form wells. */
+export const adminInset = "bg-white/[0.03]";
+
+/** Hover state for inset rows. */
+export const adminInsetHover = "hover:bg-white/[0.05]";
+
+/** Standard border. */
+export const adminBorder = "border-white/[0.08]";
+
+/** Subtle divider / separator. */
+export const adminDivider = "border-white/[0.08]";
+
+/** Muted secondary text. */
+export const adminTextMuted = "text-zinc-400";
+
+/** Primary text on dark surfaces. */
+export const adminText = "text-zinc-100";
+
+/** Removed the gradient hairline; kept empty for a strict flat accent line. */
+export const adminAccentTop = "";

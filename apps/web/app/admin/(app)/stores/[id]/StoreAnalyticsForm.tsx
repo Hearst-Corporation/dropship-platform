@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { apiFetch } from '@/lib/client-fetch';
+import { apiFetch } from "@/lib/client-fetch";
 
-import { useMemo, useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
-import { useUnsavedChanges } from '@/lib/use-unsaved-changes';
-import { AdminSection } from '@/components/admin/AdminSection';
-import { Button } from '@/components/catalyst/button';
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
+import { AdminSection } from "@/components/admin/AdminSection";
+import { Button } from "@/components/catalyst/button";
 import {
   Fieldset,
   Legend,
@@ -14,9 +14,9 @@ import {
   Field,
   Label,
   Description,
-} from '@/components/catalyst/fieldset';
-import { Input } from '@/components/catalyst/input';
-import { Text } from '@/components/catalyst/text';
+} from "@/components/catalyst/fieldset";
+import { Input } from "@/components/catalyst/input";
+import { Text } from "@/components/catalyst/text";
 
 interface InitialValues {
   ga4MeasurementId: string;
@@ -48,32 +48,42 @@ interface Props {
 export function StoreAnalyticsForm({ storeId, initial }: Props) {
   const [values, setValues] = useState<InitialValues>(initial);
   const [pending, startTransition] = useTransition();
-  const [feedback, setFeedback] = useState<{ type: 'ok' | 'err'; msg: string } | null>(null);
+  const [feedback, setFeedback] = useState<{
+    type: "ok" | "err";
+    msg: string;
+  } | null>(null);
   const router = useRouter();
   const dirty = useMemo(
-    () => (Object.keys(values) as (keyof InitialValues)[]).some((k) => values[k] !== initial[k]),
+    () =>
+      (Object.keys(values) as (keyof InitialValues)[]).some(
+        (k) => values[k] !== initial[k],
+      ),
     [values, initial],
   );
   useUnsavedChanges(dirty && !pending);
 
-  const set = (k: keyof InitialValues) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setValues((v) => ({ ...v, [k]: e.target.value }));
+  const set =
+    (k: keyof InitialValues) => (e: React.ChangeEvent<HTMLInputElement>) =>
+      setValues((v) => ({ ...v, [k]: e.target.value }));
 
   function submit() {
     setFeedback(null);
     startTransition(async () => {
       try {
         const res = await apiFetch(`/api/agent/stores/${storeId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ analytics: values }),
         });
         const data = await res.json();
-        if (!res.ok || !data.success) throw new Error(data.error || 'Erreur');
-        setFeedback({ type: 'ok', msg: 'Mis à jour.' });
+        if (!res.ok || !data.success) throw new Error(data.error || "Erreur");
+        setFeedback({ type: "ok", msg: "Mis à jour." });
         router.refresh();
       } catch (e) {
-        setFeedback({ type: 'err', msg: e instanceof Error ? e.message : 'Erreur' });
+        setFeedback({
+          type: "err",
+          msg: e instanceof Error ? e.message : "Erreur",
+        });
       }
     });
   }
@@ -93,7 +103,7 @@ export function StoreAnalyticsForm({ storeId, initial }: Props) {
               id="ga4"
               placeholder="G-XXXXXXXXXX"
               value={values.ga4MeasurementId}
-              onChange={set('ga4MeasurementId')}
+              onChange={set("ga4MeasurementId")}
               help="Measurement ID. Trouvé dans Admin → Streams → Web."
             />
             <AnalyticsField
@@ -101,7 +111,7 @@ export function StoreAnalyticsForm({ storeId, initial }: Props) {
               id="meta"
               placeholder="123456789012345"
               value={values.metaPixelId}
-              onChange={set('metaPixelId')}
+              onChange={set("metaPixelId")}
               help="Numérique, 15-16 chiffres. Events Manager → Data Sources."
             />
             <AnalyticsField
@@ -109,7 +119,7 @@ export function StoreAnalyticsForm({ storeId, initial }: Props) {
               id="tiktok"
               placeholder="C..."
               value={values.tiktokPixelId}
-              onChange={set('tiktokPixelId')}
+              onChange={set("tiktokPixelId")}
               help="Préfixe C. Ads Manager → Assets → Events."
             />
           </FieldGroup>
@@ -118,8 +128,8 @@ export function StoreAnalyticsForm({ storeId, initial }: Props) {
         <Fieldset>
           <Legend>Server-side dedup (CAPI / Events API)</Legend>
           <Text>
-            Tokens secrets, chiffrés (AES-256-GCM) côté serveur. N&apos;utilise que ceux de cette
-            boutique.
+            Tokens secrets, chiffrés (AES-256-GCM) côté serveur. N&apos;utilise
+            que ceux de cette boutique.
           </Text>
           <FieldGroup>
             <AnalyticsField
@@ -128,7 +138,7 @@ export function StoreAnalyticsForm({ storeId, initial }: Props) {
               type="password"
               placeholder="EAA..."
               value={values.metaCapiToken}
-              onChange={set('metaCapiToken')}
+              onChange={set("metaCapiToken")}
               help="Events Manager → ton pixel → Settings → Generate access token."
             />
             <AnalyticsField
@@ -137,7 +147,7 @@ export function StoreAnalyticsForm({ storeId, initial }: Props) {
               type="password"
               placeholder="..."
               value={values.tiktokEventsToken}
-              onChange={set('tiktokEventsToken')}
+              onChange={set("tiktokEventsToken")}
               help="Ads Manager → Events → Web Events → Settings → Manage Events API."
             />
             <AnalyticsField
@@ -146,7 +156,7 @@ export function StoreAnalyticsForm({ storeId, initial }: Props) {
               type="password"
               placeholder="abcDEF123..."
               value={values.ga4ApiSecret}
-              onChange={set('ga4ApiSecret')}
+              onChange={set("ga4ApiSecret")}
               help="GA4 Admin → Data Streams → ton stream Web → Measurement Protocol API secrets → Create."
             />
           </FieldGroup>
@@ -161,7 +171,7 @@ export function StoreAnalyticsForm({ storeId, initial }: Props) {
               id="clarity"
               placeholder="abcd1234ef"
               value={values.clarityId}
-              onChange={set('clarityId')}
+              onChange={set("clarityId")}
               help="clarity.microsoft.com → projet → Settings → Setup."
             />
           </FieldGroup>
@@ -169,14 +179,17 @@ export function StoreAnalyticsForm({ storeId, initial }: Props) {
 
         <Fieldset>
           <Legend>Google Ads</Legend>
-          <Text>Remontée des conversions offline. Contourne les bloqueurs côté client.</Text>
+          <Text>
+            Remontée des conversions offline. Contourne les bloqueurs côté
+            client.
+          </Text>
           <FieldGroup>
             <AnalyticsField
               label="Conversion Action"
               id="google-ads-conversion-action"
               placeholder="customers/2877134493/conversionActions/…"
               value={values.googleAdsConversionAction}
-              onChange={set('googleAdsConversionAction')}
+              onChange={set("googleAdsConversionAction")}
               help="Google Ads → Objectifs → Conversions → sélectionne l'action → champ Nom de ressource."
             />
             <AnalyticsField
@@ -184,33 +197,38 @@ export function StoreAnalyticsForm({ storeId, initial }: Props) {
               id="google-merchant-id"
               placeholder="5784865611"
               value={values.googleAdsMerchantId}
-              onChange={set('googleAdsMerchantId')}
+              onChange={set("googleAdsMerchantId")}
               help="Merchant Center → Paramètres du compte → Numéro d'ID."
             />
           </FieldGroup>
         </Fieldset>
 
-        <div className="flex items-center justify-between gap-4 border-t border-zinc-950/10 pt-4 dark:border-white/10">
+        <div className="flex items-center justify-between gap-4 border-t border-white/[0.08] pt-4 border-white/[0.08]">
           {feedback ? (
-            feedback.type === 'ok' ? (
-              <span className="text-sm text-indigo-600 dark:text-indigo-400">{feedback.msg}</span>
+            feedback.type === "ok" ? (
+              <span className="text-sm text-indigo-400">{feedback.msg}</span>
             ) : (
-              <span className="text-sm font-medium text-zinc-950 dark:text-white">
+              <span className="text-sm font-medium text-white">
                 Erreur : {feedback.msg}
               </span>
             )
           ) : dirty ? (
-            <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-zinc-400" />
+            <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500 text-zinc-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-white/[0.15]" />
               Non sauvegardé
             </span>
           ) : (
-            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+            <span className="text-xs text-zinc-500 text-zinc-400">
               Champ vide → la valeur est effacée. Champ inchangé → conservé.
             </span>
           )}
-          <Button type="button" color="indigo" onClick={submit} disabled={pending || !dirty}>
-            {pending ? 'Enregistrement…' : 'Enregistrer'}
+          <Button
+            type="button"
+            color="indigo"
+            onClick={submit}
+            disabled={pending || !dirty}
+          >
+            {pending ? "Enregistrement…" : "Enregistrer"}
           </Button>
         </div>
       </div>
@@ -225,7 +243,7 @@ function AnalyticsField({
   onChange,
   placeholder,
   help,
-  type = 'text',
+  type = "text",
 }: {
   label: string;
   id: string;
@@ -233,7 +251,7 @@ function AnalyticsField({
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   placeholder?: string;
   help?: string;
-  type?: 'text' | 'password';
+  type?: "text" | "password";
 }) {
   return (
     <Field>

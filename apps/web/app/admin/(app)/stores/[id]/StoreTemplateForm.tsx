@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { apiFetch } from '@/lib/client-fetch';
+import { apiFetch } from "@/lib/client-fetch";
 
-import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
-import { TEMPLATE_CATALOG, type StoreTemplate } from '@/lib/template-catalog';
-import { cn } from '@/lib/utils/cn';
-import { AdminSection } from '@/components/admin/AdminSection';
-import { Button } from '@/components/catalyst/button';
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { TEMPLATE_CATALOG, type StoreTemplate } from "@/lib/template-catalog";
+import { cn } from "@/lib/utils/cn";
+import { AdminSection } from "@/components/admin/AdminSection";
+import { Button } from "@/components/catalyst/button";
 
 const OPTIONS = TEMPLATE_CATALOG.map((t) => ({
   value: t.id,
@@ -40,16 +40,16 @@ export function StoreTemplateForm({
     startTransition(async () => {
       try {
         const res = await apiFetch(`/api/agent/stores/${storeId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ template: value }),
         });
         const data = await res.json();
-        if (!res.ok || !data.success) throw new Error(data.error || 'Erreur');
+        if (!res.ok || !data.success) throw new Error(data.error || "Erreur");
         setSaved(true);
         router.refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Erreur');
+        setError(e instanceof Error ? e.message : "Erreur");
       }
     });
   };
@@ -71,23 +71,30 @@ export function StoreTemplateForm({
                 disabled={pending}
                 aria-pressed={active}
                 className={cn(
-                  'relative rounded-lg p-4 text-left ring-1 transition-colors disabled:cursor-not-allowed',
+                  "relative rounded-lg p-4 text-left ring-1 transition-colors disabled:cursor-not-allowed",
                   active
-                    ? 'bg-indigo-500/10 ring-indigo-500/40'
-                    : 'bg-zinc-950/2.5 ring-zinc-950/10 hover:bg-zinc-950/5 dark:bg-white/5 dark:ring-white/10 dark:hover:bg-white/10',
+                    ? "bg-indigo-500/10 ring-indigo-500/40"
+                    : "bg-white/[0.02] ring-white/[0.08] hover:bg-white/[0.08]",
                 )}
               >
-                <div className="mb-0.5 text-sm font-semibold text-zinc-950 dark:text-white">{opt.label}</div>
+                <div className="mb-0.5 text-sm font-semibold text-white">
+                  {opt.label}
+                </div>
                 <div
                   className={cn(
-                    'text-xs leading-snug',
-                    active ? 'text-zinc-700 dark:text-zinc-300' : 'text-zinc-500 dark:text-zinc-400',
+                    "text-xs leading-snug",
+                    active
+                      ? "text-zinc-700 text-zinc-400"
+                      : "text-zinc-500 text-zinc-400",
                   )}
                 >
                   {opt.hint}
                 </div>
                 {active && (
-                  <span className="absolute right-3 top-3 h-2 w-2 rounded-full bg-indigo-400" aria-hidden />
+                  <span
+                    className="absolute right-3 top-3 h-2 w-2 rounded-full bg-indigo-400"
+                    aria-hidden
+                  />
                 )}
               </button>
             );
@@ -95,14 +102,19 @@ export function StoreTemplateForm({
         </div>
 
         <div className="flex items-center gap-3 pt-2">
-          <Button type="button" color="indigo" onClick={submit} disabled={!dirty || pending}>
-            {pending ? 'Enregistrement…' : 'Enregistrer'}
+          <Button
+            type="button"
+            color="indigo"
+            onClick={submit}
+            disabled={!dirty || pending}
+          >
+            {pending ? "Enregistrement…" : "Enregistrer"}
           </Button>
           {saved && !dirty && (
-            <span className="text-xs text-indigo-600 dark:text-indigo-400">Enregistré.</span>
+            <span className="text-xs text-indigo-400">Enregistré.</span>
           )}
           {error && (
-            <span className="text-xs font-medium text-zinc-950 dark:text-white">
+            <span className="text-xs font-medium text-white">
               Erreur : {error}
             </span>
           )}

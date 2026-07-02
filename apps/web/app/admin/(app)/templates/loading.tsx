@@ -4,22 +4,22 @@ export default function Loading() {
   return (
     <div className="space-y-8">
       <div className="space-y-2">
-        <div className="h-8 w-72 animate-pulse rounded-md bg-zinc-950/5 dark:bg-white/5" />
-        <div className="h-4 w-96 max-w-full animate-pulse rounded bg-zinc-950/5 dark:bg-white/5" />
+        <div className="h-8 w-72 animate-pulse rounded-md bg-white/[0.03]" />
+        <div className="h-4 w-96 max-w-full animate-pulse rounded bg-white/[0.03]" />
       </div>
       {[0, 1, 2].map((s) => (
         <div key={s} className="space-y-4">
-          <div className="h-5 w-48 animate-pulse rounded bg-zinc-950/5 dark:bg-white/5" />
+          <div className="h-5 w-48 animate-pulse rounded bg-white/[0.03]" />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
             {[0, 1, 2].map((i) => (
               <div
                 key={i}
-                className="overflow-hidden rounded-lg ring-1 ring-zinc-950/10 dark:ring-white/10"
+                className="overflow-hidden rounded-lg ring-1 ring-white/[0.08]"
               >
-                <div className="aspect-[16/10] animate-pulse bg-zinc-950/5 dark:bg-white/5" />
+                <div className="aspect-[16/10] animate-pulse bg-white/[0.03]" />
                 <div className="space-y-2 p-4">
-                  <div className="h-4 w-2/3 animate-pulse rounded bg-zinc-950/5 dark:bg-white/5" />
-                  <div className="h-3 w-full animate-pulse rounded bg-zinc-950/5 dark:bg-white/5" />
+                  <div className="h-4 w-2/3 animate-pulse rounded bg-white/[0.03]" />
+                  <div className="h-3 w-full animate-pulse rounded bg-white/[0.03]" />
                 </div>
               </div>
             ))}

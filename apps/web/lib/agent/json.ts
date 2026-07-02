@@ -43,7 +43,7 @@ export interface JsonExtractionError {
   /** First 200 chars of the raw LLM response (or parsed JSON). */
   rawExcerpt?: string;
   /** Zod issue list when validation failed. */
-  zodErrors?: any[];
+  zodErrors?: import('zod').ZodIssue[];
 }
 
 export interface JsonExtractionResult<T> {

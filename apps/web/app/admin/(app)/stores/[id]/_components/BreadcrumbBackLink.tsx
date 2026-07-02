@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { ChevronLeftIcon } from '@heroicons/react/20/solid';
-import { TextLink } from '@/components/catalyst/text';
+import { ChevronLeftIcon } from "@heroicons/react/20/solid";
+import { TextLink } from "@/components/catalyst/text";
 
 /**
  * Breadcrumb "Stores" back link with a muted→light hover.
@@ -13,7 +13,10 @@ import { TextLink } from '@/components/catalyst/text';
  */
 export function BreadcrumbBackLink() {
   return (
-    <TextLink href="/admin/stores" className="inline-flex items-center gap-1 no-underline">
+    <TextLink
+      href="/admin/stores"
+      className="inline-flex items-center gap-1 no-underline"
+    >
       <ChevronLeftIcon className="size-4" aria-hidden="true" />
       Stores
     </TextLink>

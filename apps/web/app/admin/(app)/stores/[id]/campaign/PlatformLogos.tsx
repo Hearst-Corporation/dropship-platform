@@ -1,4 +1,4 @@
-import type React from 'react';
+import type React from "react";
 
 /**
  * Inline SVG brand logos for the campaign media plan cards. No dependency
@@ -58,7 +58,9 @@ export function TikTokLogo({ className }: LogoProps) {
     <svg
       viewBox="0 0 24 24"
       aria-hidden
-      className={['text-[#010101] dark:text-white', className].filter(Boolean).join(' ')}
+      className={["text-[#010101] text-white", className]
+        .filter(Boolean)
+        .join(" ")}
     >
       <path
         fill="currentColor"

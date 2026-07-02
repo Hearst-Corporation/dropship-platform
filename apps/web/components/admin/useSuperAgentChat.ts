@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useCallback, useRef, useState } from 'react';
-import { apiFetch } from '@/lib/client-fetch';
+import { useCallback, useRef, useState } from "react";
+import { apiFetch } from "@/lib/client-fetch";
 
 /**
  * Client for the Super Agent SSE endpoint (POST /api/agent/super).
@@ -11,10 +11,10 @@ import { apiFetch } from '@/lib/client-fetch';
  * dropship_copilot_sessions (mode='super').
  */
 
-export type ChatRole = 'user' | 'assistant';
+export type ChatRole = "user" | "assistant";
 
 export interface ChatStep {
-  kind: 'thinking' | 'tool_call' | 'tool_result' | 'confirm';
+  kind: "thinking" | "tool_call" | "tool_result" | "confirm";
   text: string;
   isError?: boolean;
 }
@@ -26,7 +26,15 @@ export interface ChatMessage {
 }
 
 interface SuperEvent {
-  type: 'session' | 'thinking' | 'tool_call' | 'tool_result' | 'confirm_required' | 'message' | 'done' | 'error';
+  type:
+    | "session"
+    | "thinking"
+    | "tool_call"
+    | "tool_result"
+    | "confirm_required"
+    | "message"
+    | "done"
+    | "error";
   sessionId?: string;
   text?: string;
   message?: string;
@@ -40,8 +48,8 @@ interface SuperEvent {
 }
 
 function summarize(value: unknown, max = 160): string {
-  if (value == null) return '';
-  const s = typeof value === 'string' ? value : JSON.stringify(value);
+  if (value == null) return "";
+  const s = typeof value === "string" ? value : JSON.stringify(value);
   return s.length > max ? `${s.slice(0, max)}…` : s;
 }
 
@@ -60,15 +68,16 @@ export function useSuperAgentChat(page: string) {
       setRunning(true);
       setMessages((m) => [
         ...m,
-        { role: 'user', text: trimmed },
-        { role: 'assistant', text: '', steps: [] },
+        { role: "user", text: trimmed },
+        { role: "assistant", text: "", steps: [] },
       ]);
 
       const pushStep = (step: ChatStep) =>
         setMessages((m) => {
           const next = [...m];
           const last = next[next.length - 1];
-          if (last?.role === 'assistant') last.steps = [...(last.steps ?? []), step];
+          if (last?.role === "assistant")
+            last.steps = [...(last.steps ?? []), step];
           return next;
         });
 
@@ -76,14 +85,14 @@ export function useSuperAgentChat(page: string) {
         setMessages((m) => {
           const next = [...m];
           const last = next[next.length - 1];
-          if (last?.role === 'assistant') last.text += chunk;
+          if (last?.role === "assistant") last.text += chunk;
           return next;
         });
 
       try {
-        const res = await apiFetch('/api/agent/super', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const res = await apiFetch("/api/agent/super", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             message: trimmed,
             page,
@@ -97,17 +106,17 @@ export function useSuperAgentChat(page: string) {
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
-        let buffer = '';
+        let buffer = "";
 
         // SSE frame parser — events are separated by a blank line.
         for (;;) {
           const { done, value } = await reader.read();
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
-          const frames = buffer.split('\n\n');
-          buffer = frames.pop() ?? '';
+          const frames = buffer.split("\n\n");
+          buffer = frames.pop() ?? "";
           for (const frame of frames) {
-            const line = frame.split('\n').find((l) => l.startsWith('data:'));
+            const line = frame.split("\n").find((l) => l.startsWith("data:"));
             if (!line) continue;
             let ev: SuperEvent;
             try {
@@ -116,38 +125,44 @@ export function useSuperAgentChat(page: string) {
               continue;
             }
             switch (ev.type) {
-              case 'session':
+              case "session":
                 if (ev.sessionId) sessionIdRef.current = ev.sessionId;
                 break;
-              case 'thinking':
-                if (ev.text) pushStep({ kind: 'thinking', text: ev.text });
+              case "thinking":
+                if (ev.text) pushStep({ kind: "thinking", text: ev.text });
                 break;
-              case 'tool_call':
-                pushStep({ kind: 'tool_call', text: `${ev.name}(${summarize(ev.input)})` });
-                break;
-              case 'tool_result':
+              case "tool_call":
                 pushStep({
-                  kind: 'tool_result',
+                  kind: "tool_call",
+                  text: `${ev.name}(${summarize(ev.input)})`,
+                });
+                break;
+              case "tool_result":
+                pushStep({
+                  kind: "tool_result",
                   text: `${ev.name} → ${summarize(ev.output)}`,
                   isError: ev.is_error,
                 });
                 break;
-              case 'confirm_required':
-                pushStep({ kind: 'confirm', text: `Confirmation requise : ${ev.tool} (${ev.reason})` });
+              case "confirm_required":
+                pushStep({
+                  kind: "confirm",
+                  text: `Confirmation requise : ${ev.tool} (${ev.reason})`,
+                });
                 break;
-              case 'message':
+              case "message":
                 if (ev.text) appendAssistant(ev.text);
                 break;
-              case 'error':
-                setError(ev.message ?? 'Erreur');
+              case "error":
+                setError(ev.message ?? "Erreur");
                 break;
-              case 'done':
+              case "done":
                 break;
             }
           }
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Erreur réseau');
+        setError(e instanceof Error ? e.message : "Erreur réseau");
       } finally {
         setRunning(false);
       }

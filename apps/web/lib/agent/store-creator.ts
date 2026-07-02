@@ -110,7 +110,9 @@ const slugify = slugifyTitle;
  * time. If the operator explicitly wants a fresh version, they can rename the
  * store or delete the old draft first.
  */
-type DbLike = { query: (sql: string, params?: unknown[]) => Promise<{ rows: unknown[]; rowCount: number | null }> };
+type DbLike = {
+  query: <T = unknown>(sql: string, params?: unknown[]) => Promise<{ rows: T[]; rowCount: number | null }>;
+};
 
 async function findOrCreateDraftStore(
   db: DbLike,
@@ -311,9 +313,9 @@ async function callJsonModel<T>(
   maxTokens: number,
   emit: (e: AgentEvent) => void,
   schema?: import('zod').ZodType<T>,
-): Promise<{ parsed: T | null; finishReason: string | null; errorDetails?: any }> {
+): Promise<{ parsed: T | null; finishReason: string | null; errorDetails?: JsonExtractionError }> {
   let finishReason: string | null = null;
-  let lastErrorDetails: any = null;
+  let lastErrorDetails: JsonExtractionError | undefined = undefined;
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     const { text, finishReason: fr } = await trackedOpenAIMessage(

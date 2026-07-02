@@ -1,13 +1,13 @@
-import { notFound } from 'next/navigation';
-import { MegaphoneIcon } from '@heroicons/react/24/outline';
-import { getDbRead } from '@/lib/db';
-import { resolveStoreId } from '@/lib/resolve-store';
-import { loadStoreReport } from '@/lib/agent/store-report';
-import { getChannelConnections } from '@/lib/ads/all-campaigns';
-import { Heading, Subheading } from '@/components/catalyst/heading';
-import { Text } from '@/components/catalyst/text';
-import { Badge } from '@/components/catalyst/badge';
-import { Button } from '@/components/catalyst/button';
+import { notFound } from "next/navigation";
+import { MegaphoneIcon } from "@heroicons/react/24/outline";
+import { getDbRead } from "@/lib/db";
+import { resolveStoreId } from "@/lib/resolve-store";
+import { loadStoreReport } from "@/lib/agent/store-report";
+import { getChannelConnections } from "@/lib/ads/all-campaigns";
+import { Heading, Subheading } from "@/components/catalyst/heading";
+import { Text } from "@/components/catalyst/text";
+import { Badge } from "@/components/catalyst/badge";
+import { Button } from "@/components/catalyst/button";
 import {
   Table,
   TableHead,
@@ -15,23 +15,23 @@ import {
   TableRow,
   TableHeader,
   TableCell,
-} from '@/components/catalyst/table';
+} from "@/components/catalyst/table";
 import {
   DescriptionList,
   DescriptionTerm,
   DescriptionDetails,
-} from '@/components/catalyst/description-list';
-import { AdminSection } from '@/components/admin/AdminSection';
-import { AdminStatsGrid } from '@/components/admin/AdminStatsGrid';
-import { AdminStatCard } from '@/components/admin/AdminStatCard';
-import { AdminDataTable } from '@/components/admin/AdminDataTable';
-import { AdminBadge } from '@/components/admin/AdminBadge';
-import { AdminEmptyState } from '@/components/admin/AdminEmptyState';
-import { PlatformSplitDonut, KpiComparisonChart } from './CampaignCharts';
-import { GoogleAdsLogo, InstagramLogo, TikTokLogo } from './PlatformLogos';
-import { ValidateButton } from './ValidateButton';
+} from "@/components/catalyst/description-list";
+import { AdminSection } from "@/components/admin/AdminSection";
+import { AdminStatsGrid } from "@/components/admin/AdminStatsGrid";
+import { AdminStatCard } from "@/components/admin/AdminStatCard";
+import { AdminDataTable } from "@/components/admin/AdminDataTable";
+import { AdminBadge } from "@/components/admin/AdminBadge";
+import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
+import { PlatformSplitDonut, KpiComparisonChart } from "./CampaignCharts";
+import { GoogleAdsLogo, InstagramLogo, TikTokLogo } from "./PlatformLogos";
+import { ValidateButton } from "./ValidateButton";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 // ── Hypothèses et règles déterministes (affichées telles quelles) ─────────────
 
@@ -46,44 +46,49 @@ const CVR = 0.025;
  * forcé, donc TikTok (#010101) est affiché en blanc dans le graphe.
  */
 const PLATFORM_CHART_COLORS = {
-  google: '#4285F4',
-  instagram: '#E4405F',
-  tiktok: '#ffffff',
+  google: "#4285F4",
+  instagram: "#E4405F",
+  tiktok: "#ffffff",
 } as const;
 
 const CAMPAIGN_STATUS_LABEL: Record<string, string> = {
-  draft: 'Draft non envoyé',
-  queued: 'En file d attente',
-  live: 'En ligne',
-  paused: 'En pause',
-  error: 'Erreur de push',
+  draft: "Draft non envoyé",
+  queued: "En file d attente",
+  live: "En ligne",
+  paused: "En pause",
+  error: "Erreur de push",
 };
 
 const MILESTONES = [
   {
-    day: 'J1',
-    action: 'Activation des campagnes au budget validé, diffusion France uniquement.',
-    criteria: 'Les campagnes sont actives et dépensent au budget du plan.',
+    day: "J1",
+    action:
+      "Activation des campagnes au budget validé, diffusion France uniquement.",
+    criteria: "Les campagnes sont actives et dépensent au budget du plan.",
   },
   {
-    day: 'J2 à J3',
-    action: 'Vérification du tracking et lecture des premières données.',
-    criteria: 'Les événements view_content et purchase remontent avec les bons UTM.',
+    day: "J2 à J3",
+    action: "Vérification du tracking et lecture des premières données.",
+    criteria:
+      "Les événements view_content et purchase remontent avec les bons UTM.",
   },
   {
-    day: 'J7',
-    action: 'Revue des requêtes, ajout des mots-clés négatifs, coupe des annonces faibles.',
-    criteria: 'Liste de négatifs mise à jour, annonces sous la moyenne mises en pause.',
+    day: "J7",
+    action:
+      "Revue des requêtes, ajout des mots-clés négatifs, coupe des annonces faibles.",
+    criteria:
+      "Liste de négatifs mise à jour, annonces sous la moyenne mises en pause.",
   },
   {
-    day: 'J14',
-    action: 'Scaling de 20% du budget si le ROAS dépasse le seuil cible.',
-    criteria: 'ROAS au-dessus du seuil sur 7 jours glissants avant toute hausse.',
+    day: "J14",
+    action: "Scaling de 20% du budget si le ROAS dépasse le seuil cible.",
+    criteria:
+      "ROAS au-dessus du seuil sur 7 jours glissants avant toute hausse.",
   },
   {
-    day: 'J30',
-    action: 'Bilan complet et réallocation du budget entre plateformes.',
-    criteria: 'Rapport 30 jours produit, nouvelle répartition décidée.',
+    day: "J30",
+    action: "Bilan complet et réallocation du budget entre plateformes.",
+    criteria: "Rapport 30 jours produit, nouvelle répartition décidée.",
   },
 ] as const;
 
@@ -119,11 +124,11 @@ interface FunnelRealsRow {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function eur(n: number): string {
-  return `${n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} €`;
+  return `${n.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €`;
 }
 
 function fr(n: number): string {
-  return n.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+  return n.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
 }
 
 /** ROAS en multiplicateur, ex. "x2,4". */
@@ -132,22 +137,30 @@ function roasFmt(n: number): string {
 }
 
 function frDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  return new Date(iso).toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 }
 
 function frDateTime(iso: string): string {
-  return new Date(iso).toLocaleString('fr-FR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+  return new Date(iso).toLocaleString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default async function StoreCampaignPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function StoreCampaignPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const storeId = await resolveStoreId(id);
   if (!storeId) notFound();
@@ -193,7 +206,11 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
             icon={MegaphoneIcon}
             title="Aucun plan de campagne pour ce store."
             description="Relance une création via l'agent pour en générer un."
-            action={<Button href="/admin/stores/new">Créer un store via l&apos;agent</Button>}
+            action={
+              <Button href="/admin/stores/new">
+                Créer un store via l&apos;agent
+              </Button>
+            }
           />
         </AdminSection>
       </div>
@@ -206,7 +223,8 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
   if (rawValidation) {
     try {
       const parsed = JSON.parse(rawValidation) as unknown;
-      if (parsed && typeof parsed === 'object') validation = parsed as ValidationState;
+      if (parsed && typeof parsed === "object")
+        validation = parsed as ValidationState;
     } catch {
       // Valeur illisible: on repart des boutons.
     }
@@ -220,49 +238,56 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
   const dailyBudget = plan.dailyBudgetEur;
   const monthlyBudget = dailyBudget * 30;
   const googleDaily = Math.round(dailyBudget * SPLIT_RULE.google * 100) / 100;
-  const instagramDaily = Math.round(dailyBudget * SPLIT_RULE.instagram * 100) / 100;
-  const tiktokDaily = Math.round((dailyBudget - googleDaily - instagramDaily) * 100) / 100;
-  const otherZones = plan.countries.filter((c) => c.toUpperCase() !== 'FR');
+  const instagramDaily =
+    Math.round(dailyBudget * SPLIT_RULE.instagram * 100) / 100;
+  const tiktokDaily =
+    Math.round((dailyBudget - googleDaily - instagramDaily) * 100) / 100;
+  const otherZones = plan.countries.filter((c) => c.toUpperCase() !== "FR");
 
   const connections = getChannelConnections();
-  const isConnected = (channel: 'google' | 'meta' | 'tiktok') =>
+  const isConnected = (channel: "google" | "meta" | "tiktok") =>
     connections.find((c) => c.channel === channel)?.connected ?? false;
 
   const platforms = [
     {
-      id: 'google',
-      name: 'Google Ads',
+      id: "google",
+      name: "Google Ads",
       Logo: GoogleAdsLogo,
       dailyEur: googleDaily,
       pct: Math.round(SPLIT_RULE.google * 100),
-      connected: isConnected('google'),
+      connected: isConnected("google"),
       hasDraft: Boolean(campaign),
     },
     {
-      id: 'instagram',
-      name: 'Instagram',
+      id: "instagram",
+      name: "Instagram",
       Logo: InstagramLogo,
       dailyEur: instagramDaily,
       pct: Math.round(SPLIT_RULE.instagram * 100),
-      connected: isConnected('meta'),
+      connected: isConnected("meta"),
       hasDraft: false,
     },
     {
-      id: 'tiktok',
-      name: 'TikTok',
+      id: "tiktok",
+      name: "TikTok",
       Logo: TikTokLogo,
       dailyEur: tiktokDaily,
       pct: Math.round(SPLIT_RULE.tiktok * 100),
-      connected: isConnected('tiktok'),
+      connected: isConnected("tiktok"),
       hasDraft: false,
     },
   ] as const;
 
   // ── Projeté vs réel depuis le lancement ─────────────────────────────────────
   const launched = Boolean(
-    campaign && (campaign.pushed_at || campaign.status === 'live' || campaign.status === 'paused'),
+    campaign &&
+    (campaign.pushed_at ||
+      campaign.status === "live" ||
+      campaign.status === "paused"),
   );
-  const sinceIso = campaign ? (campaign.pushed_at ?? campaign.created_at) : null;
+  const sinceIso = campaign
+    ? (campaign.pushed_at ?? campaign.created_at)
+    : null;
 
   let daysElapsed = 0;
   let spendProjected = 0;
@@ -274,13 +299,18 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
   let realRevenue = 0;
 
   if (launched && sinceIso) {
-    daysElapsed = Math.max(1, Math.ceil((Date.now() - new Date(sinceIso).getTime()) / 86_400_000));
+    daysElapsed = Math.max(
+      1,
+      Math.ceil((Date.now() - new Date(sinceIso).getTime()) / 86_400_000),
+    );
     spendProjected = Math.round(dailyBudget * daysElapsed * 100) / 100;
     if (targets) {
       // Projections du bloc data du plan (calculées sur le catalogue réel).
       clicksProjected = Math.round(targets.expectedDailyClicks * daysElapsed);
-      convProjected = Math.round(targets.expectedDailyConversions * daysElapsed * 10) / 10;
-      revenueProjected = Math.round(targets.expectedDailyRevenueEur * daysElapsed * 100) / 100;
+      convProjected =
+        Math.round(targets.expectedDailyConversions * daysElapsed * 10) / 10;
+      revenueProjected =
+        Math.round(targets.expectedDailyRevenueEur * daysElapsed * 100) / 100;
     } else {
       clicksProjected = Math.round(spendProjected / CPC_EUR);
       convProjected = Math.round(clicksProjected * CVR * 10) / 10;
@@ -302,23 +332,40 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
   }
 
   const kpiChartData = [
-    { metric: 'Trafic (clics)', projete: clicksProjected, reel: realTraffic },
-    { metric: 'Conversions', projete: convProjected, reel: realConversions },
+    { metric: "Trafic (clics)", projete: clicksProjected, reel: realTraffic },
+    { metric: "Conversions", projete: convProjected, reel: realConversions },
   ];
 
   const kpiRows = [
-    { label: 'Dépense publicitaire', projete: eur(spendProjected), reel: 'n/d' },
-    { label: 'Trafic (clics)', projete: clicksProjected.toLocaleString('fr-FR'), reel: realTraffic.toLocaleString('fr-FR') },
-    { label: 'Conversions', projete: convProjected.toLocaleString('fr-FR'), reel: realConversions.toLocaleString('fr-FR') },
-    { label: 'Revenus', projete: targets ? eur(revenueProjected) : 'n/d', reel: eur(realRevenue) },
+    {
+      label: "Dépense publicitaire",
+      projete: eur(spendProjected),
+      reel: "n/d",
+    },
+    {
+      label: "Trafic (clics)",
+      projete: clicksProjected.toLocaleString("fr-FR"),
+      reel: realTraffic.toLocaleString("fr-FR"),
+    },
+    {
+      label: "Conversions",
+      projete: convProjected.toLocaleString("fr-FR"),
+      reel: realConversions.toLocaleString("fr-FR"),
+    },
+    {
+      label: "Revenus",
+      projete: targets ? eur(revenueProjected) : "n/d",
+      reel: eur(realRevenue),
+    },
   ];
 
   // Hypothèses affichées: celles du plan quand elles existent, sinon locales.
   const cpcAssumption = targets?.assumedCpcEur ?? CPC_EUR;
   const cvrAssumptionPct = targets?.assumedCvrPct ?? CVR * 100;
 
-  const campaignStatus = campaign?.status ?? 'draft';
-  const campaignStatusLabel = CAMPAIGN_STATUS_LABEL[campaignStatus] ?? campaignStatus;
+  const campaignStatus = campaign?.status ?? "draft";
+  const campaignStatusLabel =
+    CAMPAIGN_STATUS_LABEL[campaignStatus] ?? campaignStatus;
 
   return (
     <div className="space-y-8">
@@ -328,8 +375,10 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
           <Text className="text-xs/5 uppercase tracking-wide">Campagne</Text>
           <Heading className="mt-1">{plan.campaignName}</Heading>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <AdminBadge status={campaignStatus}>{campaignStatusLabel}</AdminBadge>
-            {plan.source === 'openai' ? (
+            <AdminBadge status={campaignStatus}>
+              {campaignStatusLabel}
+            </AdminBadge>
+            {plan.source === "openai" ? (
               <Badge color="indigo">Généré par IA</Badge>
             ) : (
               <Badge color="zinc">Plan de secours</Badge>
@@ -337,17 +386,21 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
             <Badge color="zinc">Zone: France</Badge>
           </div>
           {otherZones.length > 0 ? (
-            <p className="mt-2 text-xs/5 text-zinc-500 dark:text-zinc-400">
-              Autres zones ({otherZones.join(', ')}) : phase ultérieure.
+            <p className="mt-2 text-xs/5 text-zinc-500 text-zinc-400">
+              Autres zones ({otherZones.join(", ")}) : phase ultérieure.
             </p>
           ) : null}
         </div>
         <div className="shrink-0 text-right">
-          <p className="text-xs/5 font-medium text-zinc-500 dark:text-zinc-400">Budget quotidien</p>
-          <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums text-zinc-950 dark:text-white">
+          <p className="text-xs/5 font-medium text-zinc-500 text-zinc-400">
+            Budget quotidien
+          </p>
+          <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums text-white">
             {eur(dailyBudget)}
           </p>
-          <p className="mt-0.5 text-xs/5 text-zinc-500 dark:text-zinc-400">{eur(monthlyBudget)} sur 30 jours</p>
+          <p className="mt-0.5 text-xs/5 text-zinc-500 text-zinc-400">
+            {eur(monthlyBudget)} sur 30 jours
+          </p>
         </div>
       </div>
 
@@ -360,18 +413,24 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
           {platforms.map((p) => (
             <div
               key={p.id}
-              className="rounded-xl border border-zinc-950/10 bg-zinc-50 p-5 dark:border-white/10 dark:bg-white/5"
+              className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5"
             >
               <div className="flex items-center gap-3">
                 <p.Logo className="size-8 shrink-0" />
                 <div className="min-w-0">
-                  <p className="truncate text-sm/6 font-semibold text-zinc-950 dark:text-white">{p.name}</p>
-                  <p className="text-xs/5 text-zinc-500 dark:text-zinc-400">{p.pct}% du budget</p>
+                  <p className="truncate text-sm/6 font-semibold text-white">
+                    {p.name}
+                  </p>
+                  <p className="text-xs/5 text-zinc-500 text-zinc-400">
+                    {p.pct}% du budget
+                  </p>
                 </div>
               </div>
-              <p className="mt-4 text-3xl font-semibold tracking-tight tabular-nums text-zinc-950 dark:text-white">
+              <p className="mt-4 text-3xl font-semibold tracking-tight tabular-nums text-white">
                 {eur(p.dailyEur)}
-                <span className="ml-1 text-sm font-normal text-zinc-500 dark:text-zinc-400">/ jour</span>
+                <span className="ml-1 text-sm font-normal text-zinc-500 text-zinc-400">
+                  / jour
+                </span>
               </p>
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {p.connected ? (
@@ -439,38 +498,44 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
               <AdminStatCard
                 label="ROAS projeté"
                 value={roasFmt(targets.projectedRoas)}
-                tone={targets.projectedRoas >= targets.breakEvenRoas ? 'positive' : 'default'}
+                tone={
+                  targets.projectedRoas >= targets.breakEvenRoas
+                    ? "positive"
+                    : "default"
+                }
                 hint="Revenus attendus / budget quotidien"
               />
             </AdminStatsGrid>
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div className="rounded-xl border border-zinc-950/10 bg-zinc-50 p-5 dark:border-white/10 dark:bg-white/5">
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5">
                 <Subheading level={3}>Règle de coupe</Subheading>
-                <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-zinc-950 dark:text-white">
+                <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-white">
                   {eur(targets.killThreshold.spendEurWithoutSale)}
-                  <span className="ml-1 text-sm font-normal text-zinc-500 dark:text-zinc-400">
+                  <span className="ml-1 text-sm font-normal text-zinc-500 text-zinc-400">
                     dépensés sans vente
                   </span>
                 </p>
-                <p className="mt-2 text-sm/6 text-zinc-600 dark:text-zinc-300">
+                <p className="mt-2 text-sm/6 text-zinc-400">
                   {targets.killThreshold.description}
                 </p>
               </div>
-              <div className="rounded-xl border border-zinc-950/10 bg-zinc-50 p-5 dark:border-white/10 dark:bg-white/5">
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5">
                 <Subheading level={3}>Règle de scaling</Subheading>
-                <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-zinc-950 dark:text-white">
+                <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-white">
                   +{fr(targets.scaleRule.budgetStepPct)}%
-                  <span className="ml-1 text-sm font-normal text-zinc-500 dark:text-zinc-400">
-                    par palier, plancher ROAS {roasFmt(targets.scaleRule.roasFloor)}
+                  <span className="ml-1 text-sm font-normal text-zinc-500 text-zinc-400">
+                    par palier, plancher ROAS{" "}
+                    {roasFmt(targets.scaleRule.roasFloor)}
                   </span>
                 </p>
-                <p className="mt-2 text-sm/6 text-zinc-600 dark:text-zinc-300">
+                <p className="mt-2 text-sm/6 text-zinc-400">
                   {targets.scaleRule.description}
                 </p>
               </div>
             </div>
-            <p className="text-xs/5 text-zinc-500 dark:text-zinc-400">
-              Hypothèses: CPC moyen {fr(targets.assumedCpcEur)} €, taux de conversion {fr(targets.assumedCvrPct)}%.
+            <p className="text-xs/5 text-zinc-500 text-zinc-400">
+              Hypothèses: CPC moyen {fr(targets.assumedCpcEur)} €, taux de
+              conversion {fr(targets.assumedCvrPct)}%.
             </p>
           </div>
         </AdminSection>
@@ -482,7 +547,7 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
           title="Notes du stratège"
           description="Recommandations du modèle pour le pilotage de la campagne."
         >
-          <ul className="list-disc space-y-1.5 pl-4 text-sm/6 text-zinc-600 dark:text-zinc-300">
+          <ul className="list-disc space-y-1.5 pl-4 text-sm/6 text-zinc-400">
             {strategyNotes.map((note, i) => (
               <li key={i}>{note}</li>
             ))}
@@ -495,7 +560,8 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
         <div>
           <Subheading>Calendrier de lancement</Subheading>
           <Text className="mt-1">
-            La publicité démarre au jour 1, dès que le site est terminé. Pas de phase de mise en place du site.
+            La publicité démarre au jour 1, dès que le site est terminé. Pas de
+            phase de mise en place du site.
           </Text>
         </div>
         <AdminDataTable>
@@ -504,15 +570,23 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
               <TableRow>
                 <TableHeader>Jour</TableHeader>
                 <TableHeader>Action</TableHeader>
-                <TableHeader className="hidden sm:table-cell">Critère de validation</TableHeader>
+                <TableHeader className="hidden sm:table-cell">
+                  Critère de validation
+                </TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
               {MILESTONES.map((m) => (
                 <TableRow key={m.day}>
-                  <TableCell className="font-medium tabular-nums">{m.day}</TableCell>
-                  <TableCell className="whitespace-normal text-zinc-600 dark:text-zinc-300">{m.action}</TableCell>
-                  <TableCell className="whitespace-normal text-zinc-500 dark:text-zinc-400 hidden sm:table-cell">{m.criteria}</TableCell>
+                  <TableCell className="font-medium tabular-nums">
+                    {m.day}
+                  </TableCell>
+                  <TableCell className="whitespace-normal text-zinc-400">
+                    {m.action}
+                  </TableCell>
+                  <TableCell className="whitespace-normal text-zinc-500 text-zinc-400 hidden sm:table-cell">
+                    {m.criteria}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -526,32 +600,43 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
         description="Deux validations opérateur avant activation, persistées côté plateforme."
       >
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="flex flex-col rounded-xl border border-zinc-950/10 bg-zinc-50 p-5 dark:border-white/10 dark:bg-white/5">
+          <div className="flex flex-col rounded-xl border border-white/[0.08] bg-white/[0.03] p-5">
             <Subheading level={3}>Validation du budget</Subheading>
             <DescriptionList className="mt-2">
               <DescriptionTerm>Budget / jour total</DescriptionTerm>
-              <DescriptionDetails className="tabular-nums">{eur(dailyBudget)}</DescriptionDetails>
+              <DescriptionDetails className="tabular-nums">
+                {eur(dailyBudget)}
+              </DescriptionDetails>
               <DescriptionTerm>Répartition</DescriptionTerm>
               <DescriptionDetails>
-                Google Ads {eur(googleDaily)}, Instagram {eur(instagramDaily)}, TikTok {eur(tiktokDaily)}
+                Google Ads {eur(googleDaily)}, Instagram {eur(instagramDaily)},
+                TikTok {eur(tiktokDaily)}
               </DescriptionDetails>
               <DescriptionTerm>Plafond 30 jours</DescriptionTerm>
-              <DescriptionDetails className="tabular-nums">{eur(monthlyBudget)}</DescriptionDetails>
+              <DescriptionDetails className="tabular-nums">
+                {eur(monthlyBudget)}
+              </DescriptionDetails>
             </DescriptionList>
             <div className="mt-4">
               {validation.budgetValidatedAt ? (
-                <Badge color="indigo">Validé le {frDateTime(validation.budgetValidatedAt)}</Badge>
+                <Badge color="indigo">
+                  Validé le {frDateTime(validation.budgetValidatedAt)}
+                </Badge>
               ) : (
-                <ValidateButton storeId={storeId as string} kind="budget" label="Valider le budget" />
+                <ValidateButton
+                  storeId={storeId as string}
+                  kind="budget"
+                  label="Valider le budget"
+                />
               )}
             </div>
           </div>
-          <div className="flex flex-col rounded-xl border border-zinc-950/10 bg-zinc-50 p-5 dark:border-white/10 dark:bg-white/5">
+          <div className="flex flex-col rounded-xl border border-white/[0.08] bg-white/[0.03] p-5">
             <Subheading level={3}>Validation du calendrier</Subheading>
-            <ul className="mt-2 space-y-1.5 text-sm/6 text-zinc-600 dark:text-zinc-300">
+            <ul className="mt-2 space-y-1.5 text-sm/6 text-zinc-400">
               {MILESTONES.map((m) => (
                 <li key={m.day} className="flex gap-2">
-                  <span className="w-14 shrink-0 font-medium tabular-nums text-zinc-950 dark:text-white">
+                  <span className="w-14 shrink-0 font-medium tabular-nums text-white">
                     {m.day}
                   </span>
                   <span className="min-w-0">{m.action}</span>
@@ -560,9 +645,15 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
             </ul>
             <div className="mt-4">
               {validation.calendarValidatedAt ? (
-                <Badge color="indigo">Validé le {frDateTime(validation.calendarValidatedAt)}</Badge>
+                <Badge color="indigo">
+                  Validé le {frDateTime(validation.calendarValidatedAt)}
+                </Badge>
               ) : (
-                <ValidateButton storeId={storeId as string} kind="calendar" label="Valider le calendrier" />
+                <ValidateButton
+                  storeId={storeId as string}
+                  kind="calendar"
+                  label="Valider le calendrier"
+                />
               )}
             </div>
           </div>
@@ -574,16 +665,17 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
         title="Suivi projeté vs réel"
         description={
           launched && sinceIso
-            ? `Depuis le lancement du ${frDate(sinceIso)} (${daysElapsed} jour${daysElapsed > 1 ? 's' : ''}).`
+            ? `Depuis le lancement du ${frDate(sinceIso)} (${daysElapsed} jour${daysElapsed > 1 ? "s" : ""}).`
             : campaign
               ? `Campagne stagée le ${frDate(campaign.created_at)}, pas encore diffusée.`
-              : 'Aucune campagne stagée en base pour l instant.'
+              : "Aucune campagne stagée en base pour l instant."
         }
       >
         <div className="space-y-6">
           {!launched ? (
-            <div className="rounded-lg border border-zinc-950/10 bg-zinc-50 px-4 py-3 text-sm/6 text-zinc-600 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
-              En attente du lancement. Les données réelles apparaîtront dès la première diffusion.
+            <div className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sm/6 text-zinc-400">
+              En attente du lancement. Les données réelles apparaîtront dès la
+              première diffusion.
             </div>
           ) : null}
           <AdminDataTable>
@@ -599,8 +691,12 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
                 {kpiRows.map((row) => (
                   <TableRow key={row.label}>
                     <TableCell className="font-medium">{row.label}</TableCell>
-                    <TableCell className="text-right tabular-nums">{row.projete}</TableCell>
-                    <TableCell className="text-right tabular-nums">{row.reel}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {row.projete}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {row.reel}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -608,10 +704,11 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
           </AdminDataTable>
           <div>
             <KpiComparisonChart data={kpiChartData} />
-            <p className="mt-2 text-xs/5 text-zinc-500 dark:text-zinc-400">
-              Hypothèses de projection{targets ? ' (bloc data du plan)' : ''}: CPC moyen {fr(cpcAssumption)} €, taux
-              de conversion {fr(cvrAssumptionPct)}%. n/d: disponible après intégration des rapports de dépense des
-              plateformes.
+            <p className="mt-2 text-xs/5 text-zinc-500 text-zinc-400">
+              Hypothèses de projection{targets ? " (bloc data du plan)" : ""}:
+              CPC moyen {fr(cpcAssumption)} €, taux de conversion{" "}
+              {fr(cvrAssumptionPct)}%. n/d: disponible après intégration des
+              rapports de dépense des plateformes.
             </p>
           </div>
         </div>
@@ -624,7 +721,9 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
       >
         <div className="space-y-6">
           <div>
-            <Subheading level={3}>Mots-clés ({plan.keywords.length})</Subheading>
+            <Subheading level={3}>
+              Mots-clés ({plan.keywords.length})
+            </Subheading>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {plan.keywords.map((kw) => (
                 <Badge key={kw} color="indigo">
@@ -634,7 +733,9 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
             </div>
           </div>
           <div>
-            <Subheading level={3}>Mots-clés négatifs ({plan.negativeKeywords.length})</Subheading>
+            <Subheading level={3}>
+              Mots-clés négatifs ({plan.negativeKeywords.length})
+            </Subheading>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {plan.negativeKeywords.map((kw) => (
                 <Badge key={kw} color="zinc">
@@ -650,7 +751,7 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
                 {plan.headlines.slice(0, 5).map((h, i) => (
                   <li
                     key={i}
-                    className="rounded-lg border border-zinc-950/10 bg-zinc-50 px-3 py-2 text-sm/6 text-zinc-950 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                    className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm/6 text-white"
                   >
                     {h}
                   </li>
@@ -658,12 +759,14 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
               </ul>
             </div>
             <div>
-              <Subheading level={3}>Descriptions (max 90 caractères)</Subheading>
+              <Subheading level={3}>
+                Descriptions (max 90 caractères)
+              </Subheading>
               <ul className="mt-2 space-y-1.5">
                 {plan.descriptions.slice(0, 3).map((d, i) => (
                   <li
                     key={i}
-                    className="rounded-lg border border-zinc-950/10 bg-zinc-50 px-3 py-2 text-sm/6 text-zinc-600 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300"
+                    className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm/6 text-zinc-400"
                   >
                     {d}
                   </li>

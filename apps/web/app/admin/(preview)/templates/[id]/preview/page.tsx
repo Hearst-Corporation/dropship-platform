@@ -1,11 +1,11 @@
-import { notFound } from 'next/navigation';
-import { TEMPLATE_CATALOG } from '@/lib/template-catalog';
-import { pickStorefrontComponent } from '@/lib/storefront-routing';
-import { buildMockStore, MOCK_PRODUCTS } from './_mock';
-import Link from 'next/link';
-import { Badge } from '@/components/catalyst/badge';
+import { notFound } from "next/navigation";
+import { TEMPLATE_CATALOG } from "@/lib/template-catalog";
+import { pickStorefrontComponent } from "@/lib/storefront-routing";
+import { buildMockStore, MOCK_PRODUCTS } from "./_mock";
+import Link from "next/link";
+import { Badge } from "@/components/catalyst/badge";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 /**
  * Template preview — renders the real Storefront component for the given
@@ -26,7 +26,7 @@ export default async function TemplatePreviewPage({
 
   // 'auto' is a meta-value (resolved at render time from store mode/count).
   // It has no fixed layout to preview, so treat it like an unknown id.
-  if (id === 'auto') notFound();
+  if (id === "auto") notFound();
 
   const entry = TEMPLATE_CATALOG.find((t) => t.id === id);
   if (!entry) notFound();
@@ -39,7 +39,7 @@ export default async function TemplatePreviewPage({
   return (
     <div>
       {/* Admin header bar */}
-      <div className="sticky top-0 z-50 flex items-center gap-3 border-b border-zinc-200 bg-white/95 px-4 py-2.5 text-sm backdrop-blur-sm">
+      <div className="sticky top-0 z-50 flex items-center gap-3 border-b border-white/[0.12] bg-white/[0.95] px-4 py-2.5 text-sm backdrop-blur-sm">
         <Link
           href="/admin/templates"
           className="flex items-center gap-1 text-zinc-500 transition-colors hover:text-zinc-900"
@@ -59,12 +59,12 @@ export default async function TemplatePreviewPage({
           </svg>
           Templates
         </Link>
-        <span className="text-zinc-300">/</span>
+        <span className="text-zinc-400">/</span>
         <span className="font-semibold text-zinc-900">{entry.label}</span>
         <Badge color="zinc" className="font-mono">
           {id}
         </Badge>
-        <span className="ml-auto rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+        <span className="ml-auto rounded-full bg-white/[0.03] px-2.5 py-0.5 text-xs font-medium text-zinc-400">
           Apercu avec donnees fictives
         </span>
       </div>

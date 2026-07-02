@@ -1,30 +1,34 @@
-import clsx from 'clsx';
-import type React from 'react';
+import clsx from "clsx";
+import type React from "react";
 
 export interface AdminSparklineProps {
   data: number[];
-  color?: 'indigo' | 'emerald' | 'rose' | 'amber' | 'zinc' | 'black';
+  color?: "indigo" | "emerald" | "rose" | "amber" | "zinc" | "black";
   className?: string;
 }
 
 const strokeColorMap = {
-  indigo: 'stroke-indigo-500 dark:stroke-indigo-400',
-  emerald: 'stroke-emerald-500 dark:stroke-emerald-400',
-  rose: 'stroke-rose-500 dark:stroke-rose-400',
-  amber: 'stroke-amber-500 dark:stroke-amber-400',
-  zinc: 'stroke-zinc-500 dark:stroke-zinc-400',
-  black: 'stroke-zinc-950 dark:stroke-zinc-950',
+  indigo: "stroke-indigo-500 dark:stroke-indigo-400",
+  emerald: "stroke-emerald-500 dark:stroke-emerald-400",
+  rose: "stroke-rose-500 dark:stroke-rose-400",
+  amber: "stroke-amber-500 dark:stroke-amber-400",
+  zinc: "stroke-zinc-500 dark:stroke-zinc-400",
+  black: "stroke-zinc-950 dark:stroke-zinc-950",
 };
 
 const stopColorMap = {
-  indigo: '#6366f1',
-  emerald: '#10b981',
-  rose: '#f43f5e',
-  amber: '#f59e0b',
-  zinc: '#71717a',
+  indigo: "#6366f1",
+  emerald: "#10b981",
+  rose: "#f43f5e",
+  amber: "#f59e0b",
+  zinc: "#71717a",
 };
 
-export function AdminSparkline({ data, color = 'indigo', className }: AdminSparklineProps) {
+export function AdminSparkline({
+  data,
+  color = "indigo",
+  className,
+}: AdminSparklineProps) {
   if (!data || data.length < 2) return null;
 
   const min = Math.min(...data);
@@ -48,10 +52,10 @@ export function AdminSparkline({ data, color = 'indigo', className }: AdminSpark
     const cp2x = prev.x + (pt.x - prev.x) / 2;
     const cp2y = pt.y;
     return `${acc} C ${cp1x},${cp1y} ${cp2x},${cp2y} ${pt.x},${pt.y}`;
-  }, '');
+  }, "");
 
   return (
-    <div className={clsx('relative w-full', className)}>
+    <div className={clsx("relative w-full", className)}>
       <svg
         viewBox={`0 0 ${width} ${height}`}
         className="h-full w-full overflow-visible"

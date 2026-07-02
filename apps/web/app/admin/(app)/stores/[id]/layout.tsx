@@ -1,12 +1,12 @@
-import { notFound } from 'next/navigation';
-import { getDbRead } from '@/lib/db';
-import { StoreLogo } from '@/components/ui';
-import { AdminBadge } from '@/components/admin/AdminBadge';
-import { Heading } from '@/components/catalyst/heading';
-import { StoreTabsBar } from './_components/StoreTabsBar';
-import { BreadcrumbBackLink } from './_components/BreadcrumbBackLink';
+import { notFound } from "next/navigation";
+import { getDbRead } from "@/lib/db";
+import { StoreLogo } from "@/components/ui";
+import { AdminBadge } from "@/components/admin/AdminBadge";
+import { Heading } from "@/components/catalyst/heading";
+import { StoreTabsBar } from "./_components/StoreTabsBar";
+import { BreadcrumbBackLink } from "./_components/BreadcrumbBackLink";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 /**
  * Store layout — dark admin:
@@ -23,8 +23,15 @@ export default async function StoreLayout({
 }) {
   const { id } = await params;
   const db = getDbRead();
-  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-  const { rows } = await db.query<{ id: string; slug: string; name: string; logo_emoji: string; status: string }>(
+  const isUuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  const { rows } = await db.query<{
+    id: string;
+    slug: string;
+    name: string;
+    logo_emoji: string;
+    status: string;
+  }>(
     isUuid
       ? `SELECT id, slug, name, logo_emoji, status FROM dropship_stores WHERE id = $1 LIMIT 1`
       : `SELECT id, slug, name, logo_emoji, status FROM dropship_stores WHERE slug = $1 LIMIT 1`,
@@ -41,14 +48,16 @@ export default async function StoreLayout({
         aria-label="Fil d'Ariane"
       >
         <BreadcrumbBackLink />
-        <span className="text-zinc-500" aria-hidden="true">/</span>
+        <span className="text-zinc-500" aria-hidden="true">
+          /
+        </span>
         <span className="inline-flex">
           <StoreLogo emoji={store.logo_emoji} size={16} />
         </span>
-        <span className="min-w-0 truncate text-base/6 font-semibold text-zinc-950 dark:text-white">
+        <span className="min-w-0 truncate text-base/6 font-semibold text-white">
           {store.name}
         </span>
-        {store.status !== 'active' && (
+        {store.status !== "active" && (
           <AdminBadge status={store.status}>{store.status}</AdminBadge>
         )}
       </nav>

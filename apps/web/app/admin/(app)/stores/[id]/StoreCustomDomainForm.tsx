@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
-import { apiFetch } from '@/lib/client-fetch';
+import { apiFetch } from "@/lib/client-fetch";
 
-import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
-import { useUnsavedChanges } from '@/lib/use-unsaved-changes';
-import { AdminSection } from '@/components/admin/AdminSection';
-import { Button } from '@/components/catalyst/button';
-import { Field, Label, Description } from '@/components/catalyst/fieldset';
-import { Input } from '@/components/catalyst/input';
-import { Code, Strong } from '@/components/catalyst/text';
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
+import { AdminSection } from "@/components/admin/AdminSection";
+import { Button } from "@/components/catalyst/button";
+import { Field, Label, Description } from "@/components/catalyst/fieldset";
+import { Input } from "@/components/catalyst/input";
+import { Code, Strong } from "@/components/catalyst/text";
 
 export function StoreCustomDomainForm({
   storeId,
@@ -33,16 +33,16 @@ export function StoreCustomDomainForm({
     startTransition(async () => {
       try {
         const res = await apiFetch(`/api/agent/stores/${storeId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ customDomain: value.trim() }),
         });
         const data = await res.json();
-        if (!res.ok || !data.success) throw new Error(data.error || 'Erreur');
+        if (!res.ok || !data.success) throw new Error(data.error || "Erreur");
         setSaved(true);
         router.refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Erreur');
+        setError(e instanceof Error ? e.message : "Erreur");
       }
     });
   };
@@ -65,26 +65,31 @@ export function StoreCustomDomainForm({
             spellCheck={false}
           />
           <Description>
-            Pointer votre DNS A/CNAME vers <Code>cname.vercel-dns.com</Code>, puis ajouter le
-            domaine dans <Strong>Vercel &rarr; Domains</Strong>.
+            Pointer votre DNS A/CNAME vers <Code>cname.vercel-dns.com</Code>,
+            puis ajouter le domaine dans <Strong>Vercel &rarr; Domains</Strong>.
           </Description>
         </Field>
 
         <div className="flex items-center gap-3 pt-1">
-          <Button type="button" color="indigo" onClick={submit} disabled={!dirty || pending}>
-            {pending ? 'Enregistrement…' : 'Enregistrer'}
+          <Button
+            type="button"
+            color="indigo"
+            onClick={submit}
+            disabled={!dirty || pending}
+          >
+            {pending ? "Enregistrement…" : "Enregistrer"}
           </Button>
           {dirty && !pending && (
             <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500">
-              <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 dark:bg-zinc-500" />
+              <span className="h-1.5 w-1.5 rounded-full bg-white/[0.20]" />
               Non sauvegardé
             </span>
           )}
           {saved && !dirty && (
-            <span className="text-xs text-indigo-600 dark:text-indigo-400">Enregistré.</span>
+            <span className="text-xs text-indigo-400">Enregistré.</span>
           )}
           {error && (
-            <span className="text-xs font-medium text-zinc-950 dark:text-white">
+            <span className="text-xs font-medium text-white">
               Erreur : {error}
             </span>
           )}

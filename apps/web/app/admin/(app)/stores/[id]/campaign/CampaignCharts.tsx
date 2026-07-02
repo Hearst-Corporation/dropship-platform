@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   Bar,
@@ -12,7 +12,7 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-} from 'recharts';
+} from "recharts";
 
 /**
  * Client charts for the store campaign page.
@@ -26,15 +26,15 @@ import {
  *   palette (indigo + sky), same dark style as AdminBarChart.
  */
 
-const AXIS_TICK = { fill: '#a1a1aa', fontSize: 12 };
-const GRID_STROKE = 'rgba(255,255,255,0.08)';
-const ACCENT = '#6366f1';
-const SECONDARY = '#38bdf8';
+const AXIS_TICK = { fill: "#a1a1aa", fontSize: 12 };
+const GRID_STROKE = "rgba(255,255,255,0.08)";
+const ACCENT = "#6366f1";
+const SECONDARY = "#38bdf8";
 /** Fond des surfaces admin sombres (zinc-900), pour détourer les parts. */
-const SURFACE = '#18181b';
+const SURFACE = "#18181b";
 
 function formatEur(n: number): string {
-  return `${n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} €`;
+  return `${n.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €`;
 }
 
 function DarkTooltip({
@@ -48,14 +48,21 @@ function DarkTooltip({
 }) {
   if (!active || !payload || payload.length === 0) return null;
   return (
-    <div className="rounded border border-white/10 bg-zinc-800 px-3 py-2 text-xs text-zinc-100 shadow-lg">
-      {label !== undefined && <div className="mb-1 font-medium text-zinc-300">{label}</div>}
+    <div className="rounded border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-zinc-100 shadow-lg">
+      {label !== undefined && (
+        <div className="mb-1 font-medium text-zinc-400">{label}</div>
+      )}
       {payload.map((entry, i) => (
         <div key={i} className="flex items-center gap-2">
-          <span className="inline-block size-2 rounded-full" style={{ backgroundColor: entry.color }} />
+          <span
+            className="inline-block size-2 rounded-full"
+            style={{ backgroundColor: entry.color }}
+          />
           <span className="text-zinc-400">{entry.name}</span>
           <span className="ml-auto font-medium tabular-nums">
-            {typeof entry.value === 'number' ? entry.value.toLocaleString('fr-FR') : entry.value}
+            {typeof entry.value === "number"
+              ? entry.value.toLocaleString("fr-FR")
+              : entry.value}
           </span>
         </div>
       ))}
@@ -80,7 +87,10 @@ export interface PlatformSplitDonutProps {
   totalDailyEur: number;
 }
 
-export function PlatformSplitDonut({ splits, totalDailyEur }: PlatformSplitDonutProps) {
+export function PlatformSplitDonut({
+  splits,
+  totalDailyEur,
+}: PlatformSplitDonutProps) {
   const data = splits.map((s) => ({ name: s.name, value: s.dailyEur }));
   return (
     <div className="flex flex-col items-center gap-6 sm:flex-row sm:gap-10">
@@ -107,25 +117,29 @@ export function PlatformSplitDonut({ splits, totalDailyEur }: PlatformSplitDonut
           </PieChart>
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-semibold tracking-tight text-zinc-950 tabular-nums dark:text-white">
+          <span className="text-2xl font-semibold tracking-tight text-white tabular-nums text-white">
             {formatEur(totalDailyEur)}
           </span>
-          <span className="text-xs/5 text-zinc-500 dark:text-zinc-400">par jour</span>
+          <span className="text-xs/5 text-zinc-500 text-zinc-400">
+            par jour
+          </span>
         </div>
       </div>
       <ul className="w-full space-y-4">
         {splits.map((s) => (
           <li key={s.name} className="flex items-center gap-3">
             <span
-              className="inline-block size-3 shrink-0 rounded-full ring-1 ring-white/20"
+              className="inline-block size-3 shrink-0 rounded-full ring-1 ring-white/[0.12]"
               style={{ backgroundColor: s.color }}
               aria-hidden
             />
-            <span className="min-w-0 flex-1 truncate text-sm/6 font-medium text-zinc-950 dark:text-white">
+            <span className="min-w-0 flex-1 truncate text-sm/6 font-medium text-white">
               {s.name}
             </span>
-            <span className="text-sm/6 tabular-nums text-zinc-500 dark:text-zinc-400">{s.pct}%</span>
-            <span className="w-28 text-right text-lg font-semibold tracking-tight tabular-nums text-zinc-950 dark:text-white">
+            <span className="text-sm/6 tabular-nums text-zinc-500 text-zinc-400">
+              {s.pct}%
+            </span>
+            <span className="w-28 text-right text-lg font-semibold tracking-tight tabular-nums text-white">
               {formatEur(s.dailyEur)}
             </span>
           </li>
@@ -148,12 +162,35 @@ export function KpiComparisonChart({ data }: { data: KpiComparisonPoint[] }) {
     <ResponsiveContainer width="100%" height={240}>
       <BarChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
         <CartesianGrid stroke={GRID_STROKE} vertical={false} />
-        <XAxis dataKey="metric" tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: GRID_STROKE }} />
+        <XAxis
+          dataKey="metric"
+          tick={AXIS_TICK}
+          tickLine={false}
+          axisLine={{ stroke: GRID_STROKE }}
+        />
         <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} width={52} />
-        <Tooltip content={<DarkTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
-        <Legend wrapperStyle={{ fontSize: 12, color: '#a1a1aa' }} iconType="circle" />
-        <Bar dataKey="projete" name="Projeté" fill={ACCENT} radius={[3, 3, 0, 0]} maxBarSize={48} />
-        <Bar dataKey="reel" name="Réel" fill={SECONDARY} radius={[3, 3, 0, 0]} maxBarSize={48} />
+        <Tooltip
+          content={<DarkTooltip />}
+          cursor={{ fill: "rgba(255,255,255,0.04)" }}
+        />
+        <Legend
+          wrapperStyle={{ fontSize: 12, color: "#a1a1aa" }}
+          iconType="circle"
+        />
+        <Bar
+          dataKey="projete"
+          name="Projeté"
+          fill={ACCENT}
+          radius={[3, 3, 0, 0]}
+          maxBarSize={48}
+        />
+        <Bar
+          dataKey="reel"
+          name="Réel"
+          fill={SECONDARY}
+          radius={[3, 3, 0, 0]}
+          maxBarSize={48}
+        />
       </BarChart>
     </ResponsiveContainer>
   );

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   Area,
@@ -9,13 +9,13 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-} from 'recharts';
+} from "recharts";
 
 /** Palette par défaut, lisible sur une surface zinc-900 sombre. */
-const DEFAULT_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#38bdf8'];
+const DEFAULT_COLORS = ["#6366f1", "#10b981", "#f59e0b", "#38bdf8"];
 
-const AXIS_TICK = { fill: '#a1a1aa', fontSize: 12 };
-const GRID_STROKE = 'rgba(255,255,255,0.08)';
+const AXIS_TICK = { fill: "#a1a1aa", fontSize: 12 };
+const GRID_STROKE = "rgba(255,255,255,0.08)";
 
 export interface AdminTrendSeries {
   key: string;
@@ -42,9 +42,9 @@ function DarkTooltip({
 }) {
   if (!active || !payload || payload.length === 0) return null;
   return (
-    <div className="rounded border border-white/10 bg-zinc-800 px-3 py-2 text-xs text-zinc-100 shadow-lg">
+    <div className="rounded border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-zinc-100 shadow-lg">
       {label !== undefined && (
-        <div className="mb-1 font-medium text-zinc-300">{label}</div>
+        <div className="mb-1 font-medium text-zinc-400">{label}</div>
       )}
       {payload.map((entry, i) => (
         <div key={i} className="flex items-center gap-2">
@@ -53,7 +53,9 @@ function DarkTooltip({
             style={{ backgroundColor: entry.color }}
           />
           <span className="text-zinc-400">{entry.name}</span>
-          <span className="ml-auto font-medium tabular-nums">{entry.value}</span>
+          <span className="ml-auto font-medium tabular-nums">
+            {entry.value}
+          </span>
         </div>
       ))}
     </div>
@@ -63,7 +65,7 @@ function DarkTooltip({
 function EmptyState({ height }: { height: number }) {
   return (
     <div
-      className="flex items-center justify-center bg-zinc-50 text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:bg-zinc-900/50 dark:text-zinc-500"
+      className="flex items-center justify-center bg-white/[0.03] text-[10px] font-bold uppercase tracking-widest text-zinc-500"
       style={{ height }}
     >
       Pas encore de données
@@ -90,18 +92,19 @@ export default function AdminTrendChart({
           tickLine={false}
           axisLine={false}
         />
-        <YAxis
-          tick={AXIS_TICK}
-          tickLine={false}
-          axisLine={false}
-          width={44}
-        />
+        <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} width={44} />
         <Tooltip
           content={<DarkTooltip />}
-          cursor={{ stroke: 'rgba(255,255,255,0.05)', strokeWidth: 2 }}
+          cursor={{ stroke: "rgba(255,255,255,0.05)", strokeWidth: 2 }}
         />
         <Legend
-          wrapperStyle={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600, color: '#71717a' }}
+          wrapperStyle={{
+            fontSize: 10,
+            textTransform: "uppercase",
+            letterSpacing: "0.1em",
+            fontWeight: 600,
+            color: "#71717a",
+          }}
           iconType="rect"
         />
         {series.map((s, i) => {

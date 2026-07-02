@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   Bar,
@@ -9,13 +9,13 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-} from 'recharts';
+} from "recharts";
 
 /** Palette par défaut, lisible sur une surface zinc-900 sombre. */
-const DEFAULT_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#38bdf8'];
+const DEFAULT_COLORS = ["#6366f1", "#10b981", "#f59e0b", "#38bdf8"];
 
-const AXIS_TICK = { fill: '#a1a1aa', fontSize: 12 };
-const GRID_STROKE = 'rgba(255,255,255,0.08)';
+const AXIS_TICK = { fill: "#a1a1aa", fontSize: 12 };
+const GRID_STROKE = "rgba(255,255,255,0.08)";
 
 export interface AdminBarSeries {
   key: string;
@@ -41,9 +41,9 @@ function DarkTooltip({
 }) {
   if (!active || !payload || payload.length === 0) return null;
   return (
-    <div className="rounded border border-white/10 bg-zinc-800 px-3 py-2 text-xs text-zinc-100 shadow-lg">
+    <div className="rounded border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-zinc-100 shadow-lg">
       {label !== undefined && (
-        <div className="mb-1 font-medium text-zinc-300">{label}</div>
+        <div className="mb-1 font-medium text-zinc-400">{label}</div>
       )}
       {payload.map((entry, i) => (
         <div key={i} className="flex items-center gap-2">
@@ -52,7 +52,9 @@ function DarkTooltip({
             style={{ backgroundColor: entry.color }}
           />
           <span className="text-zinc-400">{entry.name}</span>
-          <span className="ml-auto font-medium tabular-nums">{entry.value}</span>
+          <span className="ml-auto font-medium tabular-nums">
+            {entry.value}
+          </span>
         </div>
       ))}
     </div>
@@ -62,7 +64,7 @@ function DarkTooltip({
 function EmptyState({ height }: { height: number }) {
   return (
     <div
-      className="flex items-center justify-center rounded-lg border border-white/10 bg-zinc-900 text-sm text-zinc-500"
+      className="flex items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-sm text-zinc-500"
       style={{ height }}
     >
       Pas encore de données
@@ -93,9 +95,12 @@ export default function AdminBarChart({
         <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} width={44} />
         <Tooltip
           content={<DarkTooltip />}
-          cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+          cursor={{ fill: "rgba(255,255,255,0.04)" }}
         />
-        <Legend wrapperStyle={{ fontSize: 12, color: '#a1a1aa' }} iconType="circle" />
+        <Legend
+          wrapperStyle={{ fontSize: 12, color: "#a1a1aa" }}
+          iconType="circle"
+        />
         {bars.map((b, i) => (
           <Bar
             key={b.key}
