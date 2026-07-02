@@ -367,3 +367,60 @@ export function isLuxuryTemplate(id: string | null | undefined): boolean {
   return entry?.register === 'luxury';
 }
 
+/** Keyword → TemplateNiche mapping used to score a free-form niche string. */
+const NICHE_KEYWORDS: ReadonlyArray<[TemplateNiche, RegExp]> = [
+  ['wellness', /wellness|bien[- ]?être|aromath|spa|relax|zen|massage|méditation|meditation|yoga/i],
+  ['beauty', /beauty|beauté|cosm[ée]t|skincare|soin|visage|makeup|maquillage/i],
+  ['health', /health|santé|fitness|sport|muscu|gym/i],
+  ['fashion', /fashion|mode|vêtement|vetement|apparel|streetwear/i],
+  ['jewelry', /jewel|bijou|bague|collier|montre/i],
+  ['home', /home|maison|déco|deco|interieur|intérieur|lampe|meuble/i],
+  ['pet', /pet|animal|chien|chat|dog|cat/i],
+  ['tech', /tech|gadget|électronique|electronique|audio|gaming|smart/i],
+  ['kids', /kids|enfant|bébé|bebe|jouet|toy/i],
+  ['food', /food|cuisine|gourmet|thé|café|coffee|tea|snack/i],
+  ['gifting', /cadeau|gift/i],
+  ['sport', /sport|fitness|outdoor|randonnée|running/i],
+];
+
+/**
+ * Deterministic template pick for the store-creator agent. Scores every
+ * non-'auto' catalog entry against the niche keywords, the requested mode and
+ * the product count, preferring premium register and richer layouts over the
+ * plain grid. Always returns a usable template id — the plain 'collection-grid'
+ * (or 'mono') only wins when nothing niche-specific matches.
+ */
+export function suggestTemplate(args: {
+  niche: string;
+  mode: 'mono' | 'collection';
+  productCount: number;
+  brief?: string | null;
+}): StoreTemplate {
+  const haystack = `${args.niche} ${args.brief ?? ''}`;
+  const detected = new Set<TemplateNiche>(
+    NICHE_KEYWORDS.filter(([, re]) => re.test(haystack)).map(([n]) => n),
+  );
+
+  let best: { id: StoreTemplate; score: number } | null = null;
+  for (const t of TEMPLATE_CATALOG) {
+    if (t.id === 'auto') continue;
+    // Mode compatibility: mono stores need a mono-capable template; collection
+    // stores need anything that lays out several products.
+    if (args.mode === 'mono' && t.mode !== 'mono') continue;
+    if (args.mode === 'collection' && t.mode === 'mono') continue;
+    if (args.productCount < t.minProducts) continue;
+    // Luxury register is operator-opt-in only (maison voice changes the copy).
+    if (t.register === 'luxury') continue;
+
+    let score = 0;
+    for (const n of t.niches) if (detected.has(n)) score += 3;
+    if (t.register === 'premium') score += 2;
+    if (t.mode !== 'collection') score += 1; // richer layout than the plain grid
+    if (t.autoCandidate) score += 1;
+
+    if (!best || score > best.score) best = { id: t.id as StoreTemplate, score };
+  }
+
+  return best?.id ?? (args.mode === 'mono' ? ('mono' as StoreTemplate) : ('collection-grid' as StoreTemplate));
+}
+

@@ -71,7 +71,7 @@ export async function generateAdVariants(input: AdVariantInput): Promise<AdVaria
   const response = await trackedMessage(
     { storeId: input.storeId, step: 'ad-variants' },
     {
-      model: 'claude-haiku-4-5-20251001',
+      model: 'gpt-4o-mini',
       max_tokens: 1500,
       system,
       messages: [{ role: 'user', content: userPrompt }],

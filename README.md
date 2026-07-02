@@ -92,7 +92,7 @@ Voir [`apps/web/env.example`](apps/web/env.example). Catégories :
 - **Auth admin** : `ADMIN_USERNAME`, `ADMIN_PASSWORD` (Basic Auth via middleware)
 - **Postgres** : `DATABASE_URL`, optionnel `DATABASE_URL_REPLICA` (read-replica pour dashboards)
 - **Medusa** : `MEDUSA_URL`, `MEDUSA_ADMIN_EMAIL`, `MEDUSA_ADMIN_PASSWORD`, `NEXT_PUBLIC_MEDUSA_*`
-- **Anthropic** : `ANTHROPIC_API_KEY` (Claude Sonnet 4.6)
+- **OpenAI (LLM)** : `OPENAI_API_KEY`, optionnels `OPENAI_CHAT_MODEL` (défaut `gpt-4o`), `OPENAI_AGENT_MODEL` (défaut `gpt-4.1`), `OPENAI_BASE_URL`
 - **Fournisseurs** : `ALIEXPRESS_APP_KEY/SECRET`, `CJ_DROPSHIPPING_API_KEY/EMAIL`
 - **Stripe** : `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
 - **Ads APIs** : `META_ADS_ACCESS_TOKEN`, `META_AD_ACCOUNT_ID`, `TIKTOK_ADS_ACCESS_TOKEN`, `TIKTOK_ADVERTISER_ID`, `GOOGLE_ADS_*` (6 vars)

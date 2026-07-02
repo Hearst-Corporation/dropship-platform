@@ -30,6 +30,7 @@ const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD ?? '').trim();
 // Routes that share a guarded prefix but must remain public.
 const PUBLIC_EXCEPTIONS = new Set<string>([
   '/api/aliexpress/oauth/callback',  // AliExpress redirects browsers here
+  '/api/zendrop/oauth/callback',     // Zendrop redirects browsers here
   '/api/medusa/health',              // GH Actions warm-up + storefront health
   '/api/domain-resolve',             // P1.1: internal domain→slug lookup (no auth)
 ]);
@@ -223,8 +224,8 @@ export const config = {
     '/api/aliexpress/oauth/refresh',
     '/api/aliexpress/test-search',
     '/api/aliexpress/probe-order',
-    '/api/cockpit-chat',
-    '/api/cockpit-chat/:path*',
+    '/api/zendrop/oauth/start',
+    '/api/zendrop/oauth/callback',
     '/api/medusa/setup',
     '/api/medusa/introspect',
     '/api/medusa/health',

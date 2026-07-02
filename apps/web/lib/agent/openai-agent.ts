@@ -1,11 +1,11 @@
 /**
  * OpenAI agent wrapper for the store-creator + super-agent pipelines.
  *
- * Provider migrated from Kimi/Hyper to the official OpenAI API (June 2026).
- * Uses GPT-4.1 by default (long-context agent reasoning). The API is
- * OpenAI-compatible (it IS OpenAI), so we call /chat/completions with fetch.
+ * Provider migrated to the official OpenAI API (June 2026). Uses GPT-4.1 by
+ * default (long-context agent reasoning). The API is OpenAI's own, so we call
+ * /chat/completions with fetch.
  *
- * The exported symbols keep the `Kimi` naming so call sites are unchanged.
+ * The exported symbols use the `OpenAI` naming so call sites read honestly.
  * Every call is logged to `dropship_ai_runs` with the same shape as
  * `trackedMessage` so the cost dashboard stays consistent.
  */
@@ -32,13 +32,13 @@ function isRetryable(status: number, message: string): boolean {
   return false;
 }
 
-interface KimiUsage {
+interface OpenAIUsage {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
 }
 
-interface KimiResponse {
+interface OpenAIResponse {
   choices: Array<{
     message: {
       role: string;
@@ -48,7 +48,7 @@ interface KimiResponse {
     finish_reason: string;
     index: number;
   }>;
-  usage?: KimiUsage;
+  usage?: OpenAIUsage;
   error?: { message: string; type: string };
 }
 
@@ -82,7 +82,7 @@ async function insertRun(args: InsertArgs): Promise<void> {
       ],
     );
   } catch (e) {
-    console.error('[kimi-tracked] insertRun failed', e);
+    console.error('[openai-tracked] insertRun failed', e);
   }
 }
 
@@ -98,7 +98,7 @@ function computeCostEur(inputTokens: number, outputTokens: number): number {
   return Number(((inputUsd + outputUsd) * USD_TO_EUR).toFixed(6));
 }
 
-export interface KimiMessage {
+export interface OpenAIMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   // OpenAI requires content to be null on an assistant message that only
   // carries tool_calls.
@@ -106,10 +106,10 @@ export interface KimiMessage {
   tool_call_id?: string;
   // Assistant messages that requested tools must carry the structured
   // tool_calls so the following role:'tool' messages are accepted by OpenAI.
-  tool_calls?: KimiToolCall[];
+  tool_calls?: OpenAIToolCall[];
 }
 
-export interface KimiTool {
+export interface OpenAITool {
   type: 'function';
   function: {
     name: string;
@@ -118,7 +118,7 @@ export interface KimiTool {
   };
 }
 
-export interface KimiToolCall {
+export interface OpenAIToolCall {
   id: string;
   type: 'function';
   function: {
@@ -127,25 +127,25 @@ export interface KimiToolCall {
   };
 }
 
-export interface KimiRunMeta {
+export interface OpenAIRunMeta {
   storeId?: string | null;
   step: string;
 }
 
 /**
- * Drop-in replacement for `trackedMessage` tailored to Kimi K2.5.
- * Supports optional function-calling via the OpenAI-compatible API.
+ * Drop-in replacement for `trackedMessage` tailored to the OpenAI Chat
+ * Completions API. Supports optional function-calling.
  */
-export async function trackedKimiMessage(
-  meta: KimiRunMeta,
-  messages: KimiMessage[],
-  options?: { tools?: KimiTool[]; maxTokens?: number },
-): Promise<{ text: string; usage: KimiUsage; tool_calls?: KimiToolCall[]; finishReason: string | null }> {
+export async function trackedOpenAIMessage(
+  meta: OpenAIRunMeta,
+  messages: OpenAIMessage[],
+  options?: { tools?: OpenAITool[]; maxTokens?: number; jsonMode?: boolean },
+): Promise<{ text: string; usage: OpenAIUsage; tool_calls?: OpenAIToolCall[]; finishReason: string | null }> {
   const startedAt = Date.now();
   let responseText = '';
-  let toolCalls: KimiToolCall[] | undefined;
+  let toolCalls: OpenAIToolCall[] | undefined;
   let finishReason: string | null = null;
-  let usage: KimiUsage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+  let usage: OpenAIUsage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
   let errorJson: string | null = null;
 
   try {
@@ -162,6 +162,13 @@ export async function trackedKimiMessage(
       body.tools = options.tools;
       body.tool_choice = 'auto';
     }
+    // OpenAI native JSON mode: guarantees a syntactically valid JSON body.
+    // Fixes the intermittent "invalid JSON" failures on French copy (unescaped
+    // quotes at temperature 0.7). The prompt must mention "JSON" (API rule) —
+    // every call site using this flag already does.
+    if (options?.jsonMode) {
+      body.response_format = { type: 'json_object' };
+    }
 
     let lastError: unknown;
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -176,19 +183,19 @@ export async function trackedKimiMessage(
           body: JSON.stringify(body),
         });
 
-        const data = (await res.json()) as KimiResponse & {
+        const data = (await res.json()) as OpenAIResponse & {
           choices?: Array<{
             message?: {
               role?: string;
               content?: string | null;
-              tool_calls?: KimiToolCall[];
+              tool_calls?: OpenAIToolCall[];
             };
             finish_reason?: string | null;
           }>;
         };
 
         if (!res.ok || data.error) {
-          const errMsg = data.error?.message || `Kimi HTTP ${res.status}`;
+          const errMsg = data.error?.message || `OpenAI HTTP ${res.status}`;
           if (!isRetryable(res.status, errMsg) || attempt === MAX_RETRIES - 1) {
             throw new Error(errMsg);
           }
@@ -209,7 +216,7 @@ export async function trackedKimiMessage(
       } catch (e) {
         lastError = e;
         if (e instanceof Error && e.name === 'AbortError') {
-          lastError = new Error('Kimi timeout');
+          lastError = new Error('OpenAI timeout');
         }
         if (!isRetryable(0, e instanceof Error ? e.message : '') || attempt === MAX_RETRIES - 1) {
           throw lastError;

@@ -1,7 +1,6 @@
 import { getDbRead } from '@/lib/db';
 import { StoreAvatar } from '@/components/ui';
-import { Heading, Subheading } from '@/components/catalyst/heading';
-import { Text, TextLink } from '@/components/catalyst/text';
+import { TextLink } from '@/components/catalyst/text';
 import { Badge } from '@/components/catalyst/badge';
 import { Button } from '@/components/catalyst/button';
 import {
@@ -12,11 +11,22 @@ import {
   TableHeader,
   TableCell,
 } from '@/components/catalyst/table';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import { AdminSection } from '@/components/admin/AdminSection';
+import { AdminStatsGrid } from '@/components/admin/AdminStatsGrid';
+import { AdminStatCard } from '@/components/admin/AdminStatCard';
+import { AdminDataTable } from '@/components/admin/AdminDataTable';
+import { AdminEmptyState } from '@/components/admin/AdminEmptyState';
 import {
-  DescriptionList,
-  DescriptionTerm,
-  DescriptionDetails,
-} from '@/components/catalyst/description-list';
+  BuildingStorefrontIcon,
+  CubeIcon,
+  CurrencyEuroIcon,
+  FunnelIcon,
+  ShoppingBagIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
+} from '@heroicons/react/24/outline';
+import { DashboardTrend, DashboardFunnel } from './DashboardCharts';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -24,8 +34,9 @@ export const revalidate = 0;
 /**
  * Portfolio dashboard — aggregates KPIs across every store. All queries hit the
  * read replica and fail-soft individually (one slow source never blocks the page).
- * Data layer preserved verbatim from the pre-reset dashboard; UI rebuilt on
- * Catalyst (heading / surfaces / table / description-list). No charts.
+ * Data layer preserved verbatim from the pre-reset dashboard; UI rebuilt on the
+ * admin foundation lib (page header / stat cards / sections / data table) plus
+ * Recharts trend & funnel visuals.
  */
 interface StoresRow {
   active: number;
@@ -182,160 +193,237 @@ export default async function PortfolioDashboard() {
 
   const revenue30dCents = Number(revenue.revenue_30d_cents);
   const revenue7dCents = Number(revenue.revenue_7d_cents);
+  const aov30dCents = Number(revenue.aov_30d_cents);
   const totalCost = Number(cost.total_cost_eur || 0);
   const avgPerRun = Number(cost.avg_cost_per_run || 0);
   const errorRate = cost.runs ? (cost.errors / cost.runs) * 100 : 0;
   const globalConv = funnel.view_content > 0 ? (funnel.purchase / funnel.view_content) * 100 : 0;
 
-  const funnelStages: { stage: string; value: number }[] = [
-    { stage: 'View content', value: funnel.view_content },
-    { stage: 'Add to cart', value: funnel.add_to_cart },
-    { stage: 'Initiate checkout', value: funnel.initiate_checkout },
-    { stage: 'Purchase', value: funnel.purchase },
+  // Serialize DB rows (bigint/text -> number) for the client chart wrappers.
+  const trendData = trend.map((t) => ({
+    label: t.label,
+    ca: Number(t.revenue_cents) / 100,
+    commandes: Number(t.orders),
+  }));
+
+  const funnelSteps = [
+    { label: 'View content', value: funnel.view_content },
+    { label: 'Add to cart', value: funnel.add_to_cart },
+    { label: 'Initiate checkout', value: funnel.initiate_checkout },
+    { label: 'Purchase', value: funnel.purchase },
   ];
 
   return (
-    <div className="space-y-8">
-      <div>
-        <Heading>Vue d&apos;ensemble</Heading>
-        <Text>KPIs agrégés sur tous les stores actifs. Cliquez sur un bloc pour drill down.</Text>
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Vue d'ensemble"
+        subtitle="KPIs agrégés sur tous les stores actifs. Cliquez sur un bloc pour drill down."
+      />
+
+      {/* KPIs */}
+      <AdminStatsGrid cols={4}>
+        <AdminStatCard
+          label="Stores actifs"
+          value={stores.active.toLocaleString('fr-FR')}
+          hint={`+${stores.created_7d} sur 7j`}
+          icon={BuildingStorefrontIcon}
+        />
+        <AdminStatCard
+          label="Produits"
+          value={stores.total_products.toLocaleString('fr-FR')}
+          hint={`+${stores.products_7d} sur 7j`}
+          icon={CubeIcon}
+        />
+        <AdminStatCard
+          label="CA 30j"
+          value={eur(revenue30dCents)}
+          hint={`${revenue.orders_30d.toLocaleString('fr-FR')} commandes`}
+          icon={CurrencyEuroIcon}
+        />
+        <AdminStatCard
+          label="CA 7j"
+          value={eur(revenue7dCents)}
+          hint={`${revenue.orders_7d.toLocaleString('fr-FR')} commandes`}
+          icon={CurrencyEuroIcon}
+        />
+        <AdminStatCard
+          label="Panier moyen 30j"
+          value={eur(aov30dCents)}
+          hint="Sur commandes payées"
+          icon={ShoppingBagIcon}
+        />
+        <AdminStatCard
+          label="Conversion globale 30j"
+          value={`${globalConv.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`}
+          hint={`${funnel.purchase.toLocaleString('fr-FR')} achats / ${funnel.view_content.toLocaleString('fr-FR')} vues`}
+          icon={FunnelIcon}
+        />
+        <AdminStatCard
+          label="Coût Claude 30j"
+          value={`${totalCost.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`}
+          hint={`${cost.runs.toLocaleString('fr-FR')} runs`}
+        />
+        <AdminStatCard
+          label="Taux d'erreur agent 30j"
+          value={`${errorRate.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`}
+          hint={`${cost.errors.toLocaleString('fr-FR')} erreurs`}
+          icon={errorRate > 5 ? ExclamationTriangleIcon : CheckCircleIcon}
+        />
+      </AdminStatsGrid>
+
+      {/* Trend — CA & commandes sur 14 jours */}
+      <AdminSection
+        title="Tendance 14j"
+        description="CA (€) et commandes par jour sur les 14 derniers jours."
+      >
+        <DashboardTrend data={trendData} />
+      </AdminSection>
+
+      {/* Deux colonnes : funnel + top stores */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <AdminSection
+          title="Funnel 30j"
+          description="Volume par étape du parcours d'achat."
+          actions={
+            <Badge color="indigo">
+              {globalConv.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} % conv.
+            </Badge>
+          }
+        >
+          <DashboardFunnel steps={funnelSteps} />
+        </AdminSection>
+
+        <AdminSection
+          title="Top stores — 7j"
+          description="Stores actifs classés par CA sur 7 jours."
+          actions={<TextLink href="/admin/stores">Tous les stores</TextLink>}
+          flush
+        >
+          {topStores.length === 0 ? (
+            <AdminEmptyState
+              icon={BuildingStorefrontIcon}
+              title="Aucune vente sur 7j"
+              description="Aucun store actif n'a enregistré de commande sur les 7 derniers jours."
+            />
+          ) : (
+            <AdminDataTable minWidth="min-w-[32rem]">
+              <Table dense>
+                <TableHead>
+                  <TableRow>
+                    <TableHeader className="w-10 text-right">#</TableHeader>
+                    <TableHeader>Store</TableHeader>
+                    <TableHeader className="text-right">CA 7j</TableHeader>
+                    <TableHeader className="text-right">Cmd</TableHeader>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {topStores.map((s, idx) => (
+                    <TableRow key={s.slug} href={`/admin/stores/${s.slug}`}>
+                      <TableCell className="text-right text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+                        {idx + 1}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <StoreAvatar slug={s.slug} name={s.name} size={28} />
+                          <div className="min-w-0">
+                            <div className="truncate font-medium">{s.name}</div>
+                            <div className="truncate text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+                              /shop/{s.slug}
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{eur(Number(s.revenue_cents))}</TableCell>
+                      <TableCell className="text-right tabular-nums">{s.orders.toLocaleString('fr-FR')}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </AdminDataTable>
+          )}
+        </AdminSection>
       </div>
 
-      {/* KPIs — grille de blocs label + valeur (pas de carte ad-hoc) */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Stores actifs" value={stores.active.toLocaleString('fr-FR')} hint={`+${stores.created_7d} sur 7j`} href="/admin/stores" />
-        <Stat label="Produits" value={stores.total_products.toLocaleString('fr-FR')} hint={`+${stores.products_7d} sur 7j`} href="/admin/catalog" />
-        <Stat label="CA 30j" value={eur(revenue30dCents)} hint={`${revenue.orders_30d} commandes`} />
-        <Stat label="CA 7j" value={eur(revenue7dCents)} hint={`${revenue.orders_7d} commandes`} />
-      </div>
-
-      {/* Trend — revenue + orders over 14 days */}
-      <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
-        <Subheading>Tendance 14j — CA et commandes par jour</Subheading>
-        {trend.length === 0 ? (
-          <Text className="mt-4">Pas encore de ventes sur les 14 derniers jours.</Text>
-        ) : (
-          <Table dense className="mt-4">
-            <TableHead>
-              <TableRow>
-                <TableHeader>Jour</TableHeader>
-                <TableHeader className="text-right">CA</TableHeader>
-                <TableHeader className="text-right">Commandes</TableHeader>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {trend.map((t) => (
-                <TableRow key={t.label}>
-                  <TableCell className="tabular-nums">{t.label}</TableCell>
-                  <TableCell className="text-right tabular-nums">{eur(Number(t.revenue_cents))}</TableCell>
-                  <TableCell className="text-right tabular-nums">{Number(t.orders)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </section>
-
-      {/* Top stores */}
-      <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
-        <div className="flex items-center justify-between gap-2">
-          <Subheading>Top stores — 7j</Subheading>
-          <TextLink href="/admin/stores">Tous</TextLink>
-        </div>
-        {topStores.length === 0 ? (
-          <Text className="mt-4">Aucun store actif avec des ventes 7j.</Text>
-        ) : (
-          <Table dense className="mt-4">
-            <TableHead>
-              <TableRow>
-                <TableHeader>Store</TableHeader>
-                <TableHeader className="text-right">CA</TableHeader>
-                <TableHeader className="text-right">Cmd</TableHeader>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {topStores.map((s, idx) => (
-                <TableRow key={s.slug} href={`/admin/stores/${s.slug}`}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <span className="w-4 text-right text-xs tabular-nums text-zinc-500">{idx + 1}</span>
-                      <StoreAvatar slug={s.slug} name={s.name} size={28} />
-                      <div className="min-w-0">
-                        <div className="truncate font-medium">{s.name}</div>
-                        <div className="truncate text-xs tabular-nums text-zinc-500">/shop/{s.slug}</div>
-                      </div>
-                    </div>
+      {/* Observabilité agent + alertes opérationnelles */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <AdminSection
+          title="Coût Claude 30j"
+          description="Observabilité des appels agent sur 30 jours."
+          actions={
+            <Button href="/admin/observability" outline>
+              Détail par step
+            </Button>
+          }
+          flush
+        >
+          <AdminDataTable minWidth="min-w-[28rem]">
+            <Table dense>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="text-zinc-500 dark:text-zinc-400">Total des appels agent</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {totalCost.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">{eur(Number(s.revenue_cents))}</TableCell>
-                  <TableCell className="text-right tabular-nums">{s.orders}</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </section>
+                <TableRow>
+                  <TableCell className="text-zinc-500 dark:text-zinc-400">Runs</TableCell>
+                  <TableCell className="text-right tabular-nums">{cost.runs.toLocaleString('fr-FR')}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="text-zinc-500 dark:text-zinc-400">Coût moyen / run</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {(avgPerRun * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} m€
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="text-zinc-500 dark:text-zinc-400">Taux d&apos;erreur</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {errorRate > 5 ? (
+                      <Badge color="zinc">
+                        {errorRate.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} % · élevé
+                      </Badge>
+                    ) : (
+                      <span>
+                        {errorRate.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %
+                      </span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </AdminDataTable>
+        </AdminSection>
 
-      {/* Funnel */}
-      <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
-        <div className="flex items-center justify-between gap-2">
-          <Subheading>Funnel 30j — Conversion globale</Subheading>
-          <Badge color="indigo">{globalConv.toFixed(1)}%</Badge>
-        </div>
-        <DescriptionList className="mt-4">
-          {funnelStages.map((s) => (
-            <div key={s.stage} className="contents">
-              <DescriptionTerm>{s.stage}</DescriptionTerm>
-              <DescriptionDetails className="tabular-nums">{s.value.toLocaleString('fr-FR')}</DescriptionDetails>
+        <AdminSection
+          title="Alertes opérationnelles"
+          description="Signaux nécessitant une attention immédiate."
+        >
+          {errorRate > 5 ? (
+            <div className="flex items-start gap-3 rounded-lg border border-zinc-950/10 bg-zinc-950/[0.02] p-4 dark:border-white/10 dark:bg-white/[0.02]">
+              <ExclamationTriangleIcon className="size-5 shrink-0 text-zinc-400 dark:text-zinc-500" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-zinc-950 dark:text-white">
+                  Taux d&apos;erreur agent élevé
+                </p>
+                <p className="mt-0.5 text-xs/5 text-zinc-500 dark:text-zinc-400">
+                  {cost.errors.toLocaleString('fr-FR')} erreurs sur {cost.runs.toLocaleString('fr-FR')} runs (
+                  {errorRate.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %) sur les
+                  30 derniers jours.
+                </p>
+                <TextLink href="/admin/observability" className="mt-1 inline-block text-xs">
+                  Voir l&apos;observabilité
+                </TextLink>
+              </div>
             </div>
-          ))}
-        </DescriptionList>
-      </section>
-
-      {/* Coût agent */}
-      <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
-        <Subheading>Coût Claude 30j — Observabilité agent</Subheading>
-        <DescriptionList className="mt-4">
-          <DescriptionTerm>Total des appels agent</DescriptionTerm>
-          <DescriptionDetails className="tabular-nums">
-            {totalCost.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-          </DescriptionDetails>
-          <DescriptionTerm>Runs</DescriptionTerm>
-          <DescriptionDetails className="tabular-nums">{cost.runs.toLocaleString('fr-FR')}</DescriptionDetails>
-          <DescriptionTerm>Coût moyen / run</DescriptionTerm>
-          <DescriptionDetails className="tabular-nums">{(avgPerRun * 1000).toFixed(3)} m€</DescriptionDetails>
-          <DescriptionTerm>Taux d&apos;erreur</DescriptionTerm>
-          <DescriptionDetails className="tabular-nums">
-            {errorRate > 5 ? (
-              <Badge color="amber">{errorRate.toFixed(1)}%</Badge>
-            ) : (
-              <span>{errorRate.toFixed(1)}%</span>
-            )}
-          </DescriptionDetails>
-        </DescriptionList>
-        <div className="mt-6">
-          <Button href="/admin/observability" outline>
-            Détail par step
-          </Button>
-        </div>
-      </section>
+          ) : (
+            <AdminEmptyState
+              icon={CheckCircleIcon}
+              title="Aucune alerte"
+              description="Le taux d'erreur agent est nominal sur les 30 derniers jours."
+            />
+          )}
+        </AdminSection>
+      </div>
     </div>
   );
-}
-
-function Stat({ label, value, hint, href }: { label: string; value: string; hint: string; href?: string }) {
-  const body = (
-    <>
-      <Text>{label}</Text>
-      <Subheading className="mt-1 tabular-nums">{value}</Subheading>
-      <Text className="mt-1 text-xs tabular-nums text-zinc-500">{hint}</Text>
-    </>
-  );
-  if (href) {
-    return (
-      <TextLink href={href} className="block no-underline">
-        {body}
-      </TextLink>
-    );
-  }
-  return <div>{body}</div>;
 }

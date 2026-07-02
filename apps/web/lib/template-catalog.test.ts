@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vitest';
 import {
   getTemplateEntry,
   isLuxuryTemplate,
+  suggestTemplate,
   TEMPLATE_CATALOG,
   TEMPLATE_IDS,
 } from './template-catalog';
@@ -93,6 +94,115 @@ describe('isLuxuryTemplate', () => {
     for (const entry of luxuryEntries) {
       expect(isLuxuryTemplate(entry.id)).toBe(true);
     }
+  });
+});
+
+// ── suggestTemplate ────────────────────────────────────────────────────────
+
+describe('suggestTemplate', () => {
+  it('picks a rich wellness/beauty/home template for an aromatherapy collection niche', () => {
+    const id = suggestTemplate({
+      niche: 'home wellness aromatherapy compact beauty devices',
+      mode: 'collection',
+      productCount: 8,
+    });
+
+    const entry = getTemplateEntry(id);
+    expect(entry).toBeDefined();
+    expect(
+      entry!.niches.some((n) => n === 'wellness' || n === 'beauty' || n === 'home'),
+    ).toBe(true);
+    expect(entry!.register).not.toBe('luxury');
+    expect(entry!.mode).not.toBe('mono');
+    // A niche-specific rich layout must beat the generic fallbacks.
+    expect(id).not.toBe('auto');
+    expect(id).not.toBe('collection-grid');
+  });
+
+  it('returns the non-luxury mono template for a mono store', () => {
+    const id = suggestTemplate({
+      niche: 'gadget cuisine',
+      mode: 'mono',
+      productCount: 1,
+    });
+
+    expect(id).toBe('mono');
+    const entry = getTemplateEntry(id);
+    expect(entry).toBeDefined();
+    expect(entry!.mode).toBe('mono');
+    expect(entry!.register).not.toBe('luxury');
+  });
+
+  it('falls back to a valid non-auto, non-luxury id for an unknown niche', () => {
+    const id = suggestTemplate({
+      niche: 'objets divers zzz',
+      mode: 'collection',
+      productCount: 8,
+    });
+
+    expect(TEMPLATE_IDS).toContain(id);
+    expect(id).not.toBe('auto');
+    const entry = getTemplateEntry(id);
+    expect(entry).toBeDefined();
+    expect(entry!.register).not.toBe('luxury');
+  });
+
+  it('respects productCount: a 2-product collection only gets templates with minProducts <= 2', () => {
+    const id = suggestTemplate({
+      niche: 'objets divers zzz',
+      mode: 'collection',
+      productCount: 2,
+    });
+
+    const entry = getTemplateEntry(id);
+    expect(entry).toBeDefined();
+    expect(entry!.minProducts).toBeLessThanOrEqual(2);
+  });
+
+  it('never returns a luxury-register template, whatever the niche', () => {
+    const niches = [
+      'bijoux fashion luxe',
+      'haute joaillerie maison bague collier',
+      'beauté cosmétique éditoriale premium',
+      'mode vêtement streetwear',
+      'cadeau gifting maison déco',
+      'wellness spa massage aromathérapie',
+      'tech gadget audio smart',
+    ];
+    for (const niche of niches) {
+      for (const mode of ['mono', 'collection'] as const) {
+        const id = suggestTemplate({
+          niche,
+          mode,
+          productCount: mode === 'mono' ? 1 : 8,
+        });
+        const entry = getTemplateEntry(id);
+        expect(entry).toBeDefined();
+        expect(entry!.register).not.toBe('luxury');
+      }
+    }
+  });
+
+  it('is deterministic: two identical calls return the same id', () => {
+    const args = {
+      niche: 'home wellness aromatherapy compact beauty devices',
+      mode: 'collection' as const,
+      productCount: 8,
+    };
+    expect(suggestTemplate(args)).toBe(suggestTemplate({ ...args }));
+  });
+
+  it('uses the brief to detect the niche when the niche string is neutral', () => {
+    const id = suggestTemplate({
+      niche: 'boutique en ligne',
+      mode: 'collection',
+      productCount: 6,
+      brief: 'aromathérapie bien-être spa',
+    });
+
+    const entry = getTemplateEntry(id);
+    expect(entry).toBeDefined();
+    expect(entry!.niches).toContain('wellness');
   });
 });
 

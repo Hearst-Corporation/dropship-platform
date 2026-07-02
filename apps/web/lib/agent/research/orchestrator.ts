@@ -19,10 +19,10 @@ import type { ResearchStreamEvent, ShortlistPayload } from './types';
 
 // Niche research is the most strategic step in the pipeline — the choice of
 // niche dictates everything downstream (visuals, copy, ad angles). We run
-// the research loop on Opus 4.7 (vs Sonnet on the other modes) so the
-// reasoning and the shortlist quality are as strong as we can get them.
+// the research loop on the full GPT-4o model so the reasoning and the
+// shortlist quality are as strong as we can get them.
 // Bounded by MAX_TOOL_LOOPS so a single research session stays under ~$1.
-export const RESEARCH_MODEL = 'claude-opus-4-7';
+export const RESEARCH_MODEL = 'gpt-4o';
 const MAX_TOOL_LOOPS = 6;
 const MAX_TOOLS_PER_TURN = 8;
 

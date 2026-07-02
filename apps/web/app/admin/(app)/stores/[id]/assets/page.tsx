@@ -115,7 +115,7 @@ export default async function StoreAssetsPage({ params }: { params: Promise<{ id
       {!product?.image_url && (
         <div>
           <div className="flex items-center gap-2">
-            <Badge color="amber">Attention</Badge>
+            <Badge color="zinc">Attention</Badge>
             <Subheading>Aucun produit de référence</Subheading>
           </div>
           <Text className="mt-2">

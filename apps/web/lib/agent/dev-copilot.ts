@@ -47,7 +47,7 @@ import { z } from 'zod';
 
 const exec = promisify(execCallback);
 
-export const DEV_MODEL = 'claude-sonnet-4-6';
+export const DEV_MODEL = 'gpt-4o';
 export const DEV_MAX_TOOL_LOOPS = 15;
 export const DEV_MAX_TOOLS_PER_TURN = 20;
 const DEV_MAX_FILE_BYTES = 100 * 1024;

@@ -18,7 +18,7 @@ import { pushTiktokCampaign, isTiktokAdsConfigured } from '@/lib/ads/tiktok-ads'
 import { pushGoogleAdsCampaign, isGoogleAdsConfigured } from '@/lib/ads/google-ads';
 import { rebuildMessages } from './copilot-shared';
 
-const ADS_MODEL = 'claude-sonnet-4-6';
+const ADS_MODEL = 'gpt-4o';
 
 // ── Tool schemas ────────────────────────────────────────────────────────
 
@@ -399,7 +399,7 @@ async function execRewriteHook(store: StoreContext, raw: unknown): Promise<impor
   }
 
   const response = await trackedMessage({ step: 'ads-rewrite-hook' }, {
-    model: 'claude-haiku-4-5-20251001',
+    model: 'gpt-4o-mini',
     max_tokens: 1024,
     messages: [
       {
@@ -543,7 +543,7 @@ async function execSuggestTargeting(store: StoreContext, raw: unknown): Promise<
   }
 
   const response = await trackedMessage({ step: 'ads-suggest-targeting' }, {
-    model: 'claude-haiku-4-5-20251001',
+    model: 'gpt-4o-mini',
     max_tokens: 800,
     messages: [
       {

@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/setup-msw';
 import {
+  buildFluxKontextGraph,
+  buildFluxTxt2ImgGraph,
   getDeploymentIds,
   isComfyConfigured,
   pickRoundRobin,
@@ -69,6 +71,7 @@ describe('getDeploymentIds', () => {
 
 describe('isComfyConfigured', () => {
   beforeEach(() => {
+    vi.stubEnv('COMFY_BACKEND', '');
     vi.stubEnv('COMFY_DEPLOY_API_KEY', '');
     vi.stubEnv('COMFYUI_URL', '');
     vi.stubEnv('COMFY_DEPLOYMENT_IDS', '');
@@ -103,6 +106,373 @@ describe('isComfyConfigured', () => {
   it('is true on local backend regardless of deployment ids', () => {
     vi.stubEnv('COMFYUI_URL', 'http://localhost:8188');
     expect(isComfyConfigured()).toBe(true);
+  });
+
+  it('honors COMFY_BACKEND=local even when the deploy key is set', () => {
+    vi.stubEnv('COMFY_BACKEND', 'local');
+    vi.stubEnv('COMFY_DEPLOY_API_KEY', 'sk-comfy');
+    vi.stubEnv('COMFYUI_URL', 'http://localhost:8188');
+    // Deploy would need a deployment id; local needs none — true proves
+    // the forced backend won, not the key-based default.
+    expect(isComfyConfigured()).toBe(true);
+  });
+
+  it('is false when COMFY_BACKEND=local but COMFYUI_URL is missing', () => {
+    vi.stubEnv('COMFY_BACKEND', 'local');
+    vi.stubEnv('COMFY_DEPLOY_API_KEY', 'sk-comfy');
+    expect(isComfyConfigured()).toBe(false);
+  });
+});
+
+describe('buildFluxTxt2ImgGraph', () => {
+  beforeEach(() => {
+    vi.stubEnv('COMFYUI_CHECKPOINT', '');
+    vi.stubEnv('COMFYUI_STEPS', '');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  type GraphNode = { class_type: string; inputs: Record<string, unknown> };
+  const nodesOf = (g: Record<string, object>) => Object.values(g) as GraphNode[];
+  const nodeByClass = (g: Record<string, object>, cls: string) =>
+    nodesOf(g).find((n) => n.class_type === cls)!;
+
+  it('defaults to the verified FLUX dev fp8 checkpoint on comfy.hearst.app', () => {
+    const g = buildFluxTxt2ImgGraph({ prompt: 'hero' });
+    expect(nodeByClass(g, 'CheckpointLoaderSimple').inputs.ckpt_name).toBe(
+      'FLUX1/flux1-dev-fp8.safetensors',
+    );
+  });
+
+  it('honors COMFYUI_CHECKPOINT env and the explicit checkpoint option', () => {
+    vi.stubEnv('COMFYUI_CHECKPOINT', 'FLUX1/flux1-schnell-fp8.safetensors');
+    const fromEnv = buildFluxTxt2ImgGraph({ prompt: 'p' });
+    expect(nodeByClass(fromEnv, 'CheckpointLoaderSimple').inputs.ckpt_name).toBe(
+      'FLUX1/flux1-schnell-fp8.safetensors',
+    );
+    const explicit = buildFluxTxt2ImgGraph({ prompt: 'p', checkpoint: 'FLUX1/flux1-dev.safetensors' });
+    expect(nodeByClass(explicit, 'CheckpointLoaderSimple').inputs.ckpt_name).toBe(
+      'FLUX1/flux1-dev.safetensors',
+    );
+  });
+
+  it('wires prompt + negative into the two CLIPTextEncode nodes', () => {
+    const g = buildFluxTxt2ImgGraph({ prompt: 'a hero shot', negativePrompt: 'text, logo' });
+    const texts = nodesOf(g)
+      .filter((n) => n.class_type === 'CLIPTextEncode')
+      .map((n) => n.inputs.text);
+    expect(texts).toContain('a hero shot');
+    expect(texts).toContain('text, logo');
+  });
+
+  it('uses FLUX-safe sampling defaults (cfg=1, euler/simple, 16:9 latent, /16 grid)', () => {
+    const g = buildFluxTxt2ImgGraph({ prompt: 'p' });
+    const sampler = nodeByClass(g, 'KSampler').inputs;
+    expect(sampler.cfg).toBe(1.0);
+    expect(sampler.sampler_name).toBe('euler');
+    expect(sampler.scheduler).toBe('simple');
+    const latent = nodeByClass(g, 'EmptySD3LatentImage').inputs;
+    expect(latent.width).toBe(1344);
+    expect(latent.height).toBe(768);
+  });
+
+  it('snaps custom dimensions to the /16 grid and passes seed through', () => {
+    const g = buildFluxTxt2ImgGraph({ prompt: 'p', width: 1000, height: 777, seed: 42 });
+    const latent = nodeByClass(g, 'EmptySD3LatentImage').inputs;
+    expect((latent.width as number) % 16).toBe(0);
+    expect((latent.height as number) % 16).toBe(0);
+    expect(nodeByClass(g, 'KSampler').inputs.seed).toBe(42);
+  });
+});
+
+describe('buildFluxKontextGraph', () => {
+  beforeEach(() => {
+    vi.stubEnv('COMFYUI_KONTEXT_UNET', '');
+    vi.stubEnv('COMFYUI_STEPS', '');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  type GraphNode = { class_type: string; inputs: Record<string, unknown> };
+  const nodesOf = (g: Record<string, object>) => Object.values(g) as GraphNode[];
+  const nodeByClass = (g: Record<string, object>, cls: string) =>
+    nodesOf(g).find((n) => n.class_type === cls)!;
+
+  it('wires the verified kontext model stack (UNET + dual CLIP + ae VAE)', () => {
+    const g = buildFluxKontextGraph({ prompt: 'p', referenceImageName: 'dropship-refs/ref.jpg' });
+    expect(nodeByClass(g, 'UNETLoader').inputs.unet_name).toBe(
+      'flux1-dev-kontext_fp8_scaled.safetensors',
+    );
+    const clip = nodeByClass(g, 'DualCLIPLoader').inputs;
+    expect(clip.clip_name1).toBe('clip_l.safetensors');
+    expect(clip.clip_name2).toBe('t5xxl_fp8_e4m3fn_scaled.safetensors');
+    expect(clip.type).toBe('flux');
+    expect(nodeByClass(g, 'VAELoader').inputs.vae_name).toBe('ae.safetensors');
+  });
+
+  it('feeds the reference image through LoadImage → kontext scale → VAEEncode → ReferenceLatent', () => {
+    const g = buildFluxKontextGraph({ prompt: 'p', referenceImageName: 'dropship-refs/ref.jpg' });
+    expect(nodeByClass(g, 'LoadImage').inputs.image).toBe('dropship-refs/ref.jpg');
+    expect(nodeByClass(g, 'FluxKontextImageScale')).toBeDefined();
+    expect(nodeByClass(g, 'VAEEncode')).toBeDefined();
+    expect(nodeByClass(g, 'ReferenceLatent')).toBeDefined();
+    expect(nodeByClass(g, 'FluxGuidance').inputs.guidance).toBe(2.5);
+    // The sampler must denoise FROM the reference latent, not an empty one.
+    const sampler = nodeByClass(g, 'KSampler').inputs;
+    expect(sampler.cfg).toBe(1.0);
+    expect(nodesOf(g).some((n) => n.class_type === 'EmptySD3LatentImage')).toBe(false);
+  });
+
+  it('wires the prompt into CLIPTextEncode and honors seed/guidance/unet overrides', () => {
+    vi.stubEnv('COMFYUI_KONTEXT_UNET', 'flux1-dev-bf16.safetensors');
+    const g = buildFluxKontextGraph({
+      prompt: 'same exact product on an oak shelf',
+      referenceImageName: 'ref.png',
+      seed: 99,
+      guidance: 3.0,
+    });
+    expect(nodeByClass(g, 'CLIPTextEncode').inputs.text).toBe('same exact product on an oak shelf');
+    expect(nodeByClass(g, 'KSampler').inputs.seed).toBe(99);
+    expect(nodeByClass(g, 'FluxGuidance').inputs.guidance).toBe(3.0);
+    expect(nodeByClass(g, 'UNETLoader').inputs.unet_name).toBe('flux1-dev-bf16.safetensors');
+  });
+});
+
+/**
+ * Local backend end-to-end via MSW: /prompt queue, /history poll, /view
+ * binary fetch. The queue handler captures the submitted graph so we can
+ * assert that deploy-style `inputs` get synthesized into a FLUX txt2img
+ * graph — the conciliation path that lets asset-generator stay
+ * backend-agnostic while comfy.hearst.app does the actual rendering.
+ *
+ * The kontext tests add two more handlers: the supplier image URL and
+ * POST /upload/image, so we can observe the full reference round-trip
+ * (download → upload → LoadImage name in the submitted graph).
+ */
+describe('runWorkflow local backend', () => {
+  const BASE = 'http://127.0.0.1:8188';
+  const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  let submittedGraphs: Array<Record<string, { class_type: string; inputs: Record<string, unknown> }>> = [];
+
+  const realSetTimeout = globalThis.setTimeout;
+  beforeEach(() => {
+    submittedGraphs = [];
+    vi.stubEnv('COMFY_BACKEND', '');
+    vi.stubEnv('COMFY_DEPLOY_API_KEY', '');
+    vi.stubEnv('COMFYUI_URL', BASE);
+    vi.stubEnv('COMFYUI_CHECKPOINT', '');
+    vi.stubEnv('COMFYUI_STEPS', '');
+
+    // Collapse the 2s poll delay to a 0ms tick — ordering only.
+    vi.spyOn(globalThis, 'setTimeout').mockImplementation(
+      ((fn: () => void) => realSetTimeout(fn, 0)) as typeof setTimeout,
+    );
+
+    server.use(
+      http.post(`${BASE}/prompt`, async ({ request }) => {
+        const body = (await request.json()) as { prompt: Record<string, { class_type: string; inputs: Record<string, unknown> }> };
+        submittedGraphs.push(body.prompt);
+        return HttpResponse.json({ prompt_id: 'prompt_123' });
+      }),
+      http.get(`${BASE}/history/prompt_123`, () =>
+        HttpResponse.json({
+          prompt_123: {
+            status: { status_str: 'success', completed: true },
+            outputs: {
+              '7': { images: [{ filename: 'dropship-asset_00001_.png', subfolder: '', type: 'output' }] },
+            },
+          },
+        }),
+      ),
+      http.get(`${BASE}/view`, () =>
+        HttpResponse.arrayBuffer(PNG_BYTES.buffer as ArrayBuffer, {
+          headers: { 'Content-Type': 'image/png' },
+        }),
+      ),
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it('synthesizes a FLUX txt2img graph from deploy-style inputs and returns the image', async () => {
+    const result = await runWorkflow({
+      inputs: { prompt: 'editorial hero', negative_prompt: 'text, logo', seed: 7 },
+    });
+
+    expect(result.runId).toBe('prompt_123');
+    expect(result.deploymentId).toBe('local');
+    expect(result.images).toHaveLength(1);
+    expect(Buffer.from(PNG_BYTES).equals(result.images[0]!)).toBe(true);
+
+    expect(submittedGraphs).toHaveLength(1);
+    const graph = submittedGraphs[0]!;
+    const classes = Object.values(graph).map((n) => n.class_type);
+    expect(classes).toEqual(
+      expect.arrayContaining([
+        'CheckpointLoaderSimple',
+        'CLIPTextEncode',
+        'EmptySD3LatentImage',
+        'KSampler',
+        'VAEDecode',
+        'SaveImage',
+      ]),
+    );
+    const sampler = Object.values(graph).find((n) => n.class_type === 'KSampler')!;
+    expect(sampler.inputs.seed).toBe(7);
+  });
+
+  it('sends an explicit graph verbatim, bypassing the builder', async () => {
+    const custom = { '1': { class_type: 'CustomNode', inputs: { foo: 'bar' } } };
+    const result = await runWorkflow({ graph: custom });
+    expect(result.runId).toBe('prompt_123');
+    expect(submittedGraphs[0]).toEqual(custom);
+  });
+
+  it('throws when neither graph nor inputs.prompt is provided', async () => {
+    await expect(runWorkflow({ inputs: { reference_image: 'https://x/y.png' } })).rejects.toThrow(
+      /graph or inputs\.prompt required/,
+    );
+  });
+
+  it('COMFY_BACKEND=local forces the local path even with a deploy key set', async () => {
+    vi.stubEnv('COMFY_BACKEND', 'local');
+    vi.stubEnv('COMFY_DEPLOY_API_KEY', 'sk-comfy-should-be-ignored');
+    const result = await runWorkflow({ inputs: { prompt: 'forced local' } });
+    expect(result.deploymentId).toBe('local');
+    expect(submittedGraphs).toHaveLength(1);
+  });
+
+  describe('kontext reference path', () => {
+    const REF_URL = 'https://cdn.supplier.test/kf/product-photo.jpg';
+    const JPEG_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]);
+    let uploadedFilenames: string[] = [];
+
+    beforeEach(() => {
+      uploadedFilenames = [];
+      server.use(
+        http.get(REF_URL, () =>
+          HttpResponse.arrayBuffer(JPEG_BYTES.buffer as ArrayBuffer, {
+            headers: { 'Content-Type': 'image/jpeg' },
+          }),
+        ),
+        http.post(`${BASE}/upload/image`, async ({ request }) => {
+          const form = await request.formData();
+          const file = form.get('image') as File;
+          uploadedFilenames.push(file.name);
+          return HttpResponse.json({
+            name: file.name,
+            subfolder: String(form.get('subfolder') || ''),
+            type: 'input',
+          });
+        }),
+      );
+    });
+
+    it('uploads the reference and submits a kontext graph wired to it', async () => {
+      const result = await runWorkflow({
+        inputs: {
+          prompt: 'the exact same product on an oak shelf',
+          reference_image: REF_URL,
+          seed: 11,
+        },
+      });
+
+      expect(result.runId).toBe('prompt_123');
+      expect(result.images).toHaveLength(1);
+
+      // /upload/image was hit exactly once, with a unique .jpg name.
+      expect(uploadedFilenames).toHaveLength(1);
+      expect(uploadedFilenames[0]).toMatch(/^ref-\d+-[a-z0-9]+\.jpg$/);
+
+      expect(submittedGraphs).toHaveLength(1);
+      const graph = submittedGraphs[0]!;
+      const classes = Object.values(graph).map((n) => n.class_type);
+      expect(classes).toEqual(
+        expect.arrayContaining([
+          'UNETLoader',
+          'DualCLIPLoader',
+          'VAELoader',
+          'LoadImage',
+          'FluxKontextImageScale',
+          'VAEEncode',
+          'ReferenceLatent',
+          'FluxGuidance',
+          'KSampler',
+          'VAEDecode',
+          'SaveImage',
+        ]),
+      );
+      // LoadImage points at the uploaded file (subfolder/filename).
+      const loadImage = Object.values(graph).find((n) => n.class_type === 'LoadImage')!;
+      expect(loadImage.inputs.image).toBe(`dropship-refs/${uploadedFilenames[0]}`);
+      // The prompt made it into the kontext conditioning, seed into the sampler.
+      const textNode = Object.values(graph).find((n) => n.class_type === 'CLIPTextEncode')!;
+      expect(textNode.inputs.text).toBe('the exact same product on an oak shelf');
+      expect(Object.values(graph).find((n) => n.class_type === 'KSampler')!.inputs.seed).toBe(11);
+    });
+
+    it('keeps plain txt2img untouched when reference_image is absent', async () => {
+      await runWorkflow({ inputs: { prompt: 'hero without reference' } });
+
+      expect(uploadedFilenames).toHaveLength(0);
+      const classes = Object.values(submittedGraphs[0]!).map((n) => n.class_type);
+      expect(classes).toContain('CheckpointLoaderSimple');
+      expect(classes).toContain('EmptySD3LatentImage');
+      expect(classes).not.toContain('LoadImage');
+      expect(classes).not.toContain('ReferenceLatent');
+    });
+
+    it('ignores non-http reference_image values (stays on txt2img)', async () => {
+      await runWorkflow({
+        inputs: { prompt: 'p', reference_image: 'not-a-url.png' },
+      });
+      expect(uploadedFilenames).toHaveLength(0);
+      const classes = Object.values(submittedGraphs[0]!).map((n) => n.class_type);
+      expect(classes).toContain('CheckpointLoaderSimple');
+      expect(classes).not.toContain('LoadImage');
+    });
+
+    it('falls back to txt2img (with a warning) when the reference download fails', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      server.use(
+        http.get(REF_URL, () => new HttpResponse(null, { status: 404 })),
+      );
+
+      const result = await runWorkflow({
+        inputs: { prompt: 'p', reference_image: REF_URL },
+      });
+
+      expect(result.images).toHaveLength(1);
+      expect(uploadedFilenames).toHaveLength(0);
+      const classes = Object.values(submittedGraphs[0]!).map((n) => n.class_type);
+      expect(classes).toContain('CheckpointLoaderSimple');
+      expect(classes).not.toContain('ReferenceLatent');
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('kontext reference path failed'));
+    });
+
+    it('falls back to txt2img when /upload/image errors', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      server.use(
+        http.post(`${BASE}/upload/image`, () => new HttpResponse('disk full', { status: 500 })),
+      );
+
+      const result = await runWorkflow({
+        inputs: { prompt: 'p', reference_image: REF_URL },
+      });
+
+      expect(result.images).toHaveLength(1);
+      const classes = Object.values(submittedGraphs[0]!).map((n) => n.class_type);
+      expect(classes).toContain('CheckpointLoaderSimple');
+      expect(classes).not.toContain('LoadImage');
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('kontext reference path failed'));
+    });
   });
 });
 
@@ -159,6 +529,7 @@ describe('runWorkflow round-robin', () => {
   beforeEach(() => {
     __resetRoundRobinForTests();
     calledDeployments = [];
+    vi.stubEnv('COMFY_BACKEND', '');
     vi.stubEnv('COMFY_DEPLOY_API_KEY', 'sk-comfy-test');
     vi.stubEnv('COMFYUI_URL', '');
 

@@ -37,7 +37,7 @@ export function StorefrontMinimal({
             <span className="text-sm font-semibold tracking-tight text-gray-900">{store.name}</span>
           </Link>
           <Link
-            href={`/shop/${store.slug}/cart`}
+            href="/cart"
             className="flex items-center gap-1.5 rounded-full border border-gray-200 px-4 py-1.5 text-sm text-gray-700 hover:border-gray-400 transition-colors"
           >
             <svg

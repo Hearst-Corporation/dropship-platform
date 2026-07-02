@@ -92,14 +92,14 @@ vi.mock('@/lib/db', () => ({
 }));
 
 /**
- * Mutable Kimi harness. `responder` decides what each `trackedKimiMessage` call
+ * Mutable LLM harness. `responder` decides what each the tracked model wrapper call
  * returns; the default reproduces the production-shaped happy path. Tests swap
- * `kimi.responder` to drive failure modes (truncation, invalid JSON) without
+ * `llm.responder` to drive failure modes (truncation, invalid JSON) without
  * re-mocking the module. `calls` captures (meta, messages, opts) so we can
  * assert the call site requests the right token budget. `vi.hoisted` lets the
  * `vi.mock` factory (hoisted above imports) reference it safely.
  */
-const kimi = vi.hoisted(() => {
+const llm = vi.hoisted(() => {
   const branding = {
     tagline: 'Test Tagline',
     description: 'Test store description',
@@ -109,12 +109,12 @@ const kimi = vi.hoisted(() => {
     logoEmoji: '🧘',
   };
   const usage = { prompt_tokens: 100, completion_tokens: 200, total_tokens: 300 };
-  type KimiResult = { text: string; usage: typeof usage; finishReason: string | null };
+  type LlmResult = { text: string; usage: typeof usage; finishReason: string | null };
   type Responder = (
     meta: { step: string },
     messages?: unknown,
     opts?: { maxTokens?: number },
-  ) => KimiResult;
+  ) => LlmResult;
 
   const defaultResponder: Responder = ({ step }) => {
     if (step === 'generate-products') {
@@ -161,11 +161,11 @@ const kimi = vi.hoisted(() => {
   };
 });
 
-vi.mock('@/lib/agent/kimi', () => ({
-  trackedKimiMessage: vi.fn(
+vi.mock('@/lib/agent/openai-agent', () => ({
+  trackedOpenAIMessage: vi.fn(
     (meta: { step: string }, messages?: unknown, opts?: { maxTokens?: number }) => {
-      kimi.calls.push({ meta, opts });
-      return Promise.resolve(kimi.responder(meta, messages, opts));
+      llm.calls.push({ meta, opts });
+      return Promise.resolve(llm.responder(meta, messages, opts));
     },
   ),
 }));
@@ -182,11 +182,15 @@ async function collectEvents(
 beforeEach(() => {
   captured.length = 0;
   resetMedusaCounter();
-  kimi.reset();
+  llm.reset();
+  // No image provider in the harness: the collection-hero step must take the
+  // deterministic no-provider branch, never hit the network.
+  vi.stubEnv('FAL_KEY', '');
 });
 
 afterEach(() => {
   vi.clearAllMocks();
+  vi.unstubAllEnvs();
 });
 
 describe('createStore — E2E pipeline', () => {
@@ -308,30 +312,30 @@ describe('createStore — E2E pipeline', () => {
 });
 
 /**
- * Regression coverage for the prod incident where Kimi truncated the
+ * Regression coverage for the prod incident where the model truncated the
  * enrichment JSON at the (old) 4096-token ceiling and the pipeline died with
  * "Claude returned invalid JSON" (store "Roadly", 2026-06-03).
  *
  * These drive the *real* extractJson + error handling in store-creator.ts via
- * the mutable `kimi.responder`, so they exercise the salvage + truncation-aware
+ * the mutable `llm.responder`, so they exercise the salvage + truncation-aware
  * error paths the happy-path tests above never hit.
  */
 describe('createStore — JSON resilience (Roadly regression)', () => {
   it('recovers a truncated enrichment payload (salvage keeps complete products)', async () => {
     // Branding emitted first (survives truncation), 2 complete products, the
     // 3rd cut mid-string — exactly the max_tokens failure shape.
-    kimi.responder = ({ step }) => {
+    llm.responder = ({ step }) => {
       if (step === 'enrich-products') {
         const truncated =
           '{\n' +
-          `  "branding": ${JSON.stringify(kimi.branding)},\n` +
+          `  "branding": ${JSON.stringify(llm.branding)},\n` +
           '  "products": [\n' +
           '    {"index":0,"enrichedTitle":"Tapis Yoga Pro","enrichedDescription":"desc a","retailPriceCents":2199,"costCents":800},\n' +
           '    {"index":1,"enrichedTitle":"Bloc Yoga","enrichedDescription":"desc b","retailPriceCents":1499,"costCents":500},\n' +
           '    {"index":2,"enrichedTitle":"Sangle Yoga","enrichedDescription":"ce texte est coupé au milieu';
-        return { text: truncated, usage: kimi.usage, finishReason: 'length' };
+        return { text: truncated, usage: llm.usage, finishReason: 'length' };
       }
-      return kimi.defaultResponder({ step });
+      return llm.defaultResponder({ step });
     };
 
     const { createStore } = await import('./store-creator');
@@ -367,11 +371,11 @@ describe('createStore — JSON resilience (Roadly regression)', () => {
   it('fails gracefully on unrecoverable truncation (clear error, store marked error)', async () => {
     // Cut off before any element closes → nothing to salvage → must surface the
     // truncation-specific message, not a crash.
-    kimi.responder = ({ step }) => {
+    llm.responder = ({ step }) => {
       if (step === 'enrich-products') {
-        return { text: '{"branding": {"tagline": "coupé tout de suite', usage: kimi.usage, finishReason: 'length' };
+        return { text: '{"branding": {"tagline": "coupé tout de suite', usage: llm.usage, finishReason: 'length' };
       }
-      return kimi.defaultResponder({ step });
+      return llm.defaultResponder({ step });
     };
 
     const { createStore } = await import('./store-creator');
@@ -412,10 +416,170 @@ describe('createStore — JSON resilience (Roadly regression)', () => {
       }),
     );
 
-    const enrichCall = kimi.calls.find((c) => c.meta.step === 'enrich-products');
+    const enrichCall = llm.calls.find((c) => c.meta.step === 'enrich-products');
     expect(enrichCall).toBeDefined();
     // The old bug was a flat 4096 ceiling. The call site must now request a
     // budget scaled to the product count, well above that.
     expect(enrichCall!.opts?.maxTokens).toBeGreaterThanOrEqual(8192);
+  });
+});
+
+/**
+ * Full-brief delivery contract (Lumora scenario): operator brief + markets are
+ * honored, the FULL supplier policy (16 platforms) is reported, every product
+ * carries risk/status fields, a Google Ads plan is ALWAYS produced (fallback
+ * when the model yields nothing) and the run report is persisted through the
+ * platform_settings KV.
+ */
+describe('createStore — brief complet, fournisseurs, plan ads, rapport', () => {
+  const REQUIRED_PLATFORMS = [
+    'aliexpress', 'cj', 'zendrop', 'bigbuy', 'syncee', 'wholesale2b', 'doba',
+    'inventory-source', 'spocket', 'autods', 'alibaba', '1688', 'taobao',
+    'indiamart', 'tradeindia', 'exportersindia',
+  ];
+
+  async function runLumora() {
+    const { createStore } = await import('./store-creator');
+    const events = await collectEvents(
+      createStore({
+        niche: 'home wellness aromatherapy compact beauty devices',
+        storeName: 'Lumora Wellness',
+        maxProducts: 3,
+        mode: 'collection',
+        language: 'fr',
+        brief: 'Produits à forte marge, expédition fiable, éviter les produits médicaux réglementés et les claims santé excessifs.',
+        markets: ['FR', 'AE'],
+      }),
+    );
+    return events;
+  }
+
+  function savedReport(): Record<string, unknown> {
+    const reportInsert = captured.find(
+      (q) => q.sql.includes('INSERT INTO platform_settings') && String(q.params[0]).startsWith('store_report:'),
+    );
+    expect(reportInsert).toBeDefined();
+    return JSON.parse(String(reportInsert!.params[1]));
+  }
+
+  it('delivers end-to-end with brief + markets and persists the run report', async () => {
+    const events = await runLumora();
+    expect(events.filter((e) => e.type === 'error')).toEqual([]);
+    const success = events.find((e) => e.type === 'success');
+    expect(success).toBeDefined();
+
+    const report = savedReport() as {
+      brief: string; markets: string[]; niche: string;
+      products: Array<{ riskLevel: string; marketFit: string; status: string; reason: string; marginPct: number | null; imageUrl: string | null }>;
+      events: Array<{ type: string; message: string }>;
+    };
+    expect(report.brief).toMatch(/forte marge/);
+    expect(report.markets).toEqual(['FR', 'AE']);
+    expect(report.products.length).toBeGreaterThanOrEqual(3);
+    for (const p of report.products) {
+      expect(['low', 'medium', 'high', 'unknown']).toContain(p.riskLevel);
+      expect(p.marketFit.length).toBeGreaterThan(0);
+      expect(['imported', 'import_failed', 'local_only', 'proposed']).toContain(p.status);
+      expect(p.reason.length).toBeGreaterThan(0);
+    }
+    // The event log is persisted for admin replay.
+    expect(report.events.length).toBeGreaterThan(3);
+  });
+
+  it('reports the FULL supplier policy: 16 platforms known, excluded ones justified', async () => {
+    await runLumora();
+    const report = savedReport() as {
+      suppliers: Array<{ id: string; status: string; reason: string; considered: boolean }>;
+    };
+    const ids = report.suppliers.map((s) => s.id);
+    for (const required of REQUIRED_PLATFORMS) {
+      expect(ids).toContain(required);
+    }
+    const excluded = report.suppliers.filter((s) => s.status === 'excluded');
+    expect(excluded.length).toBeGreaterThanOrEqual(6);
+    for (const ex of excluded) {
+      expect(ex.considered).toBe(false);
+      expect(ex.reason.length).toBeGreaterThan(10);
+    }
+    // The active sourcing suppliers were genuinely considered.
+    expect(report.suppliers.find((s) => s.id === 'aliexpress')!.considered).toBe(true);
+  });
+
+  it('always stages a Google Ads plan (deterministic fallback when the model is silent)', async () => {
+    const events = await runLumora();
+    // Default responder returns '' for the 'ads-plan' step → fallback path.
+    const report = savedReport() as {
+      adsPlan: {
+        source: string; campaignName: string; countries: string[]; dailyBudgetEur: number;
+        headlines: string[]; descriptions: string[]; keywords: string[]; negativeKeywords: string[];
+        policyRisks: string[]; nextSteps: string[]; trackingNotes: string[]; landingPage: string;
+      } | null;
+    };
+    expect(report.adsPlan).not.toBeNull();
+    const plan = report.adsPlan!;
+    expect(plan.source).toBe('fallback');
+    expect(plan.countries).toEqual(['FR', 'AE']);
+    expect(plan.headlines.length).toBeGreaterThanOrEqual(5);
+    expect(plan.descriptions.length).toBeGreaterThanOrEqual(3);
+    expect(plan.keywords.length).toBeGreaterThanOrEqual(5);
+    expect(plan.negativeKeywords.length).toBeGreaterThanOrEqual(3);
+    expect(plan.policyRisks.length).toBeGreaterThan(0);
+    expect(plan.nextSteps.length).toBeGreaterThan(0);
+    expect(plan.dailyBudgetEur).toBeGreaterThan(0);
+
+    const adsEvent = events.find((e) => e.message.includes('Plan Google Ads prêt'));
+    expect(adsEvent).toBeDefined();
+  });
+
+  it('fallback products get a deterministic non-empty image (no dead visuals)', async () => {
+    server.use(emptyAliexpress());
+    const { createStore } = await import('./store-creator');
+    const events = await collectEvents(
+      createStore({
+        niche: 'objet improbable',
+        storeName: 'Fallback Visuals',
+        maxProducts: 3,
+        mode: 'collection',
+        language: 'fr',
+        markets: ['FR', 'AE'],
+      }),
+    );
+    expect(events.filter((e) => e.type === 'error')).toEqual([]);
+    const report = savedReport() as {
+      products: Array<{ imageUrl: string | null }>;
+      assets: { status: string; notes: string };
+    };
+    for (const p of report.products) {
+      expect(p.imageUrl).toBeTruthy();
+    }
+    expect(report.assets.status).toBe('placeholder');
+  });
+
+  it('survives a Medusa outage: products persisted locally, run still succeeds', async () => {
+    const { setMedusaDown } = await import('@/test/handlers/medusa');
+    setMedusaDown(true);
+    try {
+      const events = await runLumora();
+      expect(events.filter((e) => e.type === 'error')).toEqual([]);
+      const success = events.find((e) => e.type === 'success');
+      expect(success).toBeDefined();
+      expect(success!.data).toMatchObject({ medusaOnline: false });
+
+      // Products still landed in Postgres with a NULL medusa id.
+      const productInserts = captured.filter((q) =>
+        q.sql.startsWith('INSERT INTO dropship_store_products'),
+      );
+      expect(productInserts.length).toBeGreaterThanOrEqual(3);
+      for (const row of productInserts) {
+        expect(row.params[1]).toBeNull();
+      }
+
+      const report = savedReport() as { products: Array<{ status: string }> };
+      for (const p of report.products) {
+        expect(p.status).toBe('local_only');
+      }
+    } finally {
+      setMedusaDown(false);
+    }
   });
 });

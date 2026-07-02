@@ -42,7 +42,7 @@ export function StorefrontShowcase({
             <span className="font-semibold text-gray-900">{store.name}</span>
           </Link>
           <Link
-            href={`/shop/${store.slug}/cart`}
+            href="/cart"
             className="group flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
             style={{ backgroundColor: store.primaryColor }}
           >
@@ -379,7 +379,7 @@ export function StorefrontShowcase({
               <p className="text-sm opacity-70">{store.tagline}</p>
             )}
             <div className="mt-4 flex gap-6 text-sm opacity-70">
-              <Link href={`/shop/${store.slug}/cart`} className="hover:opacity-100 transition-opacity">
+              <Link href="/cart" className="hover:opacity-100 transition-opacity">
                 Panier
               </Link>
             </div>

@@ -11,7 +11,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/setup-msw';
-import { cjClient, __resetCjAuthCache } from './cj';
+import { cjClient, parseCjNumber, __resetCjAuthCache } from './cj';
 
 // ---------------------------------------------------------------------------
 // Helpers — MSW override factories
@@ -107,6 +107,169 @@ beforeEach(() => {
   __resetCjAuthCache();
   vi.stubEnv('CJ_DROPSHIPPING_EMAIL', 'test@test.local');
   vi.stubEnv('CJ_DROPSHIPPING_API_KEY', 'test-cj-key');
+});
+
+// ---------------------------------------------------------------------------
+// searchProducts — GET /product/list with productNameEn query param
+// ---------------------------------------------------------------------------
+
+describe('cjClient.searchProducts', () => {
+  it('sends a GET with productNameEn/pageNum/pageSize and normalizes products', async () => {
+    vi.stubEnv('SUPPLIER_USD_EUR_RATE', '0.92');
+    let capturedUrl: URL | null = null;
+
+    server.use(
+      mockCJAuth(),
+      http.get(
+        'https://developers.cjdropshipping.com/api2.0/v1/product/list',
+        ({ request }) => {
+          capturedUrl = new URL(request.url);
+          return HttpResponse.json({
+            code: 200,
+            result: true,
+            data: {
+              total: 2,
+              pageNum: 1,
+              pageSize: 20,
+              list: [
+                {
+                  pid: 'pid-1',
+                  productNameEn: 'Aromatherapy Diffuser 500ml',
+                  productImage: 'https://cf.cjdropshipping.com/img1.jpg',
+                  productWeight: '150',
+                  sellPrice: '13.00',
+                  categoryId: 'cat-1',
+                  categoryName: 'Home',
+                  sourceFrom: '0',
+                },
+                {
+                  // Range price + range weight, as the real API returns for
+                  // multi-variant products.
+                  pid: 'pid-2',
+                  productNameEn: 'Essential Oil Diffuser Set',
+                  productImage: 'https://cf.cjdropshipping.com/img2.jpg',
+                  productWeight: '1730.00-3200.00',
+                  sellPrice: '14.59 -- 24.05',
+                  categoryId: 'cat-2',
+                  categoryName: 'Home',
+                  sourceFrom: '1',
+                },
+              ],
+            },
+          });
+        },
+      ),
+    );
+
+    const result = await cjClient.searchProducts({ keywords: 'aromatherapy diffuser' });
+
+    expect(result.success).toBe(true);
+    expect(result.total).toBe(2);
+    expect(capturedUrl!.searchParams.get('productNameEn')).toBe('aromatherapy diffuser');
+    expect(capturedUrl!.searchParams.get('pageNum')).toBe('1');
+    expect(capturedUrl!.searchParams.get('pageSize')).toBe('20');
+
+    expect(result.products[0]).toMatchObject({
+      supplier: 'cj',
+      externalId: 'pid-1',
+      title: 'Aromatherapy Diffuser 500ml',
+      imageUrl: 'https://cf.cjdropshipping.com/img1.jpg',
+      supplierUrl: 'https://www.cjdropshipping.com/product/-p-pid-1.html',
+      weightGrams: 150,
+    });
+    // 13.00 USD * 0.92 = 11.96 EUR
+    expect(result.products[0].price).toBeCloseTo(11.96, 2);
+
+    // Range price → lower bound: 14.59 USD * 0.92 = 13.4228 EUR
+    expect(result.products[1].price).toBeCloseTo(13.4228, 3);
+    expect(result.products[1].weightGrams).toBe(1730);
+  });
+
+  it('retries once on the 1 req/s QPS limit (HTTP 429 / code 1600200)', async () => {
+    let calls = 0;
+
+    server.use(
+      mockCJAuth(),
+      http.get(
+        'https://developers.cjdropshipping.com/api2.0/v1/product/list',
+        () => {
+          calls += 1;
+          if (calls === 1) {
+            return HttpResponse.json(
+              { code: 1600200, result: false, message: 'Too Many Requests, QPS limit is 1 time/1second' },
+              { status: 429 },
+            );
+          }
+          return HttpResponse.json({
+            code: 200,
+            result: true,
+            data: {
+              total: 1,
+              pageNum: 1,
+              pageSize: 20,
+              list: [
+                {
+                  pid: 'pid-retry',
+                  productNameEn: 'Diffuser',
+                  productImage: 'https://cf.cjdropshipping.com/img.jpg',
+                  productWeight: '100',
+                  sellPrice: '10.00',
+                  categoryId: 'cat',
+                  categoryName: 'Home',
+                  sourceFrom: '0',
+                },
+              ],
+            },
+          });
+        },
+      ),
+    );
+
+    const result = await cjClient.searchProducts({ keywords: 'diffuser' });
+
+    expect(calls).toBe(2);
+    expect(result.success).toBe(true);
+    expect(result.products).toHaveLength(1);
+    expect(result.products[0].externalId).toBe('pid-retry');
+  }, 10_000);
+
+  it('returns success:false when CJ replies with a non-200 business code', async () => {
+    server.use(
+      mockCJAuth(),
+      http.get(
+        'https://developers.cjdropshipping.com/api2.0/v1/product/list',
+        () =>
+          HttpResponse.json({
+            code: 16900202,
+            result: false,
+            message: "Request method 'POST' not supported",
+          }),
+      ),
+    );
+
+    const result = await cjClient.searchProducts({ keywords: 'diffuser' });
+
+    expect(result.success).toBe(false);
+    expect(result.products).toHaveLength(0);
+    expect(result.error).toMatch(/not supported/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseCjNumber — price/weight string parsing
+// ---------------------------------------------------------------------------
+
+describe('parseCjNumber', () => {
+  it('parses plain numbers, strings, and takes the lower bound of ranges', () => {
+    expect(parseCjNumber(13)).toBe(13);
+    expect(parseCjNumber('13.00')).toBe(13);
+    expect(parseCjNumber('14.59 -- 24.05')).toBe(14.59);
+    expect(parseCjNumber('1730.00-3200.00')).toBe(1730);
+    expect(parseCjNumber('')).toBe(0);
+    expect(parseCjNumber(null)).toBe(0);
+    expect(parseCjNumber(undefined)).toBe(0);
+    expect(parseCjNumber(NaN)).toBe(0);
+  });
 });
 
 // ---------------------------------------------------------------------------

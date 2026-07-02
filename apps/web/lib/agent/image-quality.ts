@@ -43,7 +43,7 @@ export async function scoreImage(imageUrl: string): Promise<ImageQualityVerdict>
 
   try {
     const response = await trackedMessage({ step: 'vision-score' }, {
-      model: 'claude-haiku-4-5-20251001',
+      model: 'gpt-4o-mini',
       max_tokens: 256,
       messages: [
         {
@@ -119,6 +119,23 @@ async function scoreImages(
   return out;
 }
 
+/**
+ * Text-bearing issues are disqualifying for a premium storefront even when
+ * the numeric score clears the (laxer) collection threshold — a marketing
+ * collage at 0.55 still looks like AliExpress. We only trust a text-flagged
+ * image when the model ALSO scored it very high (>= 0.75, e.g. subtle
+ * engraving on the product itself).
+ */
+const HARD_TEXT_ISSUES = new Set(['text_overlay', 'price_tag', 'discount_badge', 'watermark']);
+const TEXT_ISSUE_TRUST_SCORE = 0.75;
+
+/** Pure gate shared by the filter and its tests. */
+export function passesVisionGate(v: ImageQualityVerdict, threshold: number): boolean {
+  if (v.score < threshold) return false;
+  const hasHardText = v.issues.some((i) => HARD_TEXT_ISSUES.has(i));
+  return !(hasHardText && v.score < TEXT_ISSUE_TRUST_SCORE);
+}
+
 /** Convenience: filter a list of items by passing/failing the vision gate. */
 export async function filterByImageQuality<T extends { imageUrl: string }>(
   items: T[],
@@ -130,7 +147,7 @@ export async function filterByImageQuality<T extends { imageUrl: string }>(
   items.forEach((it, i) => {
     const v = verdicts[i]!;
     const tagged = { ...it, _quality: v };
-    if (v.score >= threshold) kept.push(tagged);
+    if (passesVisionGate(v, threshold)) kept.push(tagged);
     else rejected.push(tagged);
   });
   // Sort kept high-to-low so callers can take(N) the best.

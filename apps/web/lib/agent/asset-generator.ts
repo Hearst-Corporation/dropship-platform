@@ -2,6 +2,7 @@ import 'server-only';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { runWorkflow, isComfyConfigured } from './comfy-client';
+import { generateAmbientTrack, isAudioConfigured, muxAudioIntoVideo } from './audio-client';
 import { falGenerateImage, falGenerateVideo, isFalConfigured } from './fal-client';
 import { extractJson } from './json';
 import { trackedMessage } from './anthropic';
@@ -156,11 +157,11 @@ async function buildPromptsWithClaude(input: AssetGenInput): Promise<PromptBundl
       promo: luxuryVideoPrompt(ctx),
     };
   }
-  if (!process.env.ANTHROPIC_API_KEY) return FALLBACK_PROMPTS;
+  if (!process.env.OPENAI_API_KEY) return FALLBACK_PROMPTS;
 
   try {
     const res = await trackedMessage({ step: 'asset-prompts' }, {
-      model: 'claude-haiku-4-5-20251001',
+      model: 'gpt-4o-mini',
       max_tokens: 1024,
       messages: [
         {
@@ -644,7 +645,35 @@ export async function generateMonoAssets(
       referenceImageUrl: videoSource,
       deploymentEnvKey: 'COMFY_DEPLOYMENT_VIDEO',
       isVideo: true,
-      persist: (bytes) => persist('promo.mp4', bytes),
+      persist: async (bytes) => {
+        // Ambient soundtrack: generated on the same ComfyUI box (stable-audio)
+        // and muxed with ffmpeg. Best-effort — a silent promo ships rather
+        // than no promo.
+        try {
+          if (isAudioConfigured()) {
+            log('Génération de la musique d’ambiance (stable-audio)...');
+            const track = await generateAmbientTrack({
+              prompt:
+                'calm ambient spa music, soft piano and warm pads, gentle, loopable, premium wellness brand, no vocals',
+              seconds: 6,
+            });
+            const muxed = await muxAudioIntoVideo({
+              videoBuffer: bytes,
+              videoExt: 'mp4',
+              audioBuffer: track.buffer,
+              audioExt: track.extension,
+            });
+            if (muxed) {
+              log('Musique d’ambiance ajoutée à la vidéo promo');
+              return persist('promo.mp4', muxed);
+            }
+            warn.push('Musique: mux ffmpeg indisponible — vidéo publiée sans piste audio');
+          }
+        } catch (e) {
+          warn.push(`Musique: ${e instanceof Error ? e.message : 'erreur'} — vidéo publiée sans piste audio`);
+        }
+        return persist('promo.mp4', bytes);
+      },
     });
     promoVideoUrl = r.url;
     if (r.error) {
@@ -673,6 +702,109 @@ export async function generateMonoAssets(
     warnings: warn,
     errors,
   };
+}
+
+/**
+ * Brand hero for COLLECTION stores. Collection mode historically generated
+ * nothing — the storefront fell back to a flat color hero. One editorial
+ * ambiance image (fal.ai flux-pro ultra + clarity upscale, ~0.07€) turns the
+ * generic layout into a branded landing. Deterministic prompt (no extra LLM
+ * call). Never throws: returns { heroUrl: null, error } so the run continues
+ * with the color fallback when fal is absent or fails.
+ */
+export interface CollectionHeroResult {
+  heroUrl: string | null;
+  runId: string | null;
+  error: string | null;
+  /** False when no image provider is configured at all (FAL_KEY absent). */
+  providerConfigured: boolean;
+  /** The exact FLUX prompt — persisted so a later regeneration can replay it. */
+  prompt: string;
+}
+
+export function buildCollectionHeroPrompt(args: {
+  storeName: string;
+  niche: string;
+  imageryMood?: string;
+}): string {
+  const mood = args.imageryMood?.trim() || 'soft natural light, calm premium minimalism';
+  return (
+    `Editorial brand hero photograph for a premium e-commerce storefront named "${args.storeName}". ` +
+    `Theme: ${args.niche}. Atmosphere: ${mood}. ` +
+    'Full-bleed 16:9 lifestyle composition, styled set with objects evoking the theme, ' +
+    'soft directional light, generous negative space for headline overlay, magazine quality, ' +
+    'no text, no logos, no watermarks, no people.'
+  );
+}
+
+export async function generateCollectionHero(args: {
+  storeSlug: string;
+  storeName: string;
+  niche: string;
+  imageryMood?: string;
+  onProgress?: (msg: string) => void;
+}): Promise<CollectionHeroResult> {
+  const prompt = buildCollectionHeroPrompt(args);
+  if (!isComfyConfigured() && !isFalConfigured()) {
+    return {
+      heroUrl: null,
+      runId: null,
+      error: 'Aucun provider visuel configuré (ni ComfyUI ni FAL_KEY) — hero de marque non généré',
+      providerConfigured: false,
+      prompt,
+    };
+  }
+
+  const persistHero = async (bytes: Buffer) => {
+    const runDirName = buildRunDirName();
+    const heroUrl = await persistAsset({
+      storeSlug: args.storeSlug,
+      runDirName,
+      filename: 'hero.png',
+      bytes,
+    });
+    return { heroUrl, runId: runDirName };
+  };
+
+  // ComfyUI self-hosted first (GPU1/GPU2 via COMFYUI_URL — free), fal.ai as
+  // the paid fallback. Both failing degrades to the queued-prompt report.
+  let lastError = 'erreur inconnue';
+  if (isComfyConfigured()) {
+    try {
+      args.onProgress?.('Génération du hero de marque (ComfyUI GPU self-hosted)...');
+      const result = await runWorkflow({
+        deploymentId: process.env.COMFY_DEPLOYMENT_HERO || process.env.COMFY_DEPLOYMENT_IDS || 'local',
+        inputs: {
+          prompt,
+          negative_prompt: 'text, watermark, logo, label, badge, price, discount, sale, signage, lettering, typography, people, face',
+        },
+      });
+      if (result.images[0]) {
+        const { heroUrl, runId } = await persistHero(result.images[0]);
+        return { heroUrl, runId, error: null, providerConfigured: true, prompt };
+      }
+      lastError = 'ComfyUI: aucune image retournée';
+      args.onProgress?.(`⚠ ${lastError}`);
+    } catch (e) {
+      lastError = `ComfyUI: ${e instanceof Error ? e.message : 'erreur inconnue'}`;
+      console.error('[asset-generator] collection hero (comfy) failed', { slug: args.storeSlug, error: lastError });
+      args.onProgress?.(`⚠ ${lastError} — bascule sur fal.ai`);
+    }
+  }
+
+  if (isFalConfigured()) {
+    try {
+      args.onProgress?.('Génération du hero de marque (fal.ai flux-pro ultra)...');
+      const bytes = await falGenerateImage({ prompt, quality: 'hero' });
+      const { heroUrl, runId } = await persistHero(bytes);
+      return { heroUrl, runId, error: null, providerConfigured: true, prompt };
+    } catch (e) {
+      lastError = `fal.ai: ${e instanceof Error ? e.message : 'erreur inconnue'}`;
+      console.error('[asset-generator] collection hero (fal) failed', { slug: args.storeSlug, error: lastError });
+    }
+  }
+
+  return { heroUrl: null, runId: null, error: lastError, providerConfigured: true, prompt };
 }
 
 /*

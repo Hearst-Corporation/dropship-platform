@@ -77,7 +77,7 @@ export interface CopilotRunOptions {
   autoPushConfirmed?: boolean;
 }
 
-const HUB_MODEL = 'claude-sonnet-4-6';
+const HUB_MODEL = 'gpt-4o';
 const HUB_MAX_TOOL_LOOPS_DEFAULT = 8;
 const HUB_MAX_TOOLS_PER_TURN_DEFAULT = 16;
 

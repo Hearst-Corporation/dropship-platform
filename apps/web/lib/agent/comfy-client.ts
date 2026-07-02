@@ -70,6 +70,12 @@ interface WorkflowResult {
 type ComfyBackend = 'deploy' | 'local' | 'none';
 
 function detectBackend(): ComfyBackend {
+  // Explicit override first — the header doc always promised this, the code
+  // now honors it. Lets a config with both COMFY_DEPLOY_API_KEY and
+  // COMFYUI_URL pin the backend deterministically.
+  const forced = process.env.COMFY_BACKEND?.trim().toLowerCase();
+  if (forced === 'deploy') return process.env.COMFY_DEPLOY_API_KEY ? 'deploy' : 'none';
+  if (forced === 'local') return process.env.COMFYUI_URL ? 'local' : 'none';
   if (process.env.COMFY_DEPLOY_API_KEY) return 'deploy';
   if (process.env.COMFYUI_URL) return 'local';
   return 'none';
@@ -261,16 +267,534 @@ async function deployRun(deploymentId: string, inputs: WorkflowInputs): Promise<
 /* ============================================================
  * Local ComfyUI (/prompt + /history + /view)
  * ============================================================
- * Used when you point COMFYUI_URL at a raw ComfyUI server. Inputs is a full
- * graph (`prompt` JSON in ComfyUI parlance) — the asset-generator builds it
- * from a workflow template + the dynamic prompt/image_url.
+ * Used when you point COMFYUI_URL at a raw ComfyUI server (LAN, Tailscale,
+ * or the Cloudflare tunnel https://comfy.hearst.app → GPU2). Two ways in:
+ *
+ *  - `graph`: a full ComfyUI prompt-JSON, sent verbatim. Escape hatch for
+ *    bespoke workflows.
+ *  - `inputs.prompt`: when no graph is given, runWorkflow builds a FLUX
+ *    txt2img graph inline ({@link buildFluxTxt2ImgGraph}) from the same
+ *    named slots the deploy backend uses (prompt / negative_prompt /
+ *    width / height / seed). This keeps asset-generator backend-agnostic:
+ *    it always passes `inputs`, and the local backend synthesizes the graph.
+ *
+ *  - `inputs.prompt` + `inputs.reference_image` (http URL): runWorkflow
+ *    downloads the reference image Node-side, uploads it to the instance
+ *    via POST /upload/image (unique filename under a `dropship-refs/`
+ *    subfolder), then builds a **FLUX Kontext img2img graph**
+ *    ({@link buildFluxKontextGraph}): LoadImage → FluxKontextImageScale →
+ *    VAEEncode → ReferenceLatent + FluxGuidance → KSampler → SaveImage.
+ *    This is what keeps the *actual supplier product* in cutout/lifestyle
+ *    renders instead of hallucinating a lookalike (critical for mono-
+ *    product landings). If the reference download/upload fails, we fall
+ *    back to txt2img with a loud console.warn rather than failing the run.
  */
+
+/** Models verified present on comfy.hearst.app (ComfyUI 0.18.1, GPU2 4x4090). */
+const DEFAULT_FLUX_CHECKPOINT = 'FLUX1/flux1-dev-fp8.safetensors';
+/** Full-bleed 16:9 hero default; both dims are multiples of 16 as FLUX requires. */
+const DEFAULT_WIDTH = 1344;
+const DEFAULT_HEIGHT = 768;
+/** flux1-dev sweet spot. Schnell checkpoints only need 4 — tune via COMFYUI_STEPS. */
+const DEFAULT_STEPS = 20;
+
+export interface FluxTxt2ImgOptions {
+  prompt: string;
+  /** FLUX largely ignores negatives at cfg=1 but the slot is wired anyway. */
+  negativePrompt?: string;
+  width?: number;
+  height?: number;
+  /** Random per call when omitted, so retries don't replay the same image. */
+  seed?: number;
+  /** Defaults to COMFYUI_CHECKPOINT env, then the verified FLUX dev fp8. */
+  checkpoint?: string;
+  steps?: number;
+}
+
+/**
+ * Build a ComfyUI prompt-JSON graph for FLUX txt2img via an all-in-one
+ * checkpoint (CheckpointLoaderSimple → CLIPTextEncode ×2 →
+ * EmptySD3LatentImage → KSampler(cfg=1) → VAEDecode → SaveImage).
+ *
+ * Matches the stock "flux dev checkpoint" workflow that ships with ComfyUI:
+ * cfg pinned to 1.0 (FLUX guidance is baked into the distilled checkpoint),
+ * euler/simple sampler-scheduler pair, SD3-class 16-channel empty latent.
+ * Node classes used (CheckpointLoaderSimple, CLIPTextEncode,
+ * EmptySD3LatentImage, KSampler, VAEDecode, SaveImage) are all core nodes,
+ * verified against comfy.hearst.app 0.18.1 /object_info.
+ */
+export function buildFluxTxt2ImgGraph(opts: FluxTxt2ImgOptions): Record<string, object> {
+  const checkpoint =
+    opts.checkpoint || process.env.COMFYUI_CHECKPOINT?.trim() || DEFAULT_FLUX_CHECKPOINT;
+  const stepsEnv = Number.parseInt(process.env.COMFYUI_STEPS || '', 10);
+  const steps = opts.steps ?? (Number.isFinite(stepsEnv) && stepsEnv > 0 ? stepsEnv : DEFAULT_STEPS);
+  // Snap dims to the /16 grid FLUX latents require; bad inputs 400 otherwise.
+  const snap16 = (n: number) => Math.max(16, Math.round(n / 16) * 16);
+  const width = snap16(opts.width ?? DEFAULT_WIDTH);
+  const height = snap16(opts.height ?? DEFAULT_HEIGHT);
+  const seed = opts.seed ?? Math.floor(Math.random() * 0xffff_ffff);
+
+  return {
+    '1': {
+      class_type: 'CheckpointLoaderSimple',
+      inputs: { ckpt_name: checkpoint },
+    },
+    '2': {
+      class_type: 'CLIPTextEncode',
+      inputs: { text: opts.prompt, clip: ['1', 1] },
+    },
+    '3': {
+      class_type: 'CLIPTextEncode',
+      inputs: { text: opts.negativePrompt ?? '', clip: ['1', 1] },
+    },
+    '4': {
+      class_type: 'EmptySD3LatentImage',
+      inputs: { width, height, batch_size: 1 },
+    },
+    '5': {
+      class_type: 'KSampler',
+      inputs: {
+        seed,
+        steps,
+        cfg: 1.0,
+        sampler_name: 'euler',
+        scheduler: 'simple',
+        denoise: 1.0,
+        model: ['1', 0],
+        positive: ['2', 0],
+        negative: ['3', 0],
+        latent_image: ['4', 0],
+      },
+    },
+    '6': {
+      class_type: 'VAEDecode',
+      inputs: { samples: ['5', 0], vae: ['1', 2] },
+    },
+    '7': {
+      class_type: 'SaveImage',
+      inputs: { filename_prefix: 'dropship-asset', images: ['6', 0] },
+    },
+  };
+}
+
+/* ------------------------------------------------------------
+ * FLUX Kontext img2img (reference-preserving edit)
+ * ------------------------------------------------------------
+ * Mirrors the official ComfyUI "flux_kontext_dev" template (0.18.x):
+ * the reference image is scaled to a Kontext-friendly resolution
+ * (FluxKontextImageScale), VAE-encoded, and injected into the text
+ * conditioning via ReferenceLatent so the sampler edits *that* product
+ * instead of imagining a new one. All node classes and model filenames
+ * below are verified against comfy.hearst.app /object_info:
+ *
+ *   UNETLoader        flux1-dev-kontext_fp8_scaled.safetensors
+ *   DualCLIPLoader    clip_l.safetensors + t5xxl_fp8_e4m3fn_scaled.safetensors (type=flux)
+ *   VAELoader         ae.safetensors
+ *   LoadImage / FluxKontextImageScale / VAEEncode / CLIPTextEncode /
+ *   ReferenceLatent / FluxGuidance / ConditioningZeroOut / KSampler /
+ *   VAEDecode / SaveImage — all core 0.18 nodes.
+ */
+
+/** Verified on comfy.hearst.app via /object_info (UNETLoader.unet_name). */
+const DEFAULT_KONTEXT_UNET = 'flux1-dev-kontext_fp8_scaled.safetensors';
+const DEFAULT_KONTEXT_CLIP_L = 'clip_l.safetensors';
+const DEFAULT_KONTEXT_T5 = 't5xxl_fp8_e4m3fn_scaled.safetensors';
+const DEFAULT_KONTEXT_VAE = 'ae.safetensors';
+/** Official kontext template default (FluxGuidance node ships 2.5 there). */
+const DEFAULT_KONTEXT_GUIDANCE = 2.5;
+
+export interface FluxKontextOptions {
+  prompt: string;
+  /**
+   * Server-side image name as returned by /upload/image — either a bare
+   * filename or `subfolder/filename` when uploaded with a subfolder.
+   * LoadImage resolves it against the ComfyUI input directory.
+   */
+  referenceImageName: string;
+  /** Random per call when omitted, so retries don't replay the same image. */
+  seed?: number;
+  steps?: number;
+  /** FluxGuidance strength; kontext template default is 2.5. */
+  guidance?: number;
+  /** Defaults to COMFYUI_KONTEXT_UNET env, then the verified fp8 kontext UNET. */
+  unetName?: string;
+}
+
+/**
+ * Build a ComfyUI prompt-JSON graph for FLUX Kontext img2img:
+ * LoadImage → FluxKontextImageScale → VAEEncode gives the reference latent;
+ * CLIPTextEncode(prompt) → ReferenceLatent(latent) → FluxGuidance is the
+ * positive conditioning; ConditioningZeroOut is the negative (FLUX cfg=1).
+ * The KSampler denoises *from* the reference latent at denoise=1.0 — with
+ * kontext weights that means "edit this image", not "start from noise".
+ */
+export function buildFluxKontextGraph(opts: FluxKontextOptions): Record<string, object> {
+  const unetName = opts.unetName || process.env.COMFYUI_KONTEXT_UNET?.trim() || DEFAULT_KONTEXT_UNET;
+  const stepsEnv = Number.parseInt(process.env.COMFYUI_STEPS || '', 10);
+  const steps = opts.steps ?? (Number.isFinite(stepsEnv) && stepsEnv > 0 ? stepsEnv : DEFAULT_STEPS);
+  const guidance = opts.guidance ?? DEFAULT_KONTEXT_GUIDANCE;
+  const seed = opts.seed ?? Math.floor(Math.random() * 0xffff_ffff);
+
+  return {
+    '1': {
+      class_type: 'UNETLoader',
+      inputs: { unet_name: unetName, weight_dtype: 'default' },
+    },
+    '2': {
+      class_type: 'DualCLIPLoader',
+      inputs: {
+        clip_name1: DEFAULT_KONTEXT_CLIP_L,
+        clip_name2: DEFAULT_KONTEXT_T5,
+        type: 'flux',
+      },
+    },
+    '3': {
+      class_type: 'VAELoader',
+      inputs: { vae_name: DEFAULT_KONTEXT_VAE },
+    },
+    '4': {
+      class_type: 'LoadImage',
+      inputs: { image: opts.referenceImageName },
+    },
+    '5': {
+      class_type: 'FluxKontextImageScale',
+      inputs: { image: ['4', 0] },
+    },
+    '6': {
+      class_type: 'VAEEncode',
+      inputs: { pixels: ['5', 0], vae: ['3', 0] },
+    },
+    '7': {
+      class_type: 'CLIPTextEncode',
+      inputs: { text: opts.prompt, clip: ['2', 0] },
+    },
+    '8': {
+      class_type: 'ReferenceLatent',
+      inputs: { conditioning: ['7', 0], latent: ['6', 0] },
+    },
+    '9': {
+      class_type: 'FluxGuidance',
+      inputs: { conditioning: ['8', 0], guidance },
+    },
+    '10': {
+      class_type: 'ConditioningZeroOut',
+      inputs: { conditioning: ['7', 0] },
+    },
+    '11': {
+      class_type: 'KSampler',
+      inputs: {
+        seed,
+        steps,
+        cfg: 1.0,
+        sampler_name: 'euler',
+        scheduler: 'simple',
+        denoise: 1.0,
+        model: ['1', 0],
+        positive: ['9', 0],
+        negative: ['10', 0],
+        latent_image: ['6', 0],
+      },
+    },
+    '12': {
+      class_type: 'VAEDecode',
+      inputs: { samples: ['11', 0], vae: ['3', 0] },
+    },
+    '13': {
+      class_type: 'SaveImage',
+      inputs: { filename_prefix: 'dropship-kontext', images: ['12', 0] },
+    },
+  };
+}
+
+/* ------------------------------------------------------------
+ * Wan 2.1 image-to-video (5-second promo clip)
+ * ------------------------------------------------------------
+ * Mirrors the stock ComfyUI wan2.1 i2v template: the source image (hero or
+ * cutout of the actual product) is uploaded to the instance, CLIP-Vision-
+ * encoded (clip_vision_h) and injected as `start_image` +
+ * `clip_vision_output` into WanImageToVideo, which emits the i2v latent the
+ * KSampler denoises. Output goes through CreateVideo → SaveVideo as an
+ * **mp4 (h264)** — both nodes verified present on comfy.hearst.app 0.18.1.
+ *
+ * Model stack, all filenames verified against /object_info listers:
+ *
+ *   UNETLoader        wan2.1_i2v_720p_14B_fp8_e4m3fn.safetensors (+bf16)
+ *   CLIPLoader        umt5_xxl_fp8_e4m3fn_scaled.safetensors (type=wan)
+ *   CLIPVisionLoader  clip_vision_h.safetensors
+ *   VAELoader         wan_2.1_vae.safetensors
+ *   LoadImage / CLIPVisionEncode / CLIPTextEncode / ModelSamplingSD3 /
+ *   WanImageToVideo / KSampler / VAEDecode / CreateVideo / SaveVideo —
+ *   all core 0.18 nodes.
+ *
+ * Defaults follow the WanImageToVideo node defaults (832×480, 81 frames)
+ * at 16 fps → (81-1)/16 = 5.0 s of video. The 720p UNET renders fine at
+ * 480p and it's the resolution/VRAM/time compromise that fits a single
+ * 4090. Steps are kept low (15) — wan i2v is watchable at 15 and every
+ * step is ~linear in wall-clock on this box.
+ */
+
+/** Verified on comfy.hearst.app via /object_info (UNETLoader.unet_name). */
+const DEFAULT_WAN_UNET = 'wan2.1_i2v_720p_14B_fp8_e4m3fn.safetensors';
+const DEFAULT_WAN_CLIP = 'umt5_xxl_fp8_e4m3fn_scaled.safetensors';
+const DEFAULT_WAN_CLIP_VISION = 'clip_vision_h.safetensors';
+const DEFAULT_WAN_VAE = 'wan_2.1_vae.safetensors';
+/**
+ * WanImageToVideo node defaults. 832×480×81 OOMs on the shared GPU box (the
+ * card also hosts vllm/invokeai residents) — 512×288×61 fits with headroom.
+ * Override via COMFYUI_VIDEO_WIDTH/HEIGHT env when the box is dedicated.
+ */
+const DEFAULT_WAN_WIDTH = 512;
+const DEFAULT_WAN_HEIGHT = 288;
+/** 61 frames @ 16 fps = 3.75 s ((length-1)/fps). */
+const DEFAULT_WAN_LENGTH = 61;
+const DEFAULT_WAN_FPS = 16;
+/** Low on purpose: promo-watchable, ~linear time per step on one 4090. */
+const DEFAULT_WAN_STEPS = 12;
+/** Stock wan template values: shift 8 (ModelSamplingSD3), cfg 6, uni_pc. */
+const DEFAULT_WAN_SHIFT = 8.0;
+const DEFAULT_WAN_CFG = 6.0;
+/** Stock wan template negative prompt (the model was trained against it). */
+const DEFAULT_WAN_NEGATIVE =
+  '色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走';
+/**
+ * Video runs are far heavier than images: 81 frames × 15 steps of a 14B
+ * DiT on one 4090 measured ≈ 9-10 min via the tunnel. Default generous,
+ * overridable via COMFYUI_VIDEO_TIMEOUT_MS.
+ */
+const DEFAULT_VIDEO_TIMEOUT_MS = 15 * 60_000;
+
+function wanVideoTimeoutMs(): number {
+  const env = Number.parseInt(process.env.COMFYUI_VIDEO_TIMEOUT_MS || '', 10);
+  return Number.isFinite(env) && env > 0 ? env : DEFAULT_VIDEO_TIMEOUT_MS;
+}
+
+export interface WanI2VOptions {
+  /** Camera/motion description ("slow cinematic push-in…"). */
+  prompt: string;
+  /** Defaults to the stock wan negative the model was trained against. */
+  negativePrompt?: string;
+  /**
+   * Server-side image name as returned by /upload/image (either bare
+   * filename or `subfolder/filename`). LoadImage resolves it against the
+   * ComfyUI input directory. Upload first via {@link uploadReferenceImage}.
+   */
+  sourceImageName: string;
+  width?: number;
+  height?: number;
+  /** Frame count. Snapped to the 4k+1 grid WanImageToVideo requires. */
+  lengthFrames?: number;
+  /** Output frame rate (CreateVideo). Duration = (length-1)/fps. */
+  fps?: number;
+  /** Random per call when omitted, so retries don't replay the same clip. */
+  seed?: number;
+  /** Defaults to COMFYUI_VIDEO_STEPS env, then 15. */
+  steps?: number;
+  /** Defaults to COMFYUI_VIDEO_UNET env, then the verified fp8 i2v UNET. */
+  unetName?: string;
+}
+
+/**
+ * Build a ComfyUI prompt-JSON graph for Wan 2.1 image-to-video:
+ * LoadImage → CLIPVisionEncode(clip_vision_h) feeds WanImageToVideo
+ * together with the text conditioning (umt5 CLIPTextEncode ×2) and the wan
+ * VAE; the resulting latent is denoised by KSampler under
+ * ModelSamplingSD3(shift=8), decoded, then packed to **mp4 h264** via
+ * CreateVideo(fps) → SaveVideo.
+ */
+export function buildWanI2VGraph(opts: WanI2VOptions): Record<string, object> {
+  const unetName = opts.unetName || process.env.COMFYUI_VIDEO_UNET?.trim() || DEFAULT_WAN_UNET;
+  const stepsEnv = Number.parseInt(process.env.COMFYUI_VIDEO_STEPS || '', 10);
+  const steps =
+    opts.steps ?? (Number.isFinite(stepsEnv) && stepsEnv > 0 ? stepsEnv : DEFAULT_WAN_STEPS);
+  // WanImageToVideo wants /16 dims (step 16) and a 4k+1 frame count (step 4
+  // from min 1). Off-grid values 400 at /prompt validation.
+  const snap16 = (n: number) => Math.max(16, Math.round(n / 16) * 16);
+  const width = snap16(opts.width ?? DEFAULT_WAN_WIDTH);
+  const height = snap16(opts.height ?? DEFAULT_WAN_HEIGHT);
+  const rawLength = opts.lengthFrames ?? DEFAULT_WAN_LENGTH;
+  const length = Math.max(1, Math.round((rawLength - 1) / 4) * 4 + 1);
+  const fps = opts.fps ?? DEFAULT_WAN_FPS;
+  const seed = opts.seed ?? Math.floor(Math.random() * 0xffff_ffff);
+
+  return {
+    '1': {
+      class_type: 'UNETLoader',
+      inputs: { unet_name: unetName, weight_dtype: 'default' },
+    },
+    '2': {
+      class_type: 'CLIPLoader',
+      inputs: { clip_name: DEFAULT_WAN_CLIP, type: 'wan' },
+    },
+    '3': {
+      class_type: 'VAELoader',
+      inputs: { vae_name: DEFAULT_WAN_VAE },
+    },
+    '4': {
+      class_type: 'CLIPVisionLoader',
+      inputs: { clip_name: DEFAULT_WAN_CLIP_VISION },
+    },
+    '5': {
+      class_type: 'LoadImage',
+      inputs: { image: opts.sourceImageName },
+    },
+    '6': {
+      class_type: 'CLIPVisionEncode',
+      inputs: { clip_vision: ['4', 0], image: ['5', 0], crop: 'none' },
+    },
+    '7': {
+      class_type: 'CLIPTextEncode',
+      inputs: { text: opts.prompt, clip: ['2', 0] },
+    },
+    '8': {
+      class_type: 'CLIPTextEncode',
+      inputs: { text: opts.negativePrompt ?? DEFAULT_WAN_NEGATIVE, clip: ['2', 0] },
+    },
+    '9': {
+      class_type: 'ModelSamplingSD3',
+      inputs: { model: ['1', 0], shift: DEFAULT_WAN_SHIFT },
+    },
+    '10': {
+      class_type: 'WanImageToVideo',
+      inputs: {
+        positive: ['7', 0],
+        negative: ['8', 0],
+        vae: ['3', 0],
+        clip_vision_output: ['6', 0],
+        start_image: ['5', 0],
+        width,
+        height,
+        length,
+        batch_size: 1,
+      },
+    },
+    '11': {
+      class_type: 'KSampler',
+      inputs: {
+        seed,
+        steps,
+        cfg: DEFAULT_WAN_CFG,
+        sampler_name: 'uni_pc',
+        scheduler: 'simple',
+        denoise: 1.0,
+        model: ['9', 0],
+        positive: ['10', 0],
+        negative: ['10', 1],
+        latent_image: ['10', 2],
+      },
+    },
+    '12': {
+      class_type: 'VAEDecode',
+      inputs: { samples: ['11', 0], vae: ['3', 0] },
+    },
+    '13': {
+      class_type: 'CreateVideo',
+      inputs: { images: ['12', 0], fps },
+    },
+    '14': {
+      class_type: 'SaveVideo',
+      inputs: {
+        video: ['13', 0],
+        filename_prefix: 'video/dropship-promo',
+        format: 'mp4',
+        codec: 'h264',
+      },
+    },
+  };
+}
+
+/** Subfolder inside the ComfyUI input dir where reference uploads land. */
+const REF_UPLOAD_SUBFOLDER = 'dropship-refs';
+
+interface UploadImageResponse {
+  name: string;
+  subfolder?: string;
+  type?: string;
+}
+
+/**
+ * Derive a safe image file extension from a Content-Type header or URL
+ * path. Defaults to .png — ComfyUI's LoadImage sniffs actual bytes, the
+ * extension only needs to pass the upload endpoint's image filter.
+ */
+function refImageExtension(contentType: string | null, url: string): string {
+  const ct = (contentType || '').toLowerCase();
+  if (ct.includes('jpeg') || ct.includes('jpg')) return 'jpg';
+  if (ct.includes('png')) return 'png';
+  if (ct.includes('webp')) return 'webp';
+  const m = /\.(jpe?g|png|webp)(?:\?|$)/i.exec(url);
+  if (m) return m[1]!.toLowerCase().replace('jpeg', 'jpg');
+  return 'png';
+}
+
+/**
+ * Download `imageUrl` Node-side and push it to the local ComfyUI instance
+ * via POST /upload/image (multipart). Returns the server-side image name
+ * (`subfolder/filename`) ready for a LoadImage node. Filenames are unique
+ * per call (timestamp + random) so parallel store creations never clash
+ * and `overwrite` semantics never bite.
+ */
+export async function uploadReferenceImage(base: string, imageUrl: string): Promise<string> {
+  const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(30_000) });
+  if (!imgRes.ok) {
+    throw new Error(`reference image download failed: ${imgRes.status} ${imageUrl}`);
+  }
+  const bytes = await imgRes.arrayBuffer();
+  if (bytes.byteLength === 0) {
+    throw new Error(`reference image download empty: ${imageUrl}`);
+  }
+  const ext = refImageExtension(imgRes.headers.get('content-type'), imageUrl);
+  const filename = `ref-${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+
+  const form = new FormData();
+  form.append('image', new Blob([bytes], { type: `image/${ext === 'jpg' ? 'jpeg' : ext}` }), filename);
+  form.append('subfolder', REF_UPLOAD_SUBFOLDER);
+  form.append('type', 'input');
+
+  const upRes = await fetch(`${base}/upload/image`, {
+    method: 'POST',
+    signal: AbortSignal.timeout(60_000),
+    body: form,
+  });
+  if (!upRes.ok) {
+    throw new Error(`comfy /upload/image failed: ${upRes.status} ${await upRes.text()}`);
+  }
+  const uploaded = (await upRes.json()) as UploadImageResponse;
+  const sub = uploaded.subfolder || '';
+  return sub ? `${sub}/${uploaded.name}` : uploaded.name;
+}
 
 interface LocalQueueResponse {
   prompt_id: string;
 }
 
-async function localRun(graph: object): Promise<WorkflowResult> {
+/** One output file entry in a /history node result. */
+interface LocalHistoryFile {
+  filename: string;
+  subfolder: string;
+  type: string;
+  /** Some video nodes annotate a MIME-ish format, e.g. "video/h264-mp4". */
+  format?: string;
+}
+
+/**
+ * Video outputs land under different keys depending on the node family:
+ * SaveVideo/SaveWEBM report under `images` (with an `animated` flag and a
+ * video filename/format), VHS-style nodes use `gifs`, and some report a
+ * literal `videos` array. We collect all three and classify by content.
+ */
+interface LocalHistoryNodeOutput {
+  images?: LocalHistoryFile[];
+  gifs?: LocalHistoryFile[];
+  videos?: LocalHistoryFile[];
+}
+
+/** True when a history output entry is a video file, whatever key it sat under. */
+function isVideoFile(f: LocalHistoryFile): boolean {
+  if (f.format && f.format.toLowerCase().startsWith('video/')) return true;
+  return /\.(mp4|webm|mov)$/i.test(f.filename);
+}
+
+async function localRun(graph: object, timeoutMs = 5 * 60_000): Promise<WorkflowResult> {
   const base = (process.env.COMFYUI_URL || '').replace(/\/$/, '');
   if (!base) throw new Error('COMFYUI_URL missing');
 
@@ -286,15 +810,14 @@ async function localRun(graph: object): Promise<WorkflowResult> {
   const { prompt_id: promptId } = (await queueRes.json()) as LocalQueueResponse;
 
   const start = Date.now();
-  const TIMEOUT_MS = 5 * 60_000;
   const POLL_MS = 2_000;
 
-  while (Date.now() - start < TIMEOUT_MS) {
+  while (Date.now() - start < timeoutMs) {
     await new Promise((r) => setTimeout(r, POLL_MS));
     const histRes = await fetch(`${base}/history/${promptId}`, { signal: AbortSignal.timeout(15_000) });
     if (!histRes.ok) continue;
     const hist = (await histRes.json()) as Record<string, {
-      outputs?: Record<string, { images?: Array<{ filename: string; subfolder: string; type: string }>; gifs?: Array<{ filename: string; subfolder: string; type: string }> }>;
+      outputs?: Record<string, LocalHistoryNodeOutput>;
       status?: { status_str?: string; completed?: boolean };
     }>;
     const entry = hist[promptId];
@@ -308,19 +831,25 @@ async function localRun(graph: object): Promise<WorkflowResult> {
     const videos: Buffer[] = [];
     for (const node of Object.values(entry.outputs || {})) {
       for (const img of node.images || []) {
-        const url = `${base}/view?filename=${encodeURIComponent(img.filename)}&subfolder=${encodeURIComponent(img.subfolder)}&type=${encodeURIComponent(img.type)}`;
-        const b = await fetchBinary(url);
-        if (b) images.push(b);
+        const b = await fetchBinary(viewUrl(base, img));
+        if (!b) continue;
+        // SaveVideo/SaveWEBM report their output under `images` — route
+        // by actual content so promo.mp4 never masquerades as a hero PNG.
+        if (isVideoFile(img)) videos.push(b);
+        else images.push(b);
       }
-      for (const gif of node.gifs || []) {
-        const url = `${base}/view?filename=${encodeURIComponent(gif.filename)}&subfolder=${encodeURIComponent(gif.subfolder)}&type=${encodeURIComponent(gif.type)}`;
-        const b = await fetchBinary(url);
+      for (const vid of [...(node.gifs || []), ...(node.videos || [])]) {
+        const b = await fetchBinary(viewUrl(base, vid));
         if (b) videos.push(b);
       }
     }
     return { images, videos, runId: promptId, deploymentId: 'local' };
   }
-  throw new Error(`local comfy run ${promptId} timed out after ${TIMEOUT_MS / 1000}s`);
+  throw new Error(`local comfy run ${promptId} timed out after ${timeoutMs / 1000}s`);
+}
+
+function viewUrl(base: string, f: LocalHistoryFile): string {
+  return `${base}/view?filename=${encodeURIComponent(f.filename)}&subfolder=${encodeURIComponent(f.subfolder)}&type=${encodeURIComponent(f.type)}`;
 }
 
 async function fetchBinary(url: string): Promise<Buffer | null> {
@@ -380,8 +909,72 @@ export async function runWorkflow(opts: RunOptions): Promise<WorkflowResult> {
     return deployRun(chosen, opts.inputs || {});
   }
   if (backend === 'local') {
-    if (!opts.graph) throw new Error('graph required for local comfy backend');
-    return localRun(opts.graph);
+    // Explicit graph wins. Otherwise synthesize a graph from the deploy-
+    // style input slots so callers stay backend-agnostic:
+    //  - reference_image (http URL) + prompt → FLUX Kontext img2img that
+    //    preserves the actual supplier product in the render;
+    //  - prompt alone → FLUX txt2img (unchanged legacy path).
+    if (opts.graph) return localRun(opts.graph);
+    const prompt = opts.inputs?.prompt;
+    if (typeof prompt === 'string' && prompt.trim()) {
+      const { negative_prompt, width, height, seed, reference_image, source_image } = opts.inputs || {};
+
+      // source_image (without reference_image) → Wan 2.1 image-to-video:
+      // the promo clip animates the actual product still. Heaviest workflow,
+      // so it runs under the dedicated (longer) video poll timeout.
+      if (
+        typeof source_image === 'string' &&
+        /^https?:\/\//i.test(source_image.trim()) &&
+        typeof reference_image !== 'string'
+      ) {
+        const base = (process.env.COMFYUI_URL || '').replace(/\/$/, '');
+        const sourceImageName = await uploadReferenceImage(base, source_image.trim());
+        return localRun(
+          buildWanI2VGraph({
+            prompt,
+            negativePrompt: typeof negative_prompt === 'string' ? negative_prompt : undefined,
+            sourceImageName,
+            seed: typeof seed === 'number' ? seed : undefined,
+          }),
+          wanVideoTimeoutMs(),
+        );
+      }
+
+      if (typeof reference_image === 'string' && /^https?:\/\//i.test(reference_image.trim())) {
+        const base = (process.env.COMFYUI_URL || '').replace(/\/$/, '');
+        try {
+          const referenceImageName = await uploadReferenceImage(base, reference_image.trim());
+          return await localRun(
+            buildFluxKontextGraph({
+              prompt,
+              referenceImageName,
+              seed: typeof seed === 'number' ? seed : undefined,
+            }),
+          );
+        } catch (err) {
+          // Reference path failed (download, upload, or kontext run):
+          // degrade to txt2img rather than losing the asset entirely.
+          // Loud on purpose — a mono store landing with a generic product
+          // is a quality incident someone should notice in the logs.
+          console.warn(
+            `[comfy-client] kontext reference path failed, falling back to txt2img: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+        }
+      }
+
+      return localRun(
+        buildFluxTxt2ImgGraph({
+          prompt,
+          negativePrompt: typeof negative_prompt === 'string' ? negative_prompt : undefined,
+          width: typeof width === 'number' ? width : undefined,
+          height: typeof height === 'number' ? height : undefined,
+          seed: typeof seed === 'number' ? seed : undefined,
+        }),
+      );
+    }
+    throw new Error('graph or inputs.prompt required for local comfy backend');
   }
   throw new Error('No ComfyUI backend configured (set COMFY_DEPLOY_API_KEY or COMFYUI_URL)');
 }

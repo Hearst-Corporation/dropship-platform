@@ -18,6 +18,7 @@ import type {
   PlaceOrderResult,
   TrackingResult,
 } from './types';
+import { usdToEur } from './fx';
 
 // Read credentials at call time (not module load) so env is picked up even
 // when set after import — matters for tests (vi.stubEnv in beforeAll/beforeEach)
@@ -43,18 +44,17 @@ interface CJProduct {
   pid: string;
   productNameEn: string;
   productImage: string;
+  /** Grams; may be a range string like "1730.00-3200.00". */
   productWeight: string;
-  sellPrice: number;
+  /**
+   * USD. The GET /product/list endpoint returns a STRING, sometimes a range
+   * like "14.59 -- 24.05" (variant min/max). Verified against the live API
+   * on 2026-07-02.
+   */
+  sellPrice: string | number;
   categoryId: string;
   categoryName: string;
-  sourceFrom: number;
-  sellUrl: string;
-  variants?: {
-    vid: string;
-    variantNameEn: string;
-    variantImage: string;
-    variantSellPrice: number;
-  }[];
+  sourceFrom: string | number;
 }
 
 interface CJSearchResult {
@@ -121,9 +121,36 @@ async function authHeaders(): Promise<HeadersInit> {
 }
 
 // ---------------------------------------------------------------------------
-// Product search (unchanged from v1)
+// Product search
 // ---------------------------------------------------------------------------
 
+/**
+ * Parse a CJ numeric field (sellPrice USD, productWeight grams).
+ * The list endpoint returns strings, sometimes a variant range like
+ * "14.59 -- 24.05" — we take the LOWER bound (cheapest/lightest variant).
+ */
+export function parseCjNumber(raw: string | number | null | undefined): number {
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : 0;
+  if (!raw) return 0;
+  const match = String(raw).match(/\d+(?:\.\d+)?/);
+  const value = match ? parseFloat(match[0]) : NaN;
+  return Number.isFinite(value) ? value : 0;
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Search the CJ catalog.
+ *
+ * The v2 endpoint is a **GET** with query params — POSTing to it returns
+ * `code 16900202 "Request method 'POST' not supported"` (that was the prod
+ * failure). Keyword search goes through `productNameEn` (fuzzy match on the
+ * English name); the `keyWords` param is silently ignored by the API and
+ * returns the whole catalog. Verified against the live API on 2026-07-02.
+ *
+ * CJ enforces QPS = 1 req/s per endpoint, and authenticate() usually runs
+ * right before the first search, so we retry once on 429 / code 1600200.
+ */
 export async function searchProducts(params: {
   keywords: string;
   page?: number;
@@ -133,36 +160,50 @@ export async function searchProducts(params: {
   try {
     const headers = await authHeaders();
 
-    const body = {
-      keyWords: params.keywords,
-      pageNum: params.page || 1,
-      pageSize: params.pageSize || 20,
+    const query = new URLSearchParams({
+      productNameEn: params.keywords,
+      pageNum: String(params.page || 1),
+      pageSize: String(params.pageSize || 20),
       ...(params.categoryId && { categoryId: params.categoryId }),
-    };
-
-    const response = await fetch(`${API_BASE}/product/list`, {
-      method: 'POST',
-      signal: AbortSignal.timeout(15_000),
-      headers,
-      body: JSON.stringify(body),
     });
+    const url = `${API_BASE}/product/list?${query.toString()}`;
 
-    if (!response.ok) {
-      throw new Error(`CJ API error: ${response.status}`);
+    const MAX_ATTEMPTS = 3;
+    let data: { code: number; result: boolean; message?: string; data?: CJSearchResult } | null = null;
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const response = await fetch(url, {
+        method: 'GET',
+        signal: AbortSignal.timeout(15_000),
+        headers,
+      });
+
+      const rateLimitedHttp = response.status === 429;
+      if (!response.ok && !rateLimitedHttp) {
+        throw new Error(`CJ API error: ${response.status}`);
+      }
+
+      data = await response.json();
+      const rateLimitedBody = data !== null && data.code === 1600200;
+      if ((rateLimitedHttp || rateLimitedBody) && attempt < MAX_ATTEMPTS) {
+        await sleep(1_200); // QPS window is 1s
+        continue;
+      }
+      break;
     }
 
-    const data = await response.json();
-    if (data.code !== 200 || !data.result) {
-      throw new Error(data.message || 'CJ API error');
+    if (!data || data.code !== 200 || !data.result) {
+      throw new Error(data?.message || 'CJ API error');
     }
 
+    const payload = data.data;
     return {
       success: true,
       data: {
-        total: data.data.total || 0,
-        pageNum: data.data.pageNum || 1,
-        pageSize: data.data.pageSize || 20,
-        list: data.data.list || [],
+        total: payload?.total || 0,
+        pageNum: payload?.pageNum || 1,
+        pageSize: payload?.pageSize || 20,
+        list: payload?.list || [],
       },
     };
   } catch (error) {
@@ -437,9 +478,13 @@ export const cjClient: SupplierClient = {
       supplier: 'cj' as const,
       externalId: p.pid,
       title: p.productNameEn,
-      price: p.sellPrice,
+      // sellPrice is USD (string, possibly a range) → EUR major units.
+      price: usdToEur(parseCjNumber(p.sellPrice)),
       imageUrl: p.productImage,
-      supplierUrl: p.sellUrl || '',
+      // The list endpoint has no sellUrl field — build the canonical CJ
+      // product page URL from the pid.
+      supplierUrl: `https://www.cjdropshipping.com/product/-p-${p.pid}.html`,
+      weightGrams: parseCjNumber(p.productWeight) || undefined,
     }));
     return { success: true, products, total: result.data.total };
   },
