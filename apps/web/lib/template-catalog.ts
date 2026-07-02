@@ -6,10 +6,11 @@
  * the product's niche, register, and modality. The admin selector and the zod
  * validator at /api/agent/stores/:id PATCH also derive from this list.
  *
- * Adding a new template requires three things:
- *  1. Create the React component in app/shop/[slug]/<Name>Landing.tsx
+ * Adding a new template requires four things:
+ *  1. Create or reuse a React layout in app/shop/[slug]/
  *  2. Append the entry below (id + metadata)
- *  3. Add the render branch in app/shop/[slug]/page.tsx
+ *  3. Wire the render branch in lib/storefront-routing.tsx if needed
+ *  4. Add the id to infra/postgres/028_template_catalog_full.sql CHECK
  */
 
 export type TemplateNiche =

@@ -324,32 +324,6 @@ export function StorefrontBold({
           </section>
         )}
       </main>
-
-      {/* Footer */}
-      <footer
-        aria-labelledby="bold-footer-heading"
-        className="border-t border-white/10 bg-zinc-950 py-10"
-      >
-        <h2 id="bold-footer-heading" className="sr-only">
-          Pied de page
-        </h2>
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-            <div className="flex items-center gap-2 font-bold uppercase tracking-widest text-white/80">
-              <StoreLogo
-                emoji={store.logoEmoji}
-                size={18}
-                className="text-white/60"
-              />
-              <span>{store.name}</span>
-            </div>
-            <p className="text-sm text-white/30">
-              &copy; {new Date().getFullYear()} {store.name}. Tous droits
-              reserves.
-            </p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

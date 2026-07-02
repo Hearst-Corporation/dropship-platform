@@ -51,7 +51,8 @@ export default async function ShopLayout({
       {/* No layout-level header: each storefront template renders its own
           theme-matched nav, and the generic page renders its own hero. A layout
           header here would double up with those and, being position:absolute,
-          overlap the content underneath it. */}
+          overlap the content underneath it. Footer lives here once for all
+          templates (individual templates no longer render their own). */}
       <main>{children}</main>
 
       <footer className="bg-zinc-950 text-white py-14">

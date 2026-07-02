@@ -279,32 +279,6 @@ export function StorefrontEditorial({
           </section>
         )}
       </main>
-
-      {/* Footer */}
-      <footer
-        aria-labelledby="footer-heading"
-        className="border-t border-zinc-100 bg-white"
-      >
-        <h2 id="footer-heading" className="sr-only">
-          Pied de page
-        </h2>
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-            <div className="flex items-center gap-2 text-sm font-medium text-zinc-700">
-              <StoreLogo
-                emoji={store.logoEmoji}
-                size={18}
-                className="text-zinc-500"
-              />
-              <span>{store.name}</span>
-            </div>
-            <p className="text-sm text-zinc-400">
-              &copy; {new Date().getFullYear()} {store.name}. Tous droits
-              reserves.
-            </p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

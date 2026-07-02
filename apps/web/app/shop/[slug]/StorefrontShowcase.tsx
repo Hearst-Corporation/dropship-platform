@@ -360,32 +360,6 @@ export function StorefrontShowcase({
           </>
         )}
       </main>
-
-      {/* Footer */}
-      <footer
-        className="py-12 text-white"
-        style={{ backgroundColor: store.primaryColor }}
-      >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-center gap-4 text-center">
-            <StoreLogo
-              emoji={store.logoEmoji}
-              size={32}
-              strokeWidth={1.25}
-              className="opacity-80"
-            />
-            <p className="text-base font-semibold opacity-90">{store.name}</p>
-            {store.tagline && (
-              <p className="text-sm opacity-70">{store.tagline}</p>
-            )}
-            <div className="mt-4 flex gap-6 text-sm opacity-70">
-              <Link href="/cart" className="hover:opacity-100 transition-opacity">
-                Panier
-              </Link>
-            </div>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

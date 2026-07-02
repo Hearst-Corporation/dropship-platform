@@ -1,3 +1,3 @@
 export default function Loading() {
-  return <div className="p-10 text-sm text-gray-500">Chargement du plan de campagne…</div>;
+  return <div className="p-10 text-sm text-zinc-500">Chargement du plan de campagne…</div>;
 }

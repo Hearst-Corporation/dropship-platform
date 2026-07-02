@@ -217,24 +217,6 @@ export function StorefrontMinimal({
           </>
         )}
       </main>
-
-      {/* Footer */}
-      <footer className="border-t border-gray-100 bg-white py-10">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-center gap-3">
-            <StoreLogo
-              emoji={store.logoEmoji}
-              size={28}
-              strokeWidth={1.25}
-              className="text-gray-400"
-            />
-            <p className="text-sm text-gray-500">{store.name}</p>
-            {store.tagline && (
-              <p className="text-xs text-gray-400">{store.tagline}</p>
-            )}
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

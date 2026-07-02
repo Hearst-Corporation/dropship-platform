@@ -466,53 +466,6 @@ export function MonoProductLanding({
           </div>
         </section>
       </main>
-
-      {/* 9 ── Footer sobre */}
-      <footer
-        aria-labelledby="mono-footer-heading"
-        className="border-t py-10"
-        style={{ borderColor: border, backgroundColor: surface }}
-      >
-        <h2 id="mono-footer-heading" className="sr-only">
-          Pied de page
-        </h2>
-        <div className="mx-auto flex max-w-7xl flex-col items-center gap-4 px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2">
-            <StoreLogo
-              emoji={store.logoEmoji}
-              size={22}
-              strokeWidth={1.25}
-              className="opacity-60"
-            />
-            <span className="text-sm font-semibold">{store.name}</span>
-          </div>
-          {store.tagline && (
-            <p className="text-xs" style={{ color: textMuted }}>
-              {store.tagline}
-            </p>
-          )}
-          <div
-            className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs"
-            style={{ color: textMuted }}
-          >
-            <Link href="/legal/cgv" className="uppercase tracking-wider transition-opacity hover:opacity-70">
-              CGV
-            </Link>
-            <Link
-              href="/legal/mentions-legales"
-              className="uppercase tracking-wider transition-opacity hover:opacity-70"
-            >
-              Mentions légales
-            </Link>
-            <Link
-              href="/legal/confidentialite"
-              className="uppercase tracking-wider transition-opacity hover:opacity-70"
-            >
-              Confidentialité
-            </Link>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

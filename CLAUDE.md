@@ -62,9 +62,9 @@ One middleware, three responsibilities (order matters):
 
 ### Storefront templates (`apps/web/app/shop/[slug]/`)
 
-8 swappable templates (`MonoProductLanding`, `CollectionEditorialLanding`, `LuxuryMinimalLanding`, `GenZBoldLanding`, `EditorialFashionLanding`, `WellnessSoftLanding`, …). The template is chosen at render time from `dropship_stores.template`; `'auto'` derives from product count + mono/collection mode. `[slug]/page.tsx` is `force-dynamic`.
+27 template IDs in `lib/template-catalog.ts` map to **5 React layouts** via `lib/storefront-routing.tsx` (`pickStorefrontComponent`): `MonoProductLanding`, `StorefrontMinimal`, `StorefrontEditorial`, `StorefrontBold`, `StorefrontShowcase`. Mode `mono` wins over register `luxury` (so `luxury-mono` renders the long-form mono landing). `'auto'` skips bespoke routing and uses the generic hero + grid in `page.tsx`. `[slug]/page.tsx` is `force-dynamic`. Global footer lives in `layout.tsx` only.
 
-Storefront copy comes from `dropship_stores.landing_content` (JSON written by `landing-writer.ts` at store creation). Storefront colors/fonts come from the locked design system in `dropship_stores.design_preset` + `palette` — templates must read from there, not invent new values.
+Storefront copy comes from `dropship_stores.landing_content` (JSON written by `landing-writer.ts` at store creation). Storefront colors/fonts come from the locked design system in `dropship_stores.design_preset` + `palette` — templates should read `var(--ds-*)` from `design/runtime.ts`, not invent new values.
 
 ### Analytics fan-out
 
@@ -83,7 +83,7 @@ NNN_short_name.sql          # idempotent forward migration
 NNN_short_name.down.sql     # rollback
 ```
 
-Forward migrations must be re-runnable (use `IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, etc.) because they're applied manually against the Railway instance and there's no migration runner tracking state. Match the existing numbering (`027_template_editorial_fashion.sql` is the latest at time of writing).
+Forward migrations must be re-runnable (use `IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, etc.) because they're applied manually against the Railway instance and there's no migration runner tracking state. Match the existing numbering (`028_template_catalog_full.sql` is the latest at time of writing).
 
 ## Conventions worth knowing
 
