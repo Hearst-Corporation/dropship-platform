@@ -11,6 +11,11 @@ import {
   TableHeader,
   TableCell,
 } from '@/components/catalyst/table';
+import {
+  DescriptionList,
+  DescriptionTerm,
+  DescriptionDetails,
+} from '@/components/catalyst/description-list';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import { AdminSection } from '@/components/admin/AdminSection';
 import { AdminStatsGrid } from '@/components/admin/AdminStatsGrid';
@@ -71,7 +76,8 @@ interface CostRow {
   avg_cost_per_run: string;
 }
 interface TrendRow {
-  label: string;
+  /** UTC calendar day, 'YYYY-MM-DD' — matched against a UTC-computed key below. */
+  day: string;
   revenue_cents: number;
   orders: number;
 }
@@ -87,6 +93,26 @@ async function safeQuery<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
 
 function eur(cents: number): string {
   return `${(cents / 100).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} €`;
+}
+
+// Gap-fill the 14-day window: the SQL GROUP BY only returns days with at
+// least one event, so missing days are re-injected at zero to keep the X
+// axis regular. Matched on a UTC 'YYYY-MM-DD' key (see the SQL's `AT TIME
+// ZONE 'UTC'` below) so the join can't drift from the app server's local
+// timezone — only the final display label is formatted DD/MM.
+function gapFillTrend(trend: TrendRow[]): Array<{ label: string; ca: number; commandes: number }> {
+  const byDay = new Map(trend.map((t) => [t.day, t]));
+  return Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(Date.now() - (13 - i) * 86_400_000);
+    const day = d.toISOString().slice(0, 10); // UTC 'YYYY-MM-DD'
+    const [, month, date] = day.split('-');
+    const row = byDay.get(day);
+    return {
+      label: `${date}/${month}`,
+      ca: Number(row?.revenue_cents ?? 0) / 100,
+      commandes: Number(row?.orders ?? 0),
+    };
+  });
 }
 
 export default async function PortfolioDashboard() {
@@ -177,13 +203,13 @@ export default async function PortfolioDashboard() {
       async () => {
         const { rows } = await db.query<TrendRow>(
           `SELECT
-             to_char(date_trunc('day', created_at), 'DD/MM') AS label,
+             to_char(date_trunc('day', created_at AT TIME ZONE 'UTC'), 'YYYY-MM-DD') AS day,
              COALESCE(SUM(value_minor) FILTER (WHERE event_name = 'purchase'), 0)::bigint AS revenue_cents,
              COUNT(*) FILTER (WHERE event_name = 'purchase')::int AS orders
            FROM dropship_funnel_events
            WHERE created_at > now() - interval '14 days'
-           GROUP BY date_trunc('day', created_at)
-           ORDER BY date_trunc('day', created_at)`,
+           GROUP BY date_trunc('day', created_at AT TIME ZONE 'UTC')
+           ORDER BY date_trunc('day', created_at AT TIME ZONE 'UTC')`,
         );
         return rows;
       },
@@ -199,29 +225,30 @@ export default async function PortfolioDashboard() {
   const errorRate = cost.runs ? (cost.errors / cost.runs) * 100 : 0;
   const globalConv = funnel.view_content > 0 ? (funnel.purchase / funnel.view_content) * 100 : 0;
 
-  // Serialize DB rows (bigint/text -> number) for the client chart wrappers.
-  const trendData = trend.map((t) => ({
-    label: t.label,
-    ca: Number(t.revenue_cents) / 100,
-    commandes: Number(t.orders),
-  }));
+  // Serialize DB rows (bigint/text -> number) for the client chart wrappers,
+  // with the 14-day window gap-filled so the X axis stays regular.
+  const trendData = gapFillTrend(trend);
 
   const funnelSteps = [
-    { label: 'View content', value: funnel.view_content },
-    { label: 'Add to cart', value: funnel.add_to_cart },
-    { label: 'Initiate checkout', value: funnel.initiate_checkout },
-    { label: 'Purchase', value: funnel.purchase },
+    { label: 'Vues produit', value: funnel.view_content },
+    { label: 'Ajouts panier', value: funnel.add_to_cart },
+    { label: 'Checkouts initiés', value: funnel.initiate_checkout },
+    { label: 'Achats', value: funnel.purchase },
   ];
 
+  // The top-stores query LEFT JOINs every active store, so rows at 0 orders
+  // come back too: only stores with at least one sale count as "top sellers".
+  const sellers = topStores.filter((s) => Number(s.orders) > 0);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <AdminPageHeader
         title="Vue d'ensemble"
-        subtitle="KPIs agrégés sur tous les stores actifs. Cliquez sur un bloc pour drill down."
+        subtitle="KPIs agrégés sur l'ensemble des stores actifs."
       />
 
       {/* KPIs */}
-      <AdminStatsGrid cols={4}>
+      <AdminStatsGrid cols={3}>
         <AdminStatCard
           label="Stores actifs"
           value={stores.active.toLocaleString('fr-FR')}
@@ -258,29 +285,18 @@ export default async function PortfolioDashboard() {
           hint={`${funnel.purchase.toLocaleString('fr-FR')} achats / ${funnel.view_content.toLocaleString('fr-FR')} vues`}
           icon={FunnelIcon}
         />
-        <AdminStatCard
-          label="Coût Claude 30j"
-          value={`${totalCost.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`}
-          hint={`${cost.runs.toLocaleString('fr-FR')} runs`}
-        />
-        <AdminStatCard
-          label="Taux d'erreur agent 30j"
-          value={`${errorRate.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`}
-          hint={`${cost.errors.toLocaleString('fr-FR')} erreurs`}
-          icon={errorRate > 5 ? ExclamationTriangleIcon : CheckCircleIcon}
-        />
       </AdminStatsGrid>
 
       {/* Trend — CA & commandes sur 14 jours */}
       <AdminSection
         title="Tendance 14j"
-        description="CA (€) et commandes par jour sur les 14 derniers jours."
+        description="CA (€, axe gauche) et commandes (axe droit) par jour sur les 14 derniers jours."
       >
         <DashboardTrend data={trendData} />
       </AdminSection>
 
       {/* Deux colonnes : funnel + top stores */}
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 2xl:grid-cols-2">
         <AdminSection
           title="Funnel 30j"
           description="Volume par étape du parcours d'achat."
@@ -294,19 +310,19 @@ export default async function PortfolioDashboard() {
         </AdminSection>
 
         <AdminSection
-          title="Top stores — 7j"
+          title="Top stores · 7j"
           description="Stores actifs classés par CA sur 7 jours."
           actions={<TextLink href="/admin/stores">Tous les stores</TextLink>}
           flush
         >
-          {topStores.length === 0 ? (
+          {sellers.length === 0 ? (
             <AdminEmptyState
               icon={BuildingStorefrontIcon}
               title="Aucune vente sur 7j"
               description="Aucun store actif n'a enregistré de commande sur les 7 derniers jours."
             />
           ) : (
-            <AdminDataTable minWidth="min-w-[32rem]">
+            <AdminDataTable minWidth="min-w-[32rem]" bare>
               <Table dense>
                 <TableHead>
                   <TableRow>
@@ -317,7 +333,7 @@ export default async function PortfolioDashboard() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {topStores.map((s, idx) => (
+                  {sellers.map((s, idx) => (
                     <TableRow key={s.slug} href={`/admin/stores/${s.slug}`}>
                       <TableCell className="text-right text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
                         {idx + 1}
@@ -345,53 +361,43 @@ export default async function PortfolioDashboard() {
       </div>
 
       {/* Observabilité agent + alertes opérationnelles */}
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 2xl:grid-cols-2">
         <AdminSection
           title="Coût Claude 30j"
           description="Observabilité des appels agent sur 30 jours."
           actions={
             <Button href="/admin/observability" outline>
-              Détail par step
+              Détail par étape
             </Button>
           }
           flush
         >
-          <AdminDataTable minWidth="min-w-[28rem]">
-            <Table dense>
-              <TableBody>
-                <TableRow>
-                  <TableCell className="text-zinc-500 dark:text-zinc-400">Total des appels agent</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {totalCost.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="text-zinc-500 dark:text-zinc-400">Runs</TableCell>
-                  <TableCell className="text-right tabular-nums">{cost.runs.toLocaleString('fr-FR')}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="text-zinc-500 dark:text-zinc-400">Coût moyen / run</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {(avgPerRun * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} m€
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="text-zinc-500 dark:text-zinc-400">Taux d&apos;erreur</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {errorRate > 5 ? (
-                      <Badge color="zinc">
-                        {errorRate.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} % · élevé
-                      </Badge>
-                    ) : (
-                      <span>
-                        {errorRate.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %
-                      </span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </AdminDataTable>
+          <DescriptionList className="px-5 pb-4 sm:px-6">
+            <DescriptionTerm>Total des appels agent</DescriptionTerm>
+            <DescriptionDetails className="text-right tabular-nums">
+              {totalCost.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+            </DescriptionDetails>
+            <DescriptionTerm>Runs</DescriptionTerm>
+            <DescriptionDetails className="text-right tabular-nums">
+              {cost.runs.toLocaleString('fr-FR')}
+            </DescriptionDetails>
+            <DescriptionTerm>Coût moyen / run</DescriptionTerm>
+            <DescriptionDetails className="text-right tabular-nums">
+              {avgPerRun.toLocaleString('fr-FR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })} €
+            </DescriptionDetails>
+            <DescriptionTerm>Taux d&apos;erreur</DescriptionTerm>
+            <DescriptionDetails className="text-right tabular-nums">
+              {errorRate > 5 ? (
+                <Badge color="zinc">
+                  {errorRate.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} % · élevé
+                </Badge>
+              ) : (
+                <span>
+                  {errorRate.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %
+                </span>
+              )}
+            </DescriptionDetails>
+          </DescriptionList>
         </AdminSection>
 
         <AdminSection

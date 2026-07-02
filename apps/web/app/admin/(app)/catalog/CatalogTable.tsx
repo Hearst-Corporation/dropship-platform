@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ArrowTopRightOnSquareIcon, EyeIcon, ArrowPathIcon } from '@heroicons/react/16/solid'
+import { ArrowTopRightOnSquareIcon, EllipsisHorizontalIcon } from '@heroicons/react/16/solid'
 import { CubeIcon } from '@heroicons/react/24/outline'
 import type { MedusaProduct } from '@/lib/medusa'
 import {
@@ -12,11 +12,18 @@ import {
   TableHeader,
   TableCell,
 } from '@/components/catalyst/table'
-import { Badge } from '@/components/catalyst/badge'
+import { Button } from '@/components/catalyst/button'
+import {
+  Dropdown,
+  DropdownButton,
+  DropdownItem,
+  DropdownLabel,
+  DropdownMenu,
+} from '@/components/catalyst/dropdown'
+import { AdminBadge } from '@/components/admin/AdminBadge'
 import { AdminToolbar } from '@/components/admin/AdminToolbar'
 import { AdminDataTable } from '@/components/admin/AdminDataTable'
 import { AdminAssetCell } from '@/components/admin/AdminAssetCell'
-import { AdminActionMenu } from '@/components/admin/AdminActionMenu'
 import { AdminEmptyState } from '@/components/admin/AdminEmptyState'
 
 /** Empty-value glyph for columns without a real data source. */
@@ -38,25 +45,24 @@ const STATUS_OPTIONS: Array<{ label: string; value: string }> = [
 ]
 
 /**
- * Single-accent status color: only the "published" state carries the accent
- * hue (indigo); every other state is neutral zinc, disambiguated by its label.
+ * Cheapest real price across a product's variants, in minor units + currency.
+ * `multiple` is true when the variants span several distinct amounts, so the
+ * UI can prefix the minimum with "dès" instead of passing it off as THE price.
  */
-function statusBadgeColor(status: MedusaProduct['status']): 'indigo' | 'zinc' {
-  return status === 'published' ? 'indigo' : 'zinc'
-}
-
-/** Cheapest real price across a product's variants, in minor units + currency. */
-function minPrice(p: MedusaProduct): { amount: number; currency: string } | null {
+function minPrice(p: MedusaProduct): { amount: number; currency: string; multiple: boolean } | null {
   let best: { amount: number; currency: string } | null = null
+  let max = Number.NEGATIVE_INFINITY
   for (const v of p.variants ?? []) {
     for (const price of v.prices ?? []) {
       if (typeof price.amount !== 'number') continue
       if (!best || price.amount < best.amount) {
         best = { amount: price.amount, currency: price.currency_code }
       }
+      if (price.amount > max) max = price.amount
     }
   }
-  return best
+  if (!best) return null
+  return { ...best, multiple: max > best.amount }
 }
 
 function formatMoney(amount: number, currency: string): string {
@@ -143,6 +149,17 @@ export function CatalogTable({ products }: { products: MedusaProduct[] }) {
             icon={CubeIcon}
             title="Aucun produit ne correspond"
             description="Ajuste la recherche ou le filtre de statut pour retrouver un SKU."
+            action={
+              <Button
+                outline
+                onClick={() => {
+                  setQuery('')
+                  setStatus('all')
+                }}
+              >
+                Réinitialiser les filtres
+              </Button>
+            }
           />
         </AdminDataTable>
       ) : (
@@ -162,9 +179,17 @@ export function CatalogTable({ products }: { products: MedusaProduct[] }) {
               {filtered.map((p) => {
                 const price = minPrice(p)
                 return (
-                  <TableRow key={p.id}>
-                    <TableCell>
+                  <TableRow key={p.id} className="hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5">
+                    {/*
+                      w-full on the td gives the flexible space to the product
+                      column; the max-w on the inner cell (not on the td, which
+                      would be ignored in auto table layout) caps its intrinsic
+                      width so long AliExpress titles truncate instead of
+                      forcing horizontal scroll.
+                    */}
+                    <TableCell className="w-full">
                       <AdminAssetCell
+                        className="w-full max-w-lg"
                         imageUrl={p.thumbnail}
                         title={p.title}
                         subtitle={buildDetails(p)}
@@ -173,37 +198,37 @@ export function CatalogTable({ products }: { products: MedusaProduct[] }) {
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {price ? (
-                        formatMoney(price.amount, price.currency)
+                        <>
+                          {price.multiple ? (
+                            <span className="text-zinc-500 dark:text-zinc-400">dès </span>
+                          ) : null}
+                          {formatMoney(price.amount, price.currency)}
+                        </>
                       ) : (
                         <span className="text-zinc-400 dark:text-zinc-500">{DASH}</span>
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge color={statusBadgeColor(p.status)}>{STATUS_LABELS[p.status]}</Badge>
+                      <AdminBadge status={p.status}>{STATUS_LABELS[p.status]}</AdminBadge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <AdminActionMenu
-                        ariaLabel={`Actions pour ${p.title}`}
-                        actions={[
-                          {
-                            label: 'Ouvrir la fiche',
-                            href: `/products/${p.handle}`,
-                            icon: ArrowTopRightOnSquareIcon,
-                          },
-                          {
-                            // No storefront preview route wired for a raw catalog product.
-                            label: 'Aperçu',
-                            icon: EyeIcon,
-                            disabled: true,
-                          },
-                          {
-                            // No manual re-sync endpoint exposed here.
-                            label: 'Synchroniser',
-                            icon: ArrowPathIcon,
-                            disabled: true,
-                          },
-                        ]}
-                      />
+                      {/*
+                        Catalyst Dropdown used directly (kebab pattern):
+                        AdminActionMenu doesn't forward `target`, and the
+                        storefront product page must open in a new tab so the
+                        admin keeps their context.
+                      */}
+                      <Dropdown>
+                        <DropdownButton plain aria-label={`Actions pour ${p.title}`}>
+                          <EllipsisHorizontalIcon data-slot="icon" />
+                        </DropdownButton>
+                        <DropdownMenu anchor="bottom end">
+                          <DropdownItem href={`/products/${p.handle}`} target="_blank">
+                            <ArrowTopRightOnSquareIcon data-slot="icon" />
+                            <DropdownLabel>Ouvrir la fiche</DropdownLabel>
+                          </DropdownItem>
+                        </DropdownMenu>
+                      </Dropdown>
                     </TableCell>
                   </TableRow>
                 )

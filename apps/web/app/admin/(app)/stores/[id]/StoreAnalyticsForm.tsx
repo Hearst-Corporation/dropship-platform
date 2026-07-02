@@ -5,6 +5,19 @@ import { apiFetch } from '@/lib/client-fetch';
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUnsavedChanges } from '@/lib/use-unsaved-changes';
+import { AdminSection } from '@/components/admin/AdminSection';
+import { Button } from '@/components/catalyst/button';
+import {
+  Fieldset,
+  Legend,
+  FieldGroup,
+  Field,
+  Label,
+  Description,
+} from '@/components/catalyst/fieldset';
+import { Input } from '@/components/catalyst/input';
+import { Text } from '@/components/catalyst/text';
+
 interface InitialValues {
   ga4MeasurementId: string;
   ga4ApiSecret: string;
@@ -66,164 +79,146 @@ export function StoreAnalyticsForm({ storeId, initial }: Props) {
   }
 
   return (
-    <div className="overflow-hidden rounded-xl bg-gray-800/50 ring-1 ring-white/10">
-      <div className="flex items-baseline justify-between border-b border-white/10 px-5 py-4">
-        <div>
-          <h3 className="text-base font-semibold tracking-tight text-white">
-            Analytics &amp; <em className="italic text-gray-400">attribution</em>
-          </h3>
-          <p className="mt-0.5 text-xs text-gray-500">
-            Les pixels et tags injectés sur la boutique. Tous facultatifs, tous propres à ce store.
-          </p>
+    <AdminSection
+      title="Analytics & attribution"
+      description="Les pixels et tags injectés sur la boutique. Tous facultatifs, tous propres à ce store."
+    >
+      <div className="space-y-8">
+        <Fieldset>
+          <Legend>Acquisition (UA)</Legend>
+          <Text>Pixels client-side. Indispensables pour les ads.</Text>
+          <FieldGroup>
+            <AnalyticsField
+              label="Google Analytics 4"
+              id="ga4"
+              placeholder="G-XXXXXXXXXX"
+              value={values.ga4MeasurementId}
+              onChange={set('ga4MeasurementId')}
+              help="Measurement ID. Trouvé dans Admin → Streams → Web."
+            />
+            <AnalyticsField
+              label="Meta Pixel ID"
+              id="meta"
+              placeholder="123456789012345"
+              value={values.metaPixelId}
+              onChange={set('metaPixelId')}
+              help="Numérique, 15-16 chiffres. Events Manager → Data Sources."
+            />
+            <AnalyticsField
+              label="TikTok Pixel ID"
+              id="tiktok"
+              placeholder="C..."
+              value={values.tiktokPixelId}
+              onChange={set('tiktokPixelId')}
+              help="Préfixe C. Ads Manager → Assets → Events."
+            />
+          </FieldGroup>
+        </Fieldset>
+
+        <Fieldset>
+          <Legend>Server-side dedup (CAPI / Events API)</Legend>
+          <Text>
+            Tokens secrets, chiffrés (AES-256-GCM) côté serveur. N&apos;utilise que ceux de cette
+            boutique.
+          </Text>
+          <FieldGroup>
+            <AnalyticsField
+              label="Meta Conversions API token"
+              id="meta-capi"
+              type="password"
+              placeholder="EAA..."
+              value={values.metaCapiToken}
+              onChange={set('metaCapiToken')}
+              help="Events Manager → ton pixel → Settings → Generate access token."
+            />
+            <AnalyticsField
+              label="TikTok Events API access token"
+              id="tiktok-events"
+              type="password"
+              placeholder="..."
+              value={values.tiktokEventsToken}
+              onChange={set('tiktokEventsToken')}
+              help="Ads Manager → Events → Web Events → Settings → Manage Events API."
+            />
+            <AnalyticsField
+              label="GA4 Measurement Protocol API secret"
+              id="ga4-api-secret"
+              type="password"
+              placeholder="abcDEF123..."
+              value={values.ga4ApiSecret}
+              onChange={set('ga4ApiSecret')}
+              help="GA4 Admin → Data Streams → ton stream Web → Measurement Protocol API secrets → Create."
+            />
+          </FieldGroup>
+        </Fieldset>
+
+        <Fieldset>
+          <Legend>Comportement (UX)</Legend>
+          <Text>Replays de session, heatmaps. Gratuit, RGPD-friendly.</Text>
+          <FieldGroup>
+            <AnalyticsField
+              label="Microsoft Clarity Project ID"
+              id="clarity"
+              placeholder="abcd1234ef"
+              value={values.clarityId}
+              onChange={set('clarityId')}
+              help="clarity.microsoft.com → projet → Settings → Setup."
+            />
+          </FieldGroup>
+        </Fieldset>
+
+        <Fieldset>
+          <Legend>Google Ads</Legend>
+          <Text>Remontée des conversions offline. Contourne les bloqueurs côté client.</Text>
+          <FieldGroup>
+            <AnalyticsField
+              label="Conversion Action"
+              id="google-ads-conversion-action"
+              placeholder="customers/2877134493/conversionActions/…"
+              value={values.googleAdsConversionAction}
+              onChange={set('googleAdsConversionAction')}
+              help="Google Ads → Objectifs → Conversions → sélectionne l'action → champ Nom de ressource."
+            />
+            <AnalyticsField
+              label="Merchant Center ID"
+              id="google-merchant-id"
+              placeholder="5784865611"
+              value={values.googleAdsMerchantId}
+              onChange={set('googleAdsMerchantId')}
+              help="Merchant Center → Paramètres du compte → Numéro d'ID."
+            />
+          </FieldGroup>
+        </Fieldset>
+
+        <div className="flex items-center justify-between gap-4 border-t border-zinc-950/10 pt-4 dark:border-white/10">
+          {feedback ? (
+            feedback.type === 'ok' ? (
+              <span className="text-sm text-indigo-600 dark:text-indigo-400">{feedback.msg}</span>
+            ) : (
+              <span className="text-sm font-medium text-zinc-950 dark:text-white">
+                Erreur : {feedback.msg}
+              </span>
+            )
+          ) : dirty ? (
+            <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-zinc-400" />
+              Non sauvegardé
+            </span>
+          ) : (
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+              Champ vide → la valeur est effacée. Champ inchangé → conservé.
+            </span>
+          )}
+          <Button type="button" color="indigo" onClick={submit} disabled={pending || !dirty}>
+            {pending ? 'Enregistrement…' : 'Enregistrer'}
+          </Button>
         </div>
       </div>
-
-      <div className="space-y-6 p-5">
-        <Group title="Acquisition (UA)" hint="Pixels client-side. Indispensables pour les ads.">
-          <Field
-            label="Google Analytics 4"
-            id="ga4"
-            placeholder="G-XXXXXXXXXX"
-            value={values.ga4MeasurementId}
-            onChange={set('ga4MeasurementId')}
-            help="Measurement ID. Trouvé dans Admin → Streams → Web."
-          />
-          <Field
-            label="Meta Pixel ID"
-            id="meta"
-            placeholder="123456789012345"
-            value={values.metaPixelId}
-            onChange={set('metaPixelId')}
-            help="Numérique, 15-16 chiffres. Events Manager → Data Sources."
-          />
-          <Field
-            label="TikTok Pixel ID"
-            id="tiktok"
-            placeholder="C..."
-            value={values.tiktokPixelId}
-            onChange={set('tiktokPixelId')}
-            help="Préfixe C. Ads Manager → Assets → Events."
-          />
-        </Group>
-
-        <Group
-          title="Server-side dedup (CAPI / Events API)"
-          hint="Tokens secrets. Stockés en clair en DB — n'utilise que ceux de cette boutique."
-          tone="warn"
-        >
-          <Field
-            label="Meta Conversions API token"
-            id="meta-capi"
-            type="password"
-            placeholder="EAA..."
-            value={values.metaCapiToken}
-            onChange={set('metaCapiToken')}
-            help="Events Manager → ton pixel → Settings → Generate access token."
-          />
-          <Field
-            label="TikTok Events API access token"
-            id="tiktok-events"
-            type="password"
-            placeholder="..."
-            value={values.tiktokEventsToken}
-            onChange={set('tiktokEventsToken')}
-            help="Ads Manager → Events → Web Events → Settings → Manage Events API."
-          />
-          <Field
-            label="GA4 Measurement Protocol API secret"
-            id="ga4-api-secret"
-            type="password"
-            placeholder="abcDEF123..."
-            value={values.ga4ApiSecret}
-            onChange={set('ga4ApiSecret')}
-            help="GA4 Admin → Data Streams → ton stream Web → Measurement Protocol API secrets → Create."
-          />
-        </Group>
-
-        <Group title="Comportement (UX)" hint="Replays de session, heatmaps. Gratuit, RGPD-friendly.">
-          <Field
-            label="Microsoft Clarity Project ID"
-            id="clarity"
-            placeholder="abcd1234ef"
-            value={values.clarityId}
-            onChange={set('clarityId')}
-            help="clarity.microsoft.com → projet → Settings → Setup."
-          />
-        </Group>
-
-        <Group title="Google Ads" hint="Remontée des conversions offline — contourne les bloqueurs côté client.">
-          <Field
-            label="Conversion Action"
-            id="google-ads-conversion-action"
-            placeholder="customers/2877134493/conversionActions/…"
-            value={values.googleAdsConversionAction}
-            onChange={set('googleAdsConversionAction')}
-            help="Google Ads → Objectifs → Conversions → sélectionne l'action → champ Nom de ressource."
-          />
-          <Field
-            label="Merchant Center ID"
-            id="google-merchant-id"
-            placeholder="5784865611"
-            value={values.googleAdsMerchantId}
-            onChange={set('googleAdsMerchantId')}
-            help="Merchant Center → Paramètres du compte → Numéro d'ID."
-          />
-        </Group>
-      </div>
-
-      <div className="flex items-center justify-between gap-4 border-t border-white/10 bg-gray-900/40 px-5 py-4">
-        {feedback ? (
-          <span className={`text-sm ${feedback.type === 'ok' ? 'text-indigo-400' : 'text-gray-500'}`}>
-            {feedback.msg}
-          </span>
-        ) : dirty ? (
-          <span className="inline-flex items-center gap-1.5 text-xs text-zinc-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-zinc-400" />
-            Non sauvegardé
-          </span>
-        ) : (
-          <span className="text-xs text-gray-500">
-            Champ vide → la valeur est effacée. Champ inchangé → conservé.
-          </span>
-        )}
-        <button
-          type="button"
-          onClick={submit}
-          disabled={pending || !dirty}
-          className="rounded-md bg-indigo-500 px-6 py-2.5 text-sm font-medium text-white hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {pending ? 'Enregistrement…' : 'Enregistrer'}
-        </button>
-      </div>
-    </div>
+    </AdminSection>
   );
 }
 
-function Group({
-  title,
-  hint,
-  children,
-  tone = 'default',
-}: {
-  title: string;
-  hint?: string;
-  children: React.ReactNode;
-  tone?: 'default' | 'warn';
-}) {
-  return (
-    <section>
-      <div className="mb-4">
-        <h4 className={`text-xs font-medium uppercase tracking-wide ${tone === 'warn' ? 'text-indigo-400' : 'text-gray-500'}`}>
-          {title}
-        </h4>
-        {hint && <p className="mt-1 text-xs text-gray-500">{hint}</p>}
-      </div>
-      <div className="space-y-4">{children}</div>
-    </section>
-  );
-}
-
-function Field({
+function AnalyticsField({
   label,
   id,
   value,
@@ -241,21 +236,19 @@ function Field({
   type?: 'text' | 'password';
 }) {
   return (
-    <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-white">
-        {label}
-      </label>
-      <input
+    <Field>
+      <Label>{label}</Label>
+      <Input
         id={id}
         type={type}
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className="block w-full rounded-md bg-white/5 px-3 py-2 font-mono text-sm text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500"
         autoComplete="off"
         spellCheck={false}
+        className="font-mono"
       />
-      {help && <p className="mt-1 text-xs text-gray-500">{help}</p>}
-    </div>
+      {help && <Description>{help}</Description>}
+    </Field>
   );
 }

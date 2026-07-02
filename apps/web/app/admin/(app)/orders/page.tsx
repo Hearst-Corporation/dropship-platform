@@ -5,16 +5,30 @@ import { DryRunPendingButton } from './DryRunPendingButton';
 import { MarkPaidButton } from './MarkPaidButton';
 import { formatMoney } from '@/lib/medusa-store';
 import { aliExpressOrderUrl } from '@/lib/suppliers/aliexpress';
-import { Heading, Subheading } from '@/components/catalyst/heading';
+import { Subheading } from '@/components/catalyst/heading';
 import { Text, TextLink, Strong } from '@/components/catalyst/text';
 import { Badge } from '@/components/catalyst/badge';
 import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from '@/components/catalyst/table';
-import { DescriptionTerm, DescriptionDetails } from '@/components/catalyst/description-list';
 import { AdminBadge } from '@/components/admin/AdminBadge';
 import { AdminDataTable } from '@/components/admin/AdminDataTable';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import { AdminStatCard } from '@/components/admin/AdminStatCard';
+import { AdminStatsGrid } from '@/components/admin/AdminStatsGrid';
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid';
 
 export const dynamic = 'force-dynamic';
+
+/** Libellés FR pour les payment_status Medusa (bruts en anglais). */
+const PAYMENT_LABEL_FR: Record<string, string> = {
+  captured: 'Capturé',
+  authorized: 'Autorisé',
+  awaiting: 'En attente',
+  not_paid: 'Non payé',
+  canceled: 'Annulé',
+  refunded: 'Remboursé',
+  partially_refunded: 'Part. remboursé',
+  requires_action: 'Action requise',
+};
 
 /** One forward leg per row in dropship_order_forwards. */
 interface ForwardSummary {
@@ -63,11 +77,13 @@ export default async function OrdersPage() {
   if (ids.length > 0) {
     const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ');
     const { rows } = await getDbRead().query<ForwardSummary>(
+      // No supplier_order_id filter here: order-forwarder.ts only fills it on
+      // status='sent', so filtering on it would hide every error/dry_run/sending
+      // leg (and zero out the "Erreurs forward" KPI).
       `SELECT medusa_order_id, supplier, supplier_order_id, status, dry_run,
               error_message, paid_at, created_at
          FROM dropship_order_forwards
         WHERE medusa_order_id IN (${placeholders})
-          AND supplier_order_id IS NOT NULL
         ORDER BY medusa_order_id, created_at DESC`,
       ids,
     );
@@ -131,29 +147,17 @@ export default async function OrdersPage() {
 
   return (
     <div className="flex min-w-0 flex-1 flex-col space-y-8">
-      <div className="flex min-w-0 flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0">
-          <Heading>Carnet de commandes</Heading>
-          <Text>
-            Forward chaque commande payée vers le fournisseur. Le dry-run sauve le payload sans rien envoyer.
-          </Text>
-        </div>
-        <DryRunPendingButton />
-      </div>
+      <AdminPageHeader
+        title="Carnet de commandes"
+        subtitle="Forward chaque commande payée vers le fournisseur. Le dry-run sauve le payload sans rien envoyer."
+        actions={<DryRunPendingButton />}
+      />
 
-      <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <AdminStatsGrid cols={4}>
         {kpis.map((kpi) => (
-          <div
-            key={kpi.label}
-            className="min-w-0 border-t border-zinc-950/10 pt-4 dark:border-white/10"
-          >
-            <DescriptionTerm>{kpi.label}</DescriptionTerm>
-            <DescriptionDetails>
-              <Strong className="text-2xl/8 tabular-nums">{kpi.value}</Strong>
-            </DescriptionDetails>
-          </div>
+          <AdminStatCard key={kpi.label} label={kpi.label} value={kpi.value} />
         ))}
-      </dl>
+      </AdminStatsGrid>
 
       {fetchError && (
         <Text className="font-medium text-zinc-950 dark:text-white">Erreur Medusa : {fetchError}</Text>
@@ -178,7 +182,7 @@ export default async function OrdersPage() {
                   <TableHeader>Commande</TableHeader>
                   <TableHeader>Client</TableHeader>
                   <TableHeader className="text-right">Total</TableHeader>
-                  <TableHeader>Statut</TableHeader>
+                  <TableHeader>Ancienneté</TableHeader>
                   <TableHeader className="text-right">Action</TableHeader>
                 </TableRow>
               </TableHead>
@@ -205,8 +209,9 @@ export default async function OrdersPage() {
                           <ArrowTopRightOnSquareIcon className="h-3 w-3" aria-hidden="true" />
                         </TextLink>
                       </TableCell>
-                      <TableCell className="max-w-40 truncate text-zinc-500">
-                        {row.customer_email ?? '—'}
+                      <TableCell className="text-zinc-500">
+                        {/* max-w sur un <td> est ignoré en table-layout auto : contrainte sur un div interne. */}
+                        <div className="max-w-40 truncate">{row.customer_email ?? '—'}</div>
                       </TableCell>
                       <TableCell className="text-right font-semibold tabular-nums text-zinc-950 dark:text-white">
                         {row.total_minor != null && row.currency_code
@@ -215,7 +220,11 @@ export default async function OrdersPage() {
                       </TableCell>
                       <TableCell>
                         <Badge color="zinc">il y a {ageLabel}</Badge>
-                        {stale && <Text className="mt-1 text-xs">proche annulation</Text>}
+                        {stale && (
+                          <Text className="mt-1 text-xs font-medium text-zinc-950 dark:text-white">
+                            proche annulation
+                          </Text>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         <MarkPaidButton orderId={row.medusa_order_id} />
@@ -246,15 +255,17 @@ export default async function OrdersPage() {
               {orders.length} affichée{orders.length > 1 ? 's' : ''}
             </Badge>
           </div>
-          <AdminDataTable minWidth="min-w-[40rem]" className="mt-4">
+          {/* Jusqu'à 50 lignes : hauteur bornée + thead sticky (fond opaque
+              obligatoire pour masquer les lignes qui défilent dessous). */}
+          <AdminDataTable minWidth="min-w-[40rem]" className="mt-4 max-h-[70vh] overflow-y-auto">
             <Table dense>
               <TableHead>
                 <TableRow>
-                  <TableHeader>Commande</TableHeader>
-                  <TableHeader>Client</TableHeader>
-                  <TableHeader className="text-right">Total</TableHeader>
-                  <TableHeader>Paiement / Statut</TableHeader>
-                  <TableHeader className="text-right">Action</TableHeader>
+                  <TableHeader className="sticky top-0 z-10 bg-white dark:bg-zinc-900">Commande</TableHeader>
+                  <TableHeader className="sticky top-0 z-10 bg-white dark:bg-zinc-900">Client</TableHeader>
+                  <TableHeader className="sticky top-0 z-10 bg-white text-right dark:bg-zinc-900">Total</TableHeader>
+                  <TableHeader className="sticky top-0 z-10 bg-white dark:bg-zinc-900">Paiement / Statut</TableHeader>
+                  <TableHeader className="sticky top-0 z-10 bg-white text-right dark:bg-zinc-900">Action</TableHeader>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -264,7 +275,8 @@ export default async function OrdersPage() {
                   const sent = legs.some((f) => f.status === 'sent');
                   const paymentOk =
                     order.payment_status === 'captured' || order.payment_status === 'authorized';
-                  const paymentLabel = order.payment_status ?? order.status ?? '—';
+                  const rawPayment = order.payment_status ?? order.status ?? '—';
+                  const paymentLabel = PAYMENT_LABEL_FR[rawPayment] ?? rawPayment;
                   // Single-accent: paid states (captured/authorized) read as the
                   // accent ('active' -> indigo); every other state stays zinc,
                   // disambiguated by its label text.
@@ -298,8 +310,8 @@ export default async function OrdersPage() {
                           {legs.length > 0 && (
                             <div className="flex flex-col items-start gap-1">
                               {legs.map((leg, legIdx) => {
-                                if (leg.status === 'sent' && leg.supplier_order_id) {
-                                  if (leg.supplier === 'aliexpress') {
+                                if (leg.status === 'sent') {
+                                  if (leg.supplier === 'aliexpress' && leg.supplier_order_id) {
                                     return (
                                       <div key={legIdx} className="flex items-center gap-1.5">
                                         <AdminBadge status={leg.paid_at ? 'paid' : 'pending'}>
@@ -320,9 +332,16 @@ export default async function OrdersPage() {
                                     <div key={legIdx} className="flex items-center gap-1.5">
                                       <Badge color="zinc">envoyée</Badge>
                                       <span className="font-mono text-xs text-zinc-500">
-                                        {leg.supplier} #{leg.supplier_order_id}
+                                        {leg.supplier} {leg.supplier_order_id ? `#${leg.supplier_order_id}` : '—'}
                                       </span>
                                     </div>
+                                  );
+                                }
+                                if (leg.status === 'sending') {
+                                  return (
+                                    <Badge key={legIdx} color="zinc">
+                                      envoi en cours ({leg.supplier})
+                                    </Badge>
                                   );
                                 }
                                 if (leg.status === 'dry_run') {

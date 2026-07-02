@@ -11,7 +11,7 @@ import { ArrowTrendingDownIcon, ArrowTrendingUpIcon } from '@heroicons/react/16/
  * text (e.g. "+12,4 %"). Do NOT fabricate a delta where no source exists;
  * omit `delta` instead.
  */
-type Tone = 'default' | 'positive' | 'warning' | 'danger'
+type Tone = 'default' | 'positive'
 
 export interface AdminStatCardProps {
   label: string
@@ -23,20 +23,16 @@ export interface AdminStatCardProps {
 }
 
 // Single-accent policy: the only hue allowed is the accent ('indigo').
-// `positive` gets a subtle indigo accent; `warning`/`danger` stay neutral
-// zinc (disambiguated by their label text, never by color). No forbidden hue.
+// `positive` gets a subtle indigo accent; critical states are disambiguated
+// by their label/hint text, never by color — hence no warning/danger tones.
 const toneValue: Record<Tone, string> = {
   default: 'text-zinc-950 dark:text-white',
   positive: 'text-indigo-600 dark:text-indigo-400',
-  warning: 'text-zinc-950 dark:text-white',
-  danger: 'text-zinc-950 dark:text-white',
 }
 
 const toneIcon: Record<Tone, string> = {
   default: 'text-zinc-400 dark:text-zinc-500',
   positive: 'text-indigo-500 dark:text-indigo-400',
-  warning: 'text-zinc-400 dark:text-zinc-500',
-  danger: 'text-zinc-400 dark:text-zinc-500',
 }
 
 export function AdminStatCard({ label, value, hint, delta, icon: Icon, tone = 'default' }: AdminStatCardProps) {

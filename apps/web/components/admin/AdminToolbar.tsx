@@ -50,8 +50,8 @@ export function AdminToolbar({ search, filters, actions, count }: AdminToolbarPr
         </div>
       ) : null}
 
-      {filters?.map((filter) => (
-        <label key={filter.label} className="flex items-center gap-2">
+      {filters?.map((filter, index) => (
+        <label key={`${filter.label}-${index}`} className="flex items-center gap-2">
           <span className="sr-only">{filter.label}</span>
           <div className="w-40">
             <Select

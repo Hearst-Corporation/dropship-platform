@@ -6,6 +6,8 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { TEMPLATE_CATALOG, type StoreTemplate } from '@/lib/template-catalog';
 import { cn } from '@/lib/utils/cn';
+import { AdminSection } from '@/components/admin/AdminSection';
+import { Button } from '@/components/catalyst/button';
 
 const OPTIONS = TEMPLATE_CATALOG.map((t) => ({
   value: t.id,
@@ -53,18 +55,11 @@ export function StoreTemplateForm({
   };
 
   return (
-    <section className="overflow-hidden rounded-xl bg-gray-800/50 ring-1 ring-white/10">
-      <div className="border-b border-white/10 px-5 pb-3 pt-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Storefront</p>
-        <h3 className="mt-1 text-base font-semibold tracking-tight text-white">
-          Template <em className="italic text-gray-400">de rendu</em>
-        </h3>
-        <p className="mt-1.5 max-w-2xl text-xs text-gray-500">
-          Choix du layout servi sur <code className="font-mono text-gray-400">/shop/{storeSlug}</code>. Auto suit la
-          règle historique. Bascule sur éditorial pour les niches narratives (3 à 6 produits liés par un univers).
-        </p>
-      </div>
-      <div className="space-y-4 p-5">
+    <AdminSection
+      title="Template de rendu"
+      description={`Choix du layout servi sur /shop/${storeSlug}. Auto suit la règle historique. Bascule sur éditorial pour les niches narratives (3 à 6 produits liés par un univers).`}
+    >
+      <div className="space-y-4">
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {OPTIONS.map((opt) => {
             const active = value === opt.value;
@@ -79,11 +74,16 @@ export function StoreTemplateForm({
                   'relative rounded-lg p-4 text-left ring-1 transition-colors disabled:cursor-not-allowed',
                   active
                     ? 'bg-indigo-500/10 ring-indigo-500/40'
-                    : 'bg-white/5 ring-white/10 hover:bg-white/10',
+                    : 'bg-zinc-950/2.5 ring-zinc-950/10 hover:bg-zinc-950/5 dark:bg-white/5 dark:ring-white/10 dark:hover:bg-white/10',
                 )}
               >
-                <div className="mb-0.5 text-sm font-semibold text-white">{opt.label}</div>
-                <div className={`text-xs leading-snug ${active ? 'text-gray-300' : 'text-gray-500'}`}>
+                <div className="mb-0.5 text-sm font-semibold text-zinc-950 dark:text-white">{opt.label}</div>
+                <div
+                  className={cn(
+                    'text-xs leading-snug',
+                    active ? 'text-zinc-700 dark:text-zinc-300' : 'text-zinc-500 dark:text-zinc-400',
+                  )}
+                >
                   {opt.hint}
                 </div>
                 {active && (
@@ -95,20 +95,19 @@ export function StoreTemplateForm({
         </div>
 
         <div className="flex items-center gap-3 pt-2">
-          <button
-            type="button"
-            onClick={submit}
-            disabled={!dirty || pending}
-            className="rounded-md bg-indigo-500 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40"
-          >
+          <Button type="button" color="indigo" onClick={submit} disabled={!dirty || pending}>
             {pending ? 'Enregistrement…' : 'Enregistrer'}
-          </button>
+          </Button>
           {saved && !dirty && (
-            <span className="text-xs text-indigo-400">Enregistré.</span>
+            <span className="text-xs text-indigo-600 dark:text-indigo-400">Enregistré.</span>
           )}
-          {error && <span className="text-xs text-gray-500">{error}</span>}
+          {error && (
+            <span className="text-xs font-medium text-zinc-950 dark:text-white">
+              Erreur : {error}
+            </span>
+          )}
         </div>
       </div>
-    </section>
+    </AdminSection>
   );
 }

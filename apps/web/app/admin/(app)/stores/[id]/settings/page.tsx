@@ -47,7 +47,7 @@ export default async function StoreSettingsPage({ params }: { params: Promise<{ 
   return (
     <div className="space-y-8">
       <div className="min-w-0">
-        <Text className="text-xs font-medium uppercase tracking-wide text-zinc-500">Réglages</Text>
+        <Text className="text-xs/5 font-medium uppercase tracking-wider">Réglages</Text>
         <Heading>Configuration du store</Heading>
         <Text className="mt-1">
           Rendu, domaine et tokens analytics. Tous les changements sont instantanés, sans rebuild.

@@ -52,15 +52,15 @@ const LABELS: Record<AssetKind, { title: string; hint: string }> = {
   },
   'lifestyle-1': {
     title: 'Lifestyle 1',
-    hint: 'Premier moment de vie — contexte intérieur lumineux.',
+    hint: 'Premier moment de vie : contexte intérieur lumineux.',
   },
   'lifestyle-2': {
     title: 'Lifestyle 2',
-    hint: 'Deuxième moment de vie — contexte extérieur ou alternatif.',
+    hint: 'Deuxième moment de vie : contexte extérieur ou alternatif.',
   },
   'lifestyle-3': {
     title: 'Lifestyle 3',
-    hint: 'Troisième moment de vie — usage situé, distinct des deux précédents.',
+    hint: 'Troisième moment de vie : usage situé, distinct des deux précédents.',
   },
   promo: {
     title: 'Vidéo promo',
@@ -233,7 +233,7 @@ export function AssetRegenerator({
       </div>
 
       <div className="space-y-5">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-[18rem_1fr]">
+        <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[18rem_minmax(0,1fr)]">
           {/* Current preview */}
           <div>
             <Text className="mb-2 text-xs font-medium uppercase tracking-wide">
@@ -244,7 +244,7 @@ export function AssetRegenerator({
                 href={currentUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="block overflow-hidden rounded-lg bg-gray-900 ring-1 ring-white/10 no-underline transition-colors hover:ring-white/20"
+                className="block overflow-hidden rounded-lg bg-zinc-100 ring-1 ring-zinc-950/10 no-underline transition-colors hover:ring-zinc-950/20 dark:bg-zinc-950 dark:ring-white/10 dark:hover:ring-white/20"
               >
                 {isVideo ? (
                   <video
@@ -264,7 +264,7 @@ export function AssetRegenerator({
                 )}
               </TextLink>
             ) : (
-              <div className="flex aspect-square items-center justify-center rounded-lg text-xs text-gray-500 ring-1 ring-dashed ring-white/10">
+              <div className="flex aspect-square items-center justify-center rounded-lg border border-dashed border-zinc-950/15 bg-zinc-950/2.5 text-xs text-zinc-500 dark:border-white/15 dark:bg-white/5">
                 Pas encore généré
               </div>
             )}
@@ -272,7 +272,7 @@ export function AssetRegenerator({
 
           {/* Regen panel */}
           {panelOpen && (
-            <div className="space-y-3">
+            <div className="min-w-0 space-y-3">
               <Fieldset>
                 <Field>
                   <Label className="text-xs font-medium uppercase tracking-wide">
@@ -301,26 +301,28 @@ export function AssetRegenerator({
                   {running ? 'Génération en cours…' : 'Lancer'}
                 </Button>
                 {error && (
-                  <Text className="text-xs text-zinc-400 dark:text-zinc-500">{error}</Text>
+                  <span className="text-xs font-medium text-zinc-950 dark:text-white">
+                    Erreur : {error}
+                  </span>
                 )}
               </div>
 
               {logs.length > 0 && (
-                <div className="max-h-56 space-y-1 overflow-y-auto rounded-lg bg-gray-900 p-3 font-mono text-xs text-gray-400 ring-1 ring-white/10">
+                <div className="max-h-56 min-w-0 space-y-1 overflow-y-auto break-words rounded-lg bg-zinc-950 p-3 font-mono text-xs text-zinc-400 ring-1 ring-white/10">
                   {logs.map((l) => (
                     <div
                       key={l.id}
                       className={
                         l.type === 'error'
-                          ? 'text-zinc-400 dark:text-zinc-500'
+                          ? 'font-medium text-white'
                           : l.type === 'success'
                             ? 'text-indigo-400'
                             : l.type === 'step'
                               ? 'text-white'
-                              : 'text-gray-400'
+                              : 'text-zinc-400'
                       }
                     >
-                      <span className="text-gray-500">[{l.ts}]</span> {l.message}
+                      <span className="text-zinc-500">[{l.ts}]</span> {l.message}
                     </div>
                   ))}
                   <div ref={logsEndRef} />
@@ -338,19 +340,19 @@ export function AssetRegenerator({
           {runs.length === 0 ? (
             <Text className="text-xs italic">Aucune régénération enregistrée.</Text>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-              {runs.slice(0, 5).map((r) => {
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {runs.map((r) => {
                 const usable = r.status === 'success' && r.resultUrl;
                 return (
                   <div
                     key={r.id}
                     className={
                       r.isCurrent
-                        ? 'overflow-hidden rounded-lg bg-gray-800/50 ring-2 ring-indigo-500'
-                        : 'overflow-hidden rounded-lg bg-gray-800/50 ring-1 ring-white/10'
+                        ? 'overflow-hidden rounded-lg bg-white ring-2 ring-indigo-500 dark:bg-zinc-900'
+                        : 'overflow-hidden rounded-lg bg-white ring-1 ring-zinc-950/10 dark:bg-zinc-900 dark:ring-white/10'
                     }
                   >
-                    <div className="relative aspect-square bg-gray-900">
+                    <div className="relative aspect-square bg-zinc-100 dark:bg-zinc-950">
                       {usable ? (
                         isVideo ? (
                           <video
@@ -368,7 +370,7 @@ export function AssetRegenerator({
                           />
                         )
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center text-xs text-gray-500">
+                        <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">
                           {r.status === 'error' ? 'Échec' : r.status === 'running' ? 'En cours…' : '—'}
                         </div>
                       )}

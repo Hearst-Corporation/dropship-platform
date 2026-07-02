@@ -31,6 +31,9 @@ export function AdminAssetCell({ imageUrl, title, subtitle, handle, badge, class
         <img
           src={imageUrl}
           alt=""
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
           className="size-11 shrink-0 rounded-lg object-cover ring-1 ring-zinc-950/10 dark:ring-white/10"
         />
       ) : (

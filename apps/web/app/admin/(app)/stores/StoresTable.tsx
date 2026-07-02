@@ -114,22 +114,35 @@ export function StoresTable({ rows, paginated = false }: StoresTableProps) {
           icon={BuildingStorefrontIcon}
           title="Aucun store ne correspond"
           description="Ajuste la recherche ou le filtre de statut pour retrouver un store."
+          action={
+            <Button
+              plain
+              type="button"
+              onClick={() => {
+                setSearch('');
+                setStatusFilter('all');
+              }}
+            >
+              Réinitialiser les filtres
+            </Button>
+          }
         />
       ) : (
-        <AdminDataTable minWidth="min-w-[38rem]">
+        <AdminDataTable minWidth="min-w-[44rem]">
           <Table dense>
             <TableHead>
               <TableRow>
                 <TableHeader>Store</TableHeader>
                 <TableHeader>Statut</TableHeader>
                 <TableHeader className="text-right">Produits</TableHeader>
+                <TableHeader className="text-right">Créé</TableHeader>
                 <TableHeader className="text-right">Actions</TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
               {filtered.map((store) => {
                 const isFailed = store.status !== 'active' && store.status !== 'creating';
-                const subtext = [`/shop/${store.slug}`, store.niche || null, formatDate(store.created_at)]
+                const subtext = [`/shop/${store.slug}`, store.niche || null]
                   .filter(Boolean)
                   .join(' · ');
                 return (
@@ -182,6 +195,9 @@ export function StoresTable({ rows, paginated = false }: StoresTableProps) {
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-zinc-500 dark:text-zinc-400">
                       {store.product_count}
+                    </TableCell>
+                    <TableCell className="text-right whitespace-nowrap tabular-nums text-zinc-500 dark:text-zinc-400">
+                      {formatDate(store.created_at)}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-2">

@@ -8,7 +8,7 @@ import { StoreActions } from '../StoreActions';
 import { RunReportSections } from './RunReportSections';
 import { Heading, Subheading } from '@/components/catalyst/heading';
 import { Text, TextLink, Strong, Code } from '@/components/catalyst/text';
-import { Badge } from '@/components/catalyst/badge';
+import { AdminBadge } from '@/components/admin/AdminBadge';
 import { Button } from '@/components/catalyst/button';
 import { DescriptionList, DescriptionTerm, DescriptionDetails } from '@/components/catalyst/description-list';
 
@@ -143,9 +143,9 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
       <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
         <div className="flex items-start justify-between gap-4">
           <Subheading>Informations</Subheading>
-          <Badge color={statusActive ? 'green' : 'zinc'}>
+          <AdminBadge status={store.status}>
             {statusActive ? 'En ligne' : store.status}
-          </Badge>
+          </AdminBadge>
         </div>
 
         <DescriptionList className="mt-4 sm:grid-cols-2">

@@ -4,7 +4,7 @@ import { resolveStoreId } from '@/lib/resolve-store';
 import { formatMoney } from '@/lib/medusa-store';
 import { Heading, Subheading } from '@/components/catalyst/heading';
 import { Text, TextLink, Strong, Code } from '@/components/catalyst/text';
-import { Badge } from '@/components/catalyst/badge';
+import { AdminBadge } from '@/components/admin/AdminBadge';
 import { Button } from '@/components/catalyst/button';
 import {
   Table,
@@ -187,11 +187,15 @@ export default async function StoreAnalyticsPage({ params, searchParams }: Props
       {/* Aggregate KPIs */}
       <section>
         <Subheading>Indicateurs clés</Subheading>
-        <DescriptionList className="mt-4 sm:grid-cols-2">
-          {stats.map((s) => (
-            <DescriptionListKpi key={s.label} term={s.label} value={s.value} hint={s.hint} />
+        <div className="grid grid-cols-1 gap-x-8 2xl:grid-cols-2">
+          {[stats.slice(0, 2), stats.slice(2)].map((half, i) => (
+            <DescriptionList key={i} className="mt-4">
+              {half.map((s) => (
+                <DescriptionListKpi key={s.label} term={s.label} value={s.value} hint={s.hint} />
+              ))}
+            </DescriptionList>
           ))}
-        </DescriptionList>
+        </div>
       </section>
 
       {/* UX — Funnel */}
@@ -326,8 +330,8 @@ function DescriptionListKpi({
 
 function ConnState({ label, set }: { label: string; set: boolean }) {
   return (
-    <Badge color={set ? 'indigo' : 'zinc'}>
+    <AdminBadge status={set ? 'connecté' : 'inactif'}>
       {label} · {set ? 'connecté' : 'inactif'}
-    </Badge>
+    </AdminBadge>
   );
 }

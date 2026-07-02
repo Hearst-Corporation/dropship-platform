@@ -9,9 +9,13 @@ import type React from 'react'
  * instead of column crush on narrow viewports.
  *
  * Children should be a Catalyst <Table> (which already renders thead/tbody).
- * Catalyst's own Table also has an overflow wrapper, but its negative
- * `-mx-(--gutter)` margin is neutralised here by not setting a `--gutter`,
- * so the border stays flush.
+ * `--gutter` is set for comfortable first/last cell padding AND compensated
+ * with `px-(--gutter)`: Catalyst's inner wrapper applies `-mx-(--gutter)`,
+ * so without the matching padding every panel would overflow by 2×gutter and
+ * grow a phantom horizontal scrollbar.
+ *
+ * Pass `bare` when the table sits inside an already-bordered surface (e.g. an
+ * AdminSection with `flush`) to avoid double borders and nested rounded panels.
  *
  * Server-safe (pure presentational).
  */
@@ -19,18 +23,21 @@ export interface AdminDataTableProps {
   children: React.ReactNode
   /** A Tailwind `min-w-*` class, e.g. "min-w-3xl" or "min-w-[52rem]". */
   minWidth?: string
+  /** Drop the panel chrome (border/radius/bg) when nested in a flush AdminSection. */
+  bare?: boolean
   className?: string
 }
 
-export function AdminDataTable({ children, minWidth, className }: AdminDataTableProps) {
+export function AdminDataTable({ children, minWidth, bare = false, className }: AdminDataTableProps) {
   return (
     <div
       className={clsx(
         className,
-        'overflow-x-auto rounded-xl border border-zinc-950/10 bg-white dark:border-white/10 dark:bg-zinc-900',
+        'overflow-x-auto',
+        !bare && 'rounded-xl border border-zinc-950/10 bg-white dark:border-white/10 dark:bg-zinc-900',
       )}
     >
-      <div className={clsx('[--gutter:--spacing(6)]', minWidth)}>{children}</div>
+      <div className={clsx('px-(--gutter) [--gutter:--spacing(6)]', minWidth)}>{children}</div>
     </div>
   )
 }

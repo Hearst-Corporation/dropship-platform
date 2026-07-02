@@ -8,6 +8,12 @@ import {
 import { getDbRead } from '@/lib/db';
 import { Text } from '@/components/catalyst/text';
 import { Button } from '@/components/catalyst/button';
+import {
+  Pagination,
+  PaginationPrevious,
+  PaginationNext,
+  PaginationList,
+} from '@/components/catalyst/pagination';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import { AdminStatsGrid } from '@/components/admin/AdminStatsGrid';
 import { AdminStatCard } from '@/components/admin/AdminStatCard';
@@ -56,10 +62,24 @@ export default async function StoresPage({
 
   const db = getDbRead();
 
-  const countRes = await db.query<{ total: number }>(
-    `SELECT COUNT(*)::int AS total FROM dropship_stores`,
+  // Global aggregates: the stat cards show platform-wide totals, not just the
+  // current page (LIMIT/OFFSET below only feeds the table).
+  const statsRes = await db.query<{
+    total: number;
+    active: number;
+    creating: number;
+    failed: number;
+    total_products: number;
+  }>(
+    `SELECT COUNT(*)::int AS total,
+            COUNT(*) FILTER (WHERE status = 'active')::int AS active,
+            COUNT(*) FILTER (WHERE status = 'creating')::int AS creating,
+            COUNT(*) FILTER (WHERE status NOT IN ('active', 'creating'))::int AS failed,
+            COALESCE(SUM(product_count) FILTER (WHERE status = 'active'), 0)::int AS total_products
+     FROM dropship_stores`,
   );
-  const total = countRes.rows[0]?.total ?? 0;
+  const stats = statsRes.rows[0] ?? { total: 0, active: 0, creating: 0, failed: 0, total_products: 0 };
+  const total = stats.total;
   const totalPages = Math.ceil(total / pageSize);
 
   const { rows } = await db.query<StoreRow>(
@@ -69,11 +89,6 @@ export default async function StoresPage({
      FROM dropship_stores ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
     [pageSize, offset],
   );
-
-  const active = rows.filter((s) => s.status === 'active');
-  const creating = rows.filter((s) => s.status === 'creating');
-  const failed = rows.filter((s) => s.status !== 'active' && s.status !== 'creating');
-  const totalProducts = active.reduce((acc, s) => acc + (s.product_count || 0), 0);
 
   const tableRows: StoresTableRow[] = rows.map((s) => ({
     id: s.id,
@@ -105,10 +120,10 @@ export default async function StoresPage({
       />
 
       <AdminStatsGrid>
-        <AdminStatCard label="En ligne" value={active.length} icon={CheckCircleIcon} />
-        <AdminStatCard label="En création" value={creating.length} icon={ClockIcon} />
-        <AdminStatCard label="En erreur" value={failed.length} icon={ExclamationTriangleIcon} />
-        <AdminStatCard label="Produits publiés" value={totalProducts} icon={CubeIcon} />
+        <AdminStatCard label="En ligne" value={stats.active} icon={CheckCircleIcon} />
+        <AdminStatCard label="En création" value={stats.creating} icon={ClockIcon} />
+        <AdminStatCard label="En erreur" value={stats.failed} icon={ExclamationTriangleIcon} />
+        <AdminStatCard label="Produits publiés" value={stats.total_products} icon={CubeIcon} />
       </AdminStatsGrid>
 
       {total === 0 ? (
@@ -127,37 +142,20 @@ export default async function StoresPage({
       )}
 
       {totalPages > 1 && (
-        <nav className="flex items-center justify-center gap-2 pt-2">
-          <PaginationLink page={page - 1} disabled={page <= 1} label="← Précédent" />
-          <Text className="px-3 tabular-nums">
-            Page {page} / {totalPages}
-          </Text>
-          <PaginationLink page={page + 1} disabled={page >= totalPages} label="Suivant →" />
-        </nav>
+        <Pagination className="pt-2">
+          <PaginationPrevious href={page > 1 ? `/admin/stores?page=${page - 1}` : null}>
+            Précédent
+          </PaginationPrevious>
+          <PaginationList>
+            <Text className="px-3 tabular-nums">
+              Page {page} / {totalPages}
+            </Text>
+          </PaginationList>
+          <PaginationNext href={page < totalPages ? `/admin/stores?page=${page + 1}` : null}>
+            Suivant
+          </PaginationNext>
+        </Pagination>
       )}
     </div>
-  );
-}
-
-function PaginationLink({
-  page,
-  disabled,
-  label,
-}: {
-  page: number;
-  disabled: boolean;
-  label: string;
-}) {
-  if (disabled) {
-    return (
-      <Button plain disabled>
-        {label}
-      </Button>
-    );
-  }
-  return (
-    <Button plain href={`/admin/stores?page=${page}`}>
-      {label}
-    </Button>
   );
 }

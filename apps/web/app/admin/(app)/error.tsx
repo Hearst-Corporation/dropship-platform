@@ -2,6 +2,8 @@
 
 import { useEffect } from 'react';
 import * as Sentry from '@sentry/nextjs';
+import { Button } from '@/components/catalyst/button';
+import { Heading } from '@/components/catalyst/heading';
 
 /**
  * Error boundary de la zone admin (segment (app)). Reste sur le shell sombre
@@ -24,22 +26,16 @@ export default function Error({
         <p className="mb-3 text-xs font-medium uppercase tracking-wide text-indigo-400">
           Erreur
         </p>
-        <h1 className="mb-3 text-2xl font-semibold tracking-tight text-gray-100">
-          Une erreur est survenue
-        </h1>
-        <p className="mb-8 text-sm leading-relaxed text-gray-400">
+        <Heading className="mb-3">Une erreur est survenue</Heading>
+        <p className="mb-8 text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
           Le chargement de cette page a été interrompu. Réessayez ou rechargez la
           page.
         </p>
-        <button
-          type="button"
-          onClick={reset}
-          className="inline-flex items-center justify-center rounded-md bg-indigo-500 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-400"
-        >
+        <Button color="indigo" onClick={reset}>
           Réessayer
-        </button>
+        </Button>
         {error.digest && (
-          <p className="mt-8 text-xs uppercase tracking-wide text-gray-500">
+          <p className="mt-8 text-xs uppercase tracking-wide text-zinc-500">
             Référence · {error.digest}
           </p>
         )}

@@ -19,7 +19,7 @@ export default function Loading() {
         <div className="divide-y divide-zinc-950/10 p-6 dark:divide-white/10">
           {Array.from({ length: 2 }).map((_, i) => (
             <div key={i} className="py-5 first:pt-0 last:pb-0">
-              <div className="flex items-start justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="space-y-2">
                   <div className="h-4 w-40 rounded bg-zinc-200 dark:bg-zinc-800" />
                   <div className="h-3 w-56 rounded bg-zinc-100 dark:bg-zinc-800/60" />
@@ -38,10 +38,17 @@ export default function Loading() {
           <div className="h-4 w-52 rounded bg-zinc-200 dark:bg-zinc-800" />
           <div className="mt-2 h-3 w-96 max-w-full rounded bg-zinc-100 dark:bg-zinc-800/60" />
         </div>
-        <div className="space-y-3 p-6">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-8 w-full rounded bg-zinc-100 dark:bg-zinc-800/60" />
-          ))}
+        <div className="px-6">
+          <div className="flex h-9 items-center border-b border-zinc-950/10 dark:border-white/10">
+            <div className="h-3 w-2/3 rounded bg-zinc-200 dark:bg-zinc-800" />
+          </div>
+          <div className="divide-y divide-zinc-950/5 dark:divide-white/5">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex h-10 items-center">
+                <div className="h-3 w-full rounded bg-zinc-100 dark:bg-zinc-800/60" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

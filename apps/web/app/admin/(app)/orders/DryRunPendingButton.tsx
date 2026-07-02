@@ -4,6 +4,8 @@ import { apiFetch } from '@/lib/client-fetch';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Button } from '@/components/catalyst/button';
+
 interface BatchResult {
   scanned: number;
   processed: number;
@@ -38,21 +40,23 @@ export function DryRunPendingButton() {
 
   return (
     <div className="flex flex-col items-end gap-1.5">
-      <button
+      <Button
+        outline
         onClick={run}
         disabled={busy}
         aria-label="Pré-calculer les dry-runs des commandes payées en attente"
         aria-busy={busy}
-        className="rounded-lg bg-white/10 px-4 py-2 text-xs font-medium uppercase tracking-wider text-white ring-1 ring-inset ring-white/10 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {busy ? 'Pré-calcul…' : 'Pré-calculer les dry-runs'}
-      </button>
+      </Button>
       {result && (
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-zinc-500 dark:text-zinc-400">
           {result.processed} traitée{result.processed > 1 ? 's' : ''} sur {result.scanned} payée{result.scanned > 1 ? 's' : ''}
         </span>
       )}
-      {error && <span className="text-xs text-gray-400">{error}</span>}
+      {error && (
+        <span className="text-xs font-medium text-zinc-950 dark:text-white">Erreur : {error}</span>
+      )}
     </div>
   );
 }

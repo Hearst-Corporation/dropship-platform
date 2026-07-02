@@ -6,6 +6,16 @@ import { Heading, Subheading } from '@/components/catalyst/heading';
 import { Text } from '@/components/catalyst/text';
 import { Badge } from '@/components/catalyst/badge';
 import { Button } from '@/components/catalyst/button';
+import { AdminBadge } from '@/components/admin/AdminBadge';
+import { AdminEmptyState } from '@/components/admin/AdminEmptyState';
+import { EllipsisHorizontalIcon } from '@heroicons/react/16/solid';
+import {
+  Dropdown,
+  DropdownButton,
+  DropdownItem,
+  DropdownLabel,
+  DropdownMenu,
+} from '@/components/catalyst/dropdown';
 import {
   DescriptionList,
   DescriptionTerm,
@@ -91,7 +101,7 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
     <div className="space-y-8">
       <div className="flex min-w-0 flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <Text className="text-xs font-medium uppercase tracking-wide">Catalogue</Text>
+          <Text className="text-xs/5 font-medium uppercase tracking-wider">Catalogue</Text>
           <Heading>Produits du store</Heading>
           <Text>
             Niche · {store.niche} · Géré par l&apos;agent à la création, modifiable via Curation.
@@ -104,14 +114,18 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
 
       <div className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
         <Subheading>Aperçu</Subheading>
-        <DescriptionList className="mt-4 sm:grid-cols-2">
-          {stats.map((stat) => (
-            <Fragment key={stat.label}>
-              <DescriptionTerm>{stat.label}</DescriptionTerm>
-              <DescriptionDetails>{stat.value}</DescriptionDetails>
-            </Fragment>
+        <div className="grid grid-cols-1 gap-x-8 2xl:grid-cols-2">
+          {[stats.slice(0, 2), stats.slice(2)].map((half, i) => (
+            <DescriptionList key={i} className="mt-4">
+              {half.map((stat) => (
+                <Fragment key={stat.label}>
+                  <DescriptionTerm>{stat.label}</DescriptionTerm>
+                  <DescriptionDetails className="tabular-nums">{stat.value}</DescriptionDetails>
+                </Fragment>
+              ))}
+            </DescriptionList>
           ))}
-        </DescriptionList>
+        </div>
       </div>
 
       <div className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
@@ -129,14 +143,15 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
         </div>
 
         {products.length === 0 ? (
-          <div className="mt-4 flex flex-col items-center justify-center gap-4 py-10 text-center">
-            <Text className="max-w-sm">
-              Aucun produit dans ce store. Lance le copilote de curation pour en importer.
-            </Text>
-            <Button color="indigo" href={`/admin/stores/${id}/copilot`}>
-              Ajouter des produits
-            </Button>
-          </div>
+          <AdminEmptyState
+            title="Aucun produit dans ce store"
+            description="Lance le copilote de curation pour en importer."
+            action={
+              <Button color="indigo" href={`/admin/stores/${id}/copilot`}>
+                Ajouter des produits
+              </Button>
+            }
+          />
         ) : (
           <Table className="mt-4" dense>
             <TableHead>
@@ -148,6 +163,9 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
                 <TableHeader className="text-right">Marge</TableHeader>
                 <TableHeader className="text-right">Image</TableHeader>
                 <TableHeader className="text-right">État</TableHeader>
+                <TableHeader className="relative w-0">
+                  <span className="sr-only">Actions</span>
+                </TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -208,10 +226,29 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
                     </TableCell>
                     <TableCell className="text-right">
                       {p.medusa_product_id ? (
-                        <Badge color="indigo">Live</Badge>
+                        <AdminBadge status="live">Live</AdminBadge>
                       ) : (
-                        <Badge color="zinc">En attente</Badge>
+                        <AdminBadge status="pending">En attente</AdminBadge>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="-my-1.5 flex justify-end">
+                        <Dropdown>
+                          <DropdownButton plain aria-label={`Actions pour ${p.enriched_title || 'ce produit'}`}>
+                            <EllipsisHorizontalIcon data-slot="icon" />
+                          </DropdownButton>
+                          <DropdownMenu anchor="bottom end">
+                            <DropdownItem href={`/shop/${store.slug}`} target="_blank" rel="noreferrer">
+                              <DropdownLabel>Voir sur la boutique</DropdownLabel>
+                            </DropdownItem>
+                            {p.supplier_url ? (
+                              <DropdownItem href={p.supplier_url} target="_blank" rel="noreferrer">
+                                <DropdownLabel>Ouvrir chez le fournisseur</DropdownLabel>
+                              </DropdownItem>
+                            ) : null}
+                          </DropdownMenu>
+                        </Dropdown>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

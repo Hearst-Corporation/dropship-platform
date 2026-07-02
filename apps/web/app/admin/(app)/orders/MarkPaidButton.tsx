@@ -4,7 +4,9 @@ import { apiFetch } from '@/lib/client-fetch';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { AdminConfirmDialog } from '@/components/admin/AdminConfirmDialog';
+import { Button } from '@/components/catalyst/button';
+
 interface Props {
   orderId: string;
 }
@@ -40,20 +42,16 @@ export function MarkPaidButton({ orderId }: Props) {
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <button
-        onClick={() => setConfirmOpen(true)}
-        disabled={busy}
-        className="rounded-md bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-400 ring-1 ring-inset ring-indigo-500/20 hover:bg-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-      >
+      <Button color="indigo" disabled={busy} onClick={() => setConfirmOpen(true)}>
         {busy ? '…' : 'Marquer payée'}
-      </button>
+      </Button>
       {error && (
-        <span className="max-w-52 text-right text-xs text-gray-400">{error}</span>
+        <span className="max-w-52 text-right text-xs text-zinc-500 dark:text-zinc-400">{error}</span>
       )}
-      <ConfirmDialog
+      <AdminConfirmDialog
         open={confirmOpen}
         title="Confirmer le paiement"
-        description={`Confirme que tu as bien payé cette commande sur aliexpress.com.\n\nCette action ne paie rien — elle sert juste à sortir la commande de la liste « à payer ».`}
+        description="Confirme que tu as bien payé cette commande sur aliexpress.com. Cette action ne paie rien, elle sort juste la commande de la liste « à payer »."
         confirmLabel="J'ai payé"
         onConfirm={run}
         onCancel={() => setConfirmOpen(false)}

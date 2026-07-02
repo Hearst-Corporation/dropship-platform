@@ -1,10 +1,13 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import Link from 'next/link';
+import { Squares2X2Icon } from '@heroicons/react/24/outline';
 import {
   TEMPLATE_CATALOG,
   type TemplateRegister,
 } from '@/lib/template-catalog';
-import { Heading, Subheading } from '@/components/catalyst/heading';
+import { Subheading } from '@/components/catalyst/heading';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import { Text, Code, Strong } from '@/components/catalyst/text';
 import { Badge } from '@/components/catalyst/badge';
 import { Button } from '@/components/catalyst/button';
@@ -53,12 +56,10 @@ export default async function TemplatesGalleryPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <Heading>Templates de storefront</Heading>
-        <Text className="mt-2">
-          {`${TEMPLATE_CATALOG.length - 1} layouts disponibles. Chaque template peut être assigné à n'importe quelle boutique. Clique sur "Voir en live" pour un preview rendu avec des données fictives.`}
-        </Text>
-      </div>
+      <AdminPageHeader
+        title="Templates de storefront"
+        subtitle={`${TEMPLATE_CATALOG.length - 1} layouts disponibles. Chaque template peut être assigné à n'importe quelle boutique. Clique sur "Voir en live" pour un preview rendu avec des données fictives.`}
+      />
 
       {(['luxury', 'premium', 'mass'] as TemplateRegister[]).map((reg) => {
         const entries = byRegister[reg];
@@ -67,7 +68,7 @@ export default async function TemplatesGalleryPage() {
           <section key={reg} className="flex min-w-0 flex-col gap-4">
             <div className="flex items-baseline justify-between">
               <Subheading>{labelForRegister(reg)}</Subheading>
-              <Text className="text-xs">{entries.length} templates</Text>
+              <Text className="!text-xs">{entries.length} templates</Text>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
               {entries.map((t) => {
@@ -75,22 +76,35 @@ export default async function TemplatesGalleryPage() {
                 return (
                   <div
                     key={t.id}
-                    className="flex min-w-0 flex-col overflow-hidden rounded-lg bg-white/[0.02] ring-1 ring-zinc-950/10 dark:ring-white/10"
+                    className="flex min-w-0 flex-col overflow-hidden rounded-lg bg-white/[0.02] ring-1 ring-zinc-950/10 transition hover:bg-white/[0.04] hover:ring-zinc-950/20 dark:ring-white/10 dark:hover:ring-white/20"
                   >
-                    <div className="relative aspect-[16/10] w-full overflow-hidden bg-zinc-100 dark:bg-zinc-950">
+                    <Link
+                      href={`/admin/templates/${t.id}/preview`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="relative block aspect-[16/10] w-full overflow-hidden bg-zinc-100 dark:bg-zinc-950"
+                    >
                       {preview ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={preview}
                           alt={t.label}
+                          loading="lazy"
+                          decoding="async"
                           className="absolute inset-0 h-full w-full object-cover object-top"
                         />
                       ) : (
-                        <div className="absolute inset-0 flex items-center justify-center text-xs font-medium text-zinc-500">
-                          Aperçu indisponible
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-zinc-100 dark:bg-zinc-950">
+                          <Squares2X2Icon
+                            className="size-6 text-zinc-400 dark:text-zinc-600"
+                            aria-hidden="true"
+                          />
+                          <span className="text-xs font-medium text-zinc-500">
+                            Aperçu à générer
+                          </span>
                         </div>
                       )}
-                    </div>
+                    </Link>
                     <div className="flex min-w-0 flex-1 flex-col gap-3 p-4">
                       <div className="flex min-w-0 flex-col gap-1">
                         <Strong>{t.label}</Strong>
@@ -99,11 +113,16 @@ export default async function TemplatesGalleryPage() {
                       <div className="flex flex-wrap items-center gap-1.5">
                         <Badge color="zinc">{t.mode}</Badge>
                         {t.niches.length > 0 ? (
-                          t.niches.map((n) => (
-                            <Badge key={n} color="indigo">
-                              {n}
-                            </Badge>
-                          ))
+                          <>
+                            {t.niches.slice(0, 3).map((n) => (
+                              <Badge key={n} color="indigo">
+                                {n}
+                              </Badge>
+                            ))}
+                            {t.niches.length > 3 && (
+                              <Badge color="zinc">+{t.niches.length - 3}</Badge>
+                            )}
+                          </>
                         ) : (
                           <Badge color="zinc">Tous secteurs</Badge>
                         )}
@@ -133,8 +152,8 @@ export default async function TemplatesGalleryPage() {
 
 function labelForRegister(r: TemplateRegister): string {
   switch (r) {
-    case 'luxury': return 'Luxe — pièces signatures';
-    case 'premium': return 'Premium — éditorial et boutique';
-    case 'mass': return 'Mass-market — volume et grandes audiences';
+    case 'luxury': return 'Luxe · pièces signatures';
+    case 'premium': return 'Premium · éditorial et boutique';
+    case 'mass': return 'Mass-market · volume et grandes audiences';
   }
 }

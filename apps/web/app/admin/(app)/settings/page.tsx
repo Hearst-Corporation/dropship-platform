@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/16/solid';
 import { getDbRead } from '@/lib/db';
 import { Text, TextLink, Strong, Code } from '@/components/catalyst/text';
+import { Subheading } from '@/components/catalyst/heading';
 import { Badge } from '@/components/catalyst/badge';
 import { Button } from '@/components/catalyst/button';
 import {
@@ -94,16 +95,26 @@ export default async function SettingsPage() {
             }
           >
             {isConnected ? (
-              <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-3">
-                <Field label="Compte" value={aliNick?.value || '—'} />
+              <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2 2xl:grid-cols-3">
+                <Field label="Compte" value={aliNick?.value || '–'} />
                 <Field
                   label="Expire le"
-                  value={expiresAt ? fmtDate(expiresAt) : '—'}
-                  muted={isExpired}
+                  value={
+                    expiresAt ? (
+                      <span className="inline-flex flex-wrap items-center gap-2">
+                        <span className="font-medium text-zinc-950 dark:text-white">
+                          {fmtDate(expiresAt)}
+                        </span>
+                        {isExpired && <Badge color="zinc">Expiré</Badge>}
+                      </span>
+                    ) : (
+                      '–'
+                    )
+                  }
                 />
                 <Field
                   label="Dernière auth"
-                  value={aliToken?.updatedAt ? fmtDate(aliToken.updatedAt) : '—'}
+                  value={aliToken?.updatedAt ? fmtDate(aliToken.updatedAt) : '–'}
                 />
               </dl>
             ) : (
@@ -142,7 +153,7 @@ export default async function SettingsPage() {
       {/* ── Politique dropshipping ─────────────────────────────────────────── */}
       <AdminSection
         title="Politique dropshipping"
-        description="Vue en lecture seule de tous les fournisseurs connus, classée par statut. La colonne Capacités récapitule chaque critère : un point plein signale un critère satisfait, un point atténué un critère manquant ou partiel."
+        description="Vue en lecture seule de tous les fournisseurs connus, classée par statut."
         flush
       >
         <SupplierPolicyTable rows={supplierRows} />
@@ -171,7 +182,7 @@ function IntegrationRow({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-sm font-semibold text-zinc-950 dark:text-white">{name}</h3>
+            <Subheading level={3}>{name}</Subheading>
             {badge}
           </div>
           <p className="mt-0.5 text-xs/5 text-zinc-500 dark:text-zinc-400">{meta}</p>
@@ -183,19 +194,11 @@ function IntegrationRow({
   );
 }
 
-function Field({ label, value, muted }: { label: string; value: ReactNode; muted?: boolean }) {
+function Field({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div>
       <dt className="text-xs/5 text-zinc-500 dark:text-zinc-400">{label}</dt>
-      <dd
-        className={
-          muted
-            ? 'text-sm text-zinc-400 dark:text-zinc-500'
-            : 'text-sm text-zinc-950 dark:text-white'
-        }
-      >
-        {value}
-      </dd>
+      <dd className="text-sm text-zinc-950 dark:text-white">{value}</dd>
     </div>
   );
 }
@@ -211,6 +214,18 @@ const CAPABILITY_LABELS: Record<string, string> = {
   tracking: 'Tracking',
   returns: 'Retours',
   imageRights: 'Droits images',
+};
+
+// Short visible labels for the table chips (full label stays in the title).
+const CAPABILITY_SHORT: Record<string, string> = {
+  unitOrder: 'Unitaire',
+  noStock: 'No-stock',
+  directShip: 'Direct',
+  neutralPackaging: 'Neutre',
+  stockPriceSync: 'Sync',
+  tracking: 'Tracking',
+  returns: 'Retours',
+  imageRights: 'Images',
 };
 
 const CAPABILITY_KEYS = Object.keys(CAPABILITY_LABELS);
@@ -229,21 +244,21 @@ function statusMeta(status: string): { color: BadgeColor; label: string } {
   return STATUS_META[status] ?? { color: 'zinc', label: status };
 }
 
-// Only "connected" carries the accent; error / missing-key / unknown are zinc.
+// Only "connected" carries the accent; error / missing-key are zinc.
+// "unknown" renders as a plain dash in the cell, not a badge.
 const CONNECTION_META: Record<string, { color: BadgeColor; label: string }> = {
   connected: { color: 'indigo', label: 'Connecté' },
   error: { color: 'zinc', label: 'Erreur' },
   'missing-key': { color: 'zinc', label: 'Clé manquante' },
-  unknown: { color: 'zinc', label: 'Inconnu' },
 };
 
 /**
- * Compact inline capability group. Renders one small dot per capability:
- * satisfied = filled accent (indigo) dot, missing/partial = faint zinc dot.
- * Each dot carries a native title tooltip ("Critère · Satisfait|Manquant").
- * Neutral palette only: indigo for present, zinc for absent.
+ * Readable capability chips: a tabular counter (n/8) followed by one small
+ * zinc text chip per satisfied criterion (short label visible, full label in
+ * the title). Missing criteria are implied by the counter. Visible text keeps
+ * the column scannable and accessible on touch and keyboard.
  */
-function CapabilityDots({
+function CapabilityChips({
   capabilities,
   hasData,
 }: {
@@ -251,26 +266,19 @@ function CapabilityDots({
   hasData: boolean;
 }) {
   if (!hasData) {
-    return <span className="text-xs text-zinc-400 dark:text-zinc-600">—</span>;
+    return <span className="text-xs text-zinc-400 dark:text-zinc-600">–</span>;
   }
+  const satisfied = CAPABILITY_KEYS.filter((key) => !!capabilities[key]);
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {CAPABILITY_KEYS.map((key) => {
-        const ok = !!capabilities[key];
-        const label = CAPABILITY_LABELS[key];
-        return (
-          <span
-            key={key}
-            title={`${label} · ${ok ? 'Satisfait' : 'Manquant ou partiel'}`}
-            aria-label={`${label} : ${ok ? 'satisfait' : 'manquant ou partiel'}`}
-            className={
-              ok
-                ? 'size-2 rounded-full bg-indigo-500 dark:bg-indigo-400'
-                : 'size-2 rounded-full bg-zinc-300 dark:bg-zinc-700'
-            }
-          />
-        );
-      })}
+      <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+        {satisfied.length}/{CAPABILITY_KEYS.length}
+      </span>
+      {satisfied.map((key) => (
+        <Badge key={key} color="zinc" title={CAPABILITY_LABELS[key]}>
+          {CAPABILITY_SHORT[key]}
+        </Badge>
+      ))}
     </div>
   );
 }
@@ -279,13 +287,21 @@ function SupplierPolicyTable({ rows }: { rows: SupplierPolicyRow[] }) {
   if (!rows.length) {
     return (
       <div className="p-6">
-        <AdminEmptyState title="Aucun fournisseur" description="La politique fournisseurs est vide." />
+        <AdminEmptyState
+          title="Aucun fournisseur"
+          description="La politique fournisseurs est vide."
+          action={
+            <Button href="/api/aliexpress/oauth/start" color="indigo">
+              Connecter AliExpress
+            </Button>
+          }
+        />
       </div>
     );
   }
 
   return (
-    <AdminDataTable minWidth="min-w-[36rem]" className="border-0 bg-transparent dark:bg-transparent">
+    <AdminDataTable minWidth="min-w-[44rem]" bare>
       <Table dense>
         <TableHead>
           <TableRow>
@@ -295,7 +311,7 @@ function SupplierPolicyTable({ rows }: { rows: SupplierPolicyRow[] }) {
             <TableHeader>Capacités</TableHeader>
           </TableRow>
         </TableHead>
-        <TableBody>
+        <TableBody className="[&>tr:last-child>td]:border-b-0">
           {rows.map((row) => {
             const sMeta = statusMeta(row.status);
             const cMeta =
@@ -309,7 +325,7 @@ function SupplierPolicyTable({ rows }: { rows: SupplierPolicyRow[] }) {
                 <TableCell>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium text-zinc-950 dark:text-white">{row.label}</span>
-                    {row.tier && <Badge color="indigo">{row.tier}</Badge>}
+                    {row.tier && <Badge color="zinc">{row.tier}</Badge>}
                   </div>
                   {row.exclusionNote && (
                     <p className="mt-0.5 max-w-md text-xs text-zinc-500 dark:text-zinc-400">
@@ -321,10 +337,14 @@ function SupplierPolicyTable({ rows }: { rows: SupplierPolicyRow[] }) {
                   <Badge color={sMeta.color}>{sMeta.label}</Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge color={cMeta.color}>{cMeta.label}</Badge>
+                  {row.connectionState === 'unknown' ? (
+                    <span className="text-zinc-400 dark:text-zinc-600">–</span>
+                  ) : (
+                    <Badge color={cMeta.color}>{cMeta.label}</Badge>
+                  )}
                 </TableCell>
                 <TableCell>
-                  <CapabilityDots capabilities={row.capabilities} hasData={hasCapabilities} />
+                  <CapabilityChips capabilities={row.capabilities} hasData={hasCapabilities} />
                 </TableCell>
               </TableRow>
             );

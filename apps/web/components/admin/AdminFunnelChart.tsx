@@ -1,4 +1,4 @@
-'use client';
+'use client'
 
 import {
   Bar,
@@ -9,75 +9,57 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-} from 'recharts';
-
-/** Dégradé indigo -> sky pour les étapes du funnel. */
-const STEP_COLORS = ['#6366f1', '#5b74f2', '#4f8cf3', '#43a4f5', '#38bdf8'];
-
-const AXIS_TICK = { fill: '#a1a1aa', fontSize: 12 };
+} from 'recharts'
+import { AXIS_TICK, ChartEmptyState, FUNNEL_COLORS } from './chart-theme'
 
 export interface AdminFunnelStep {
-  label: string;
-  value: number;
+  label: string
+  value: number
 }
 
 export interface AdminFunnelChartProps {
-  steps: AdminFunnelStep[];
-  height?: number;
-}
-
-function EmptyState({ height }: { height: number }) {
-  return (
-    <div
-      className="flex items-center justify-center rounded-lg border border-white/10 bg-zinc-900 text-sm text-zinc-500"
-      style={{ height }}
-    >
-      Pas encore de données
-    </div>
-  );
+  steps: AdminFunnelStep[]
+  height?: number
 }
 
 function FunnelTooltip({
   active,
   payload,
 }: {
-  active?: boolean;
-  payload?: Array<{ payload?: AdminFunnelStep & { conv?: string | null } }>;
+  active?: boolean
+  payload?: Array<{ payload?: AdminFunnelStep & { conv?: string | null } }>
 }) {
-  if (!active || !payload || payload.length === 0) return null;
-  const point = payload[0]?.payload;
-  if (!point) return null;
+  if (!active || !payload || payload.length === 0) return null
+  const point = payload[0]?.payload
+  if (!point) return null
   return (
-    <div className="rounded border border-white/10 bg-zinc-800 px-3 py-2 text-xs text-zinc-100 shadow-lg">
-      <div className="mb-1 font-medium text-zinc-300">{point.label}</div>
+    <div className="rounded border border-zinc-950/10 bg-white px-3 py-2 text-xs text-zinc-950 shadow-lg dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-100">
+      <div className="mb-1 font-medium text-zinc-500 dark:text-zinc-300">{point.label}</div>
       <div className="flex items-center gap-2">
-        <span className="text-zinc-400">Volume</span>
-        <span className="ml-auto font-medium tabular-nums">{point.value}</span>
+        <span className="text-zinc-500 dark:text-zinc-400">Volume</span>
+        <span className="ml-auto pl-4 font-medium tabular-nums">{point.value}</span>
       </div>
       {point.conv != null && (
         <div className="flex items-center gap-2">
-          <span className="text-zinc-400">Conversion</span>
-          <span className="ml-auto font-medium tabular-nums">{point.conv}%</span>
+          <span className="text-zinc-500 dark:text-zinc-400">Conversion</span>
+          <span className="ml-auto pl-4 font-medium tabular-nums">{point.conv}%</span>
         </div>
       )}
     </div>
-  );
+  )
 }
 
-export default function AdminFunnelChart({
-  steps,
-  height = 280,
-}: AdminFunnelChartProps) {
+export function AdminFunnelChart({ steps, height = 280 }: AdminFunnelChartProps) {
   if (!steps || steps.length === 0) {
-    return <EmptyState height={height} />;
+    return <ChartEmptyState height={height} />
   }
 
   // Repère de conversion subtil : chaque étape rapportée à la première.
-  const top = steps[0]?.value ?? 0;
+  const top = steps[0]?.value ?? 0
   const data = steps.map((s) => ({
     ...s,
     conv: top > 0 ? ((s.value / top) * 100).toFixed(1) : null,
-  }));
+  }))
 
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -96,21 +78,16 @@ export default function AdminFunnelChart({
           axisLine={false}
           width={128}
         />
-        <Tooltip
-          content={<FunnelTooltip />}
-          cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-        />
+        <Tooltip content={<FunnelTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
         <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={26}>
           {data.map((_, i) => (
-            <Cell key={i} fill={STEP_COLORS[i % STEP_COLORS.length]} />
+            <Cell key={i} fill={FUNNEL_COLORS[i % FUNNEL_COLORS.length]} />
           ))}
-          <LabelList
-            dataKey="value"
-            position="right"
-            style={{ fill: '#e4e4e7', fontSize: 12 }}
-          />
+          <LabelList dataKey="value" position="right" style={{ fill: '#e4e4e7', fontSize: 12 }} />
         </Bar>
       </BarChart>
     </ResponsiveContainer>
-  );
+  )
 }
+
+export default AdminFunnelChart

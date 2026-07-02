@@ -103,7 +103,7 @@ export default async function StoreAssetsPage({ params }: { params: Promise<{ id
   return (
     <div className="space-y-8">
       <div className="flex min-w-0 flex-col gap-1">
-        <Text className="text-xs uppercase tracking-wide">{`Production · Assets · ${store.niche}`}</Text>
+        <Text className="text-xs/5 font-medium uppercase tracking-wider">{`Production · Assets · ${store.niche}`}</Text>
         <Heading>Assets de {store.name}</Heading>
         <Text>
           Régénère chaque visuel sans toucher au produit. Le prompt est éditable, l&apos;historique

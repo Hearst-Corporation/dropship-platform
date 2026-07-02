@@ -2,12 +2,12 @@ import { cn } from '@/lib/utils/cn';
 
 /**
  * Premium monogram avatar for stores in admin lists. Locked to the
- * platform palette: black + blue + white only. Each store still gets
- * a deterministic, distinct look (8 variants) so a list of 30 stores
- * never reads as a single repeated tile.
+ * admin palette: black + indigo (the single accent) + white only. Each
+ * store still gets a deterministic, distinct look (8 variants) so a list
+ * of 30 stores never reads as a single repeated tile.
  *
- * The 8 variants mix: solid black, solid blue (3 shades), white-over-black,
- * and 3 black↔blue gradients. Enough rhythm without leaving the palette.
+ * The 8 variants mix: solid black, solid indigo (3 shades), white-over-black,
+ * and 3 black↔indigo gradients. Enough rhythm without leaving the palette.
  */
 
 interface Props {
@@ -24,31 +24,32 @@ interface Variant {
   ring?: string;
 }
 
-// All values are flat or gradient — only #000, white, and the blue scale
-// allowed. Order is irrelevant; the slug hash picks deterministically.
+// All values are flat or gradient — only #000, white, and the indigo scale
+// (single-accent policy) allowed. Order is irrelevant; the slug hash picks
+// deterministically.
 //
 // Hex ↔ Tailwind scale (default palette), for reference only — these are
 // inline styles (gradients + hash-picked bg), not classes, so they stay as
 // literals. Do not change the values.
 //   #0a0a0a → neutral-950   #ffffff → white
-//   #2563eb → blue-600      #1e3a8a → blue-900      #3b82f6 → blue-500
+//   #4f46e5 → indigo-600    #312e81 → indigo-900    #6366f1 → indigo-500
 const VARIANTS: Variant[] = [
   // 1. Solid black
   { bg: '#0a0a0a',                                                              fg: '#ffffff' },
-  // 2. Solid electric blue (primary accent)
-  { bg: '#2563eb',                                                              fg: '#ffffff' },
-  // 3. Deep navy
-  { bg: '#1e3a8a',                                                              fg: '#ffffff' },
-  // 4. Bright sky blue
-  { bg: '#3b82f6',                                                              fg: '#ffffff' },
+  // 2. Solid indigo (primary accent)
+  { bg: '#4f46e5',                                                              fg: '#ffffff' },
+  // 3. Deep indigo
+  { bg: '#312e81',                                                              fg: '#ffffff' },
+  // 4. Bright indigo
+  { bg: '#6366f1',                                                              fg: '#ffffff' },
   // 5. White card with thin black border
   { bg: '#ffffff',                                                              fg: '#0a0a0a', ring: '#0a0a0a' },
-  // 6. Gradient black → blue
-  { bg: 'linear-gradient(135deg, #0a0a0a 0%, #2563eb 100%)',                    fg: '#ffffff' },
-  // 7. Gradient blue → black
-  { bg: 'linear-gradient(135deg, #3b82f6 0%, #0a0a0a 100%)',                    fg: '#ffffff' },
-  // 8. Gradient navy → blue
-  { bg: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)',                    fg: '#ffffff' },
+  // 6. Gradient black → indigo
+  { bg: 'linear-gradient(135deg, #0a0a0a 0%, #4f46e5 100%)',                    fg: '#ffffff' },
+  // 7. Gradient indigo → black
+  { bg: 'linear-gradient(135deg, #6366f1 0%, #0a0a0a 100%)',                    fg: '#ffffff' },
+  // 8. Gradient deep indigo → indigo
+  { bg: 'linear-gradient(135deg, #312e81 0%, #4f46e5 100%)',                    fg: '#ffffff' },
 ];
 
 function hashSlug(slug: string): number {

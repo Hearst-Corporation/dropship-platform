@@ -1,8 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getDbRead } from '@/lib/db';
 import { StoreLogo } from '@/components/ui';
-import { Badge } from '@/components/catalyst/badge';
-import { Heading } from '@/components/catalyst/heading';
+import { AdminBadge } from '@/components/admin/AdminBadge';
 import { StoreTabsBar } from './_components/StoreTabsBar';
 import { BreadcrumbBackLink } from './_components/BreadcrumbBackLink';
 
@@ -37,20 +36,18 @@ export default async function StoreLayout({
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       {/* Breadcrumb */}
       <nav
-        className="flex shrink-0 items-center gap-2 text-sm"
+        className="flex min-w-0 shrink-0 items-center gap-2 text-sm"
         aria-label="Fil d'Ariane"
       >
         <BreadcrumbBackLink />
-        <span className="text-gray-600" aria-hidden="true">/</span>
+        <span className="text-zinc-500" aria-hidden="true">/</span>
         <span className="inline-flex">
           <StoreLogo emoji={store.logo_emoji} size={16} />
         </span>
-        <Heading className="overflow-hidden text-ellipsis whitespace-nowrap !text-base/6">
+        <span className="min-w-0 truncate text-base/6 font-semibold text-zinc-950 dark:text-white">
           {store.name}
-        </Heading>
-        {store.status !== 'active' && (
-          <Badge color="indigo">{store.status}</Badge>
-        )}
+        </span>
+        {store.status !== 'active' && <AdminBadge status={store.status} />}
       </nav>
 
       <StoreTabsBar storeId={store.id} />

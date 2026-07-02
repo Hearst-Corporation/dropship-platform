@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TrashIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/catalyst/button';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { AdminConfirmDialog } from '@/components/admin/AdminConfirmDialog';
 
 export function StoreActions({
   storeId,
@@ -49,12 +49,20 @@ export function StoreActions({
         onClick={() => setConfirmOpen(true)}
         disabled={deleting}
         aria-label={`Supprimer ${storeName}`}
-        title={error ? `${error} — Supprimer ${storeName}` : `Supprimer ${storeName}`}
-        className={error ? 'text-zinc-500 dark:text-zinc-400' : undefined}
+        title={`Supprimer ${storeName}`}
       >
         <TrashIcon className={iconCls} aria-hidden />
       </Button>
-      <ConfirmDialog
+      {error && (
+        <span
+          role="alert"
+          className="max-w-40 truncate text-xs text-zinc-500 dark:text-zinc-400"
+          title={error}
+        >
+          Échec : {error}
+        </span>
+      )}
+      <AdminConfirmDialog
         open={confirmOpen}
         title={`Supprimer le store « ${storeName} » ?`}
         description="Cette action supprimera aussi tous ses produits Medusa. Elle est irréversible."

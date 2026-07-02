@@ -15,11 +15,13 @@ import { cn } from '@/lib/utils/cn';
 import { useSuperAgentChat, type ChatMessage, type ChatStep } from './useSuperAgentChat';
 
 /**
- * SuperAgentRail — fixed right rail (desktop) + slide-over drawer (mobile).
- * The global admin assistant. Streams from POST /api/agent/super (OpenAI).
- * Dark theme, indigo accent — matches the admin chrome.
+ * SuperAgentRail — fixed right rail (desktop, docks at xl so lg laptops keep a
+ * usable content width) + slide-over drawer (below xl). The global admin
+ * assistant. Streams from POST /api/agent/super (OpenAI). Chat state lives
+ * here, shared by both surfaces, so closing the drawer never loses the
+ * conversation. Dark theme, indigo accent — matches the admin chrome.
  */
-const RAIL_WIDTH = 'lg:w-96';
+const RAIL_WIDTH = 'xl:w-96';
 
 function StepLine({ step }: { step: ChatStep }) {
   const icon =
@@ -69,14 +71,51 @@ function Bubble({ msg }: { msg: ChatMessage }) {
   );
 }
 
-function ChatBody() {
-  const pathname = usePathname();
-  const { messages, running, error, send, reset } = useSuperAgentChat(pathname ?? '');
-  const [draft, setDraft] = useState('');
-  const scrollRef = useRef<HTMLDivElement>(null);
+/** Three pulsing dots shown while the agent has produced no output yet. */
+function TypingIndicator() {
+  return (
+    <div className="flex">
+      <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm bg-white/5 px-3 py-2.5 ring-1 ring-white/10">
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className="size-1.5 animate-pulse rounded-full bg-zinc-500"
+            style={{ animationDelay: `${i * 150}ms` }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
+interface ChatBodyProps {
+  messages: ChatMessage[];
+  running: boolean;
+  error: string | null;
+  send: (text: string) => Promise<void>;
+  reset: () => void;
+  draft: string;
+  setDraft: (value: string) => void;
+  /** Renders a close button in the header (drawer surface only). */
+  onClose?: () => void;
+}
+
+function ChatBody({ messages, running, error, send, reset, draft, setDraft, onClose }: ChatBodyProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const lastCountRef = useRef(0);
+
+  // Stick to the bottom only when the user is already there; smooth-scroll
+  // only when a new message appears, not on every streamed token (stacked
+  // smooth animations judder and hijack the scroll while reading history).
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    const el = scrollRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    const isNewMessage = messages.length !== lastCountRef.current;
+    lastCountRef.current = messages.length;
+    if (nearBottom) {
+      el.scrollTo({ top: el.scrollHeight, behavior: isNewMessage ? 'smooth' : 'auto' });
+    }
   }, [messages]);
 
   const submit = (e: React.FormEvent) => {
@@ -85,6 +124,13 @@ function ChatBody() {
     setDraft('');
     void send(text);
   };
+
+  const lastMessage = messages[messages.length - 1];
+  const waitingFirstOutput =
+    running &&
+    (!lastMessage ||
+      lastMessage.role === 'user' ||
+      (!lastMessage.text && (!lastMessage.steps || lastMessage.steps.length === 0)));
 
   return (
     <div className="flex h-full flex-col">
@@ -99,19 +145,31 @@ function ChatBody() {
             <p className="text-xs text-zinc-500">Assistant admin · OpenAI</p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={reset}
-          title="Nouvelle conversation"
-          className="rounded-md p-1.5 text-zinc-500 hover:bg-white/5 hover:text-white"
-        >
-          <ArrowPathIcon className="size-4" aria-hidden />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={reset}
+            title="Nouvelle conversation"
+            className="rounded-md p-1.5 text-zinc-500 hover:bg-white/5 hover:text-white"
+          >
+            <ArrowPathIcon className="size-4" aria-hidden />
+          </button>
+          {onClose ? (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Fermer"
+              className="rounded-md p-1.5 text-zinc-500 hover:bg-white/5 hover:text-white"
+            >
+              <XMarkIcon className="size-5" aria-hidden />
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
-        {messages.length === 0 ? (
+        {messages.length === 0 && !running ? (
           <div className="flex h-full flex-col items-center justify-center text-center">
             <ChatBubbleLeftRightIcon className="size-8 text-zinc-600" aria-hidden />
             <p className="mt-3 text-sm font-medium text-zinc-300">Demande à l&apos;agent</p>
@@ -122,6 +180,7 @@ function ChatBody() {
         ) : (
           messages.map((m, i) => <Bubble key={i} msg={m} />)
         )}
+        {waitingFirstOutput && <TypingIndicator />}
         {error && (
           <div className="rounded-md bg-white/10 px-3 py-2 text-xs text-zinc-300 ring-1 ring-white/15">
             {error}
@@ -143,7 +202,7 @@ function ChatBody() {
             }}
             rows={1}
             placeholder="Message à l'agent…"
-            className="max-h-32 min-h-6 flex-1 resize-none bg-transparent text-sm text-white placeholder:text-zinc-500 focus:outline-hidden"
+            className="max-h-32 min-h-6 flex-1 resize-none bg-transparent text-sm text-white field-sizing-content placeholder:text-zinc-500 focus:outline-hidden"
           />
           <button
             type="submit"
@@ -164,31 +223,40 @@ function ChatBody() {
 
 export function SuperAgentRail() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+  // Chat state is owned here so the docked rail and the drawer share one
+  // conversation: the Headless Dialog unmounts its children on close, and a
+  // ChatBody-local hook would lose the whole session every time.
+  const { messages, running, error, send, reset } = useSuperAgentChat(pathname ?? '');
+  const [draft, setDraft] = useState('');
+
+  const chatProps = { messages, running, error, send, reset, draft, setDraft };
 
   return (
     <>
-      {/* Desktop — fixed right rail */}
+      {/* Desktop — fixed right rail, docked from xl only (at lg the content
+          area would drop to ~300px with the sidebar + rail both open) */}
       <aside
         className={cn(
-          'hidden lg:fixed lg:inset-y-0 lg:right-0 lg:z-40 lg:flex lg:flex-col',
+          'hidden xl:fixed xl:inset-y-0 xl:right-0 xl:z-40 xl:flex xl:flex-col',
           'border-l border-white/10 bg-zinc-900',
           RAIL_WIDTH,
         )}
       >
-        <ChatBody />
+        <ChatBody {...chatProps} />
       </aside>
 
-      {/* Mobile — floating trigger + slide-over drawer */}
+      {/* Below xl — floating trigger + slide-over drawer */}
       <button
         type="button"
         onClick={() => setMobileOpen(true)}
-        className="fixed bottom-5 right-5 z-40 flex size-12 items-center justify-center rounded-full bg-indigo-500 text-white shadow-lg shadow-indigo-900/40 hover:bg-indigo-400 lg:hidden"
+        className="fixed bottom-5 right-5 z-40 flex size-12 items-center justify-center rounded-full bg-indigo-500 text-white shadow-lg shadow-indigo-900/40 hover:bg-indigo-400 xl:hidden"
         aria-label="Ouvrir l'assistant"
       >
         <SparklesIcon className="size-5" aria-hidden />
       </button>
 
-      <Dialog open={mobileOpen} onClose={setMobileOpen} className="relative z-50 lg:hidden">
+      <Dialog open={mobileOpen} onClose={setMobileOpen} className="relative z-50 xl:hidden">
         <DialogBackdrop
           transition
           className="fixed inset-0 bg-zinc-950/80 transition-opacity duration-300 data-closed:opacity-0"
@@ -198,15 +266,7 @@ export function SuperAgentRail() {
             transition
             className="relative flex w-full max-w-md transform flex-col bg-zinc-900 ring-1 ring-white/10 transition duration-300 ease-in-out data-closed:translate-x-full"
           >
-            <button
-              type="button"
-              onClick={() => setMobileOpen(false)}
-              className="absolute right-3 top-3 z-10 rounded-md p-1.5 text-zinc-400 hover:bg-white/5 hover:text-white"
-              aria-label="Fermer"
-            >
-              <XMarkIcon className="size-5" aria-hidden />
-            </button>
-            <ChatBody />
+            <ChatBody {...chatProps} onClose={() => setMobileOpen(false)} />
           </DialogPanel>
         </div>
       </Dialog>

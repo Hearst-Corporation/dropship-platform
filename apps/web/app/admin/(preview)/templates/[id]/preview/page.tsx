@@ -1,10 +1,8 @@
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
 import { TEMPLATE_CATALOG } from '@/lib/template-catalog';
-import { StorefrontEditorial } from '@/app/shop/[slug]/StorefrontEditorial';
-import { StorefrontBold } from '@/app/shop/[slug]/StorefrontBold';
-import { StorefrontMinimal } from '@/app/shop/[slug]/StorefrontMinimal';
-import { StorefrontShowcase } from '@/app/shop/[slug]/StorefrontShowcase';
+import { Badge } from '@/components/catalyst/badge';
+import { Link } from '@/components/catalyst/link';
+import { pickStorefrontComponent } from '@/lib/storefront-routing';
 import { buildMockStore, MOCK_PRODUCTS } from './_mock';
 
 export const dynamic = 'force-dynamic';
@@ -13,11 +11,11 @@ export const dynamic = 'force-dynamic';
  * Template preview — renders the real Storefront component for the given
  * template id, using mock store config + mock products. No DB, no network.
  *
- * Component mapping (mirrors shop/[slug]/page.tsx logic):
- *   register === 'luxury'  => StorefrontShowcase
- *   mode === 'mono'        => StorefrontMinimal
- *   mode === 'split'       => StorefrontBold
- *   default                => StorefrontEditorial
+ * Lives in the (preview) route group on purpose: same URL as before
+ * (/admin/templates/{id}/preview) but WITHOUT the admin chrome (sidebar,
+ * agent rail, dark content card), so the storefront renders truly full-bleed.
+ *
+ * Component mapping via pickStorefrontComponent() — same logic as production.
  */
 export default async function TemplatePreviewPage({
   params,
@@ -36,24 +34,15 @@ export default async function TemplatePreviewPage({
   const store = buildMockStore(id, entry.label);
   const products = MOCK_PRODUCTS;
 
-  const storefrontJsx =
-    entry.register === 'luxury' ? (
-      <StorefrontShowcase store={store} products={products} />
-    ) : entry.mode === 'mono' ? (
-      <StorefrontMinimal store={store} products={products} />
-    ) : entry.mode === 'split' ? (
-      <StorefrontBold store={store} products={products} />
-    ) : (
-      <StorefrontEditorial store={store} products={products} />
-    );
+  const storefrontJsx = pickStorefrontComponent(entry, { store, products });
 
   return (
     <div>
       {/* Admin header bar */}
-      <div className="sticky top-0 z-50 flex items-center gap-3 border-b border-zinc-200 bg-white/95 px-4 py-2.5 backdrop-blur-sm text-sm">
+      <div className="sticky top-0 z-50 flex items-center gap-3 border-b border-zinc-200 bg-white/95 px-4 py-2.5 text-sm backdrop-blur-sm">
         <Link
           href="/admin/templates"
-          className="flex items-center gap-1 text-zinc-500 hover:text-zinc-900 transition-colors"
+          className="flex items-center gap-1 text-zinc-500 transition-colors hover:text-zinc-900"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -72,11 +61,11 @@ export default async function TemplatePreviewPage({
         </Link>
         <span className="text-zinc-300">/</span>
         <span className="font-semibold text-zinc-900">{entry.label}</span>
-        <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-500">
+        <Badge color="zinc" className="font-mono">
           {id}
-        </span>
-        <span className="ml-auto rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700">
-          Apercu avec donnees fictives
+        </Badge>
+        <span className="ml-auto">
+          <Badge color="zinc">Aperçu avec données fictives</Badge>
         </span>
       </div>
 

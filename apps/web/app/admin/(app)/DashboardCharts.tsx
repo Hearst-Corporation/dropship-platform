@@ -1,7 +1,7 @@
 'use client';
 
-import AdminTrendChart from '@/components/admin/AdminTrendChart';
-import AdminFunnelChart from '@/components/admin/AdminFunnelChart';
+import { AdminTrendChart } from '@/components/admin/AdminTrendChart';
+import { AdminFunnelChart } from '@/components/admin/AdminFunnelChart';
 
 /**
  * Client-only chart wrappers for the portfolio dashboard. The server page owns
@@ -29,8 +29,8 @@ export function DashboardTrend({ data }: { data: DashboardTrendPoint[] }) {
       data={data}
       xKey="label"
       series={[
-        { key: 'ca', label: 'CA (€)', color: '#6366f1' },
-        { key: 'commandes', label: 'Commandes', color: '#38bdf8' },
+        { key: 'ca', label: 'CA (€)' },
+        { key: 'commandes', label: 'Commandes', yAxisId: 'right' },
       ]}
       height={280}
     />

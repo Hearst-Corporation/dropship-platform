@@ -2,8 +2,16 @@
 
 import { apiFetch } from '@/lib/client-fetch';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  Dialog,
+  DialogTitle,
+  DialogDescription,
+  DialogBody,
+  DialogActions,
+} from '@/components/catalyst/dialog';
+import { Button } from '@/components/catalyst/button';
 
 interface Props {
   orderId: string;
@@ -59,13 +67,6 @@ function legName(supplier: string): string {
     : supplier.charAt(0).toUpperCase() + supplier.slice(1);
 }
 
-/** "AE #123" / "cj #456" reference for a sent leg. */
-function legRef(leg: ForwardLeg): string {
-  return leg.supplier === 'aliexpress'
-    ? `AE #${leg.supplierOrderId}`
-    : `${leg.supplier} #${leg.supplierOrderId}`;
-}
-
 export function ForwardButton({ orderId, alreadySent }: Props) {
   const router = useRouter();
   const [modalOpen, setModalOpen] = useState(false);
@@ -73,8 +74,6 @@ export function ForwardButton({ orderId, alreadySent }: Props) {
   const [dryRunning, setDryRunning] = useState(false);
   const [sending, setSending] = useState(false);
   const [sentResult, setSentResult] = useState<ForwardResult | null>(null);
-  // Element that opened the modal, so we can restore focus to it on close.
-  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const forward = useCallback(
     async (dryRun: boolean): Promise<ForwardResult> => {
@@ -115,10 +114,9 @@ export function ForwardButton({ orderId, alreadySent }: Props) {
     setModalOpen(true);
   }
 
+  // Headless UI restores focus to the trigger button on close.
   const closeModal = useCallback(() => {
     setModalOpen(false);
-    // Restore focus to the button that opened the modal.
-    triggerRef.current?.focus();
   }, []);
 
   const confirmSend = useCallback(async () => {
@@ -151,68 +149,45 @@ export function ForwardButton({ orderId, alreadySent }: Props) {
     dryRunResult.status === 'dry_run' &&
     (dryRunResult.forwards.length ?? 0) > 0;
 
-  // Inline result badge shown outside the modal after a send.
   const sentLegs = sentResult?.forwards ?? [];
-  // A partial send really placed at least one supplier order, so tone the badge
-  // as a success (indigo) even though ok=false.
   const sentAny = sentLegs.some((f) => f.status === 'sent');
 
   return (
     <div className="flex flex-col items-end gap-1.5">
-      <button
-        ref={triggerRef}
-        onClick={openModal}
+      <Button
+        color="indigo"
         disabled={alreadySent}
-        className={
-          alreadySent
-            ? 'rounded-md px-3 py-1.5 text-xs font-medium text-gray-500 ring-1 ring-inset ring-white/10 cursor-not-allowed'
-            : 'rounded-md bg-indigo-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-400'
-        }
+        onClick={openModal}
         title={alreadySent ? 'Déjà envoyée au fournisseur' : 'Préparer et envoyer la commande'}
       >
         {alreadySent ? 'Envoyée' : 'Envoyer'}
-      </button>
+      </Button>
 
-      {sentResult && !modalOpen && (
-        <div
-          className={
-            sentResult.ok || sentAny
-              ? 'max-w-xs rounded-md px-2.5 py-1.5 text-xs bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20'
-              : 'max-w-xs rounded-md px-2.5 py-1.5 text-xs bg-gray-800/50 text-gray-400 ring-1 ring-inset ring-white/10'
-          }
-        >
-          {sentLegs.length > 0 ? (
-            <div className="flex flex-col gap-0.5">
-              {sentLegs.map((leg, i) => (
-                <span key={i} className={leg.status === 'error' ? 'text-zinc-400 dark:text-zinc-500' : undefined}>
-                  {leg.status === 'sent'
-                    ? `Envoyée — ${legRef(leg)}`
-                    : `Échec — ${legName(leg.supplier)}${leg.error ? ` : ${leg.error}` : ''}`}
-                </span>
-              ))}
-            </div>
-          ) : (
-            sentResult.error ?? 'Erreur inconnue'
-          )}
-        </div>
+      {/* Inline feedback only on a TOTAL failure (no leg sent, so no refresh
+          happened and the row still looks actionable). Successful sends are
+          already reflected by router.refresh() — no need to duplicate them. */}
+      {sentResult && !modalOpen && !sentAny && (
+        <span className="max-w-52 text-right text-xs text-zinc-500 dark:text-zinc-400">
+          {sentResult.error ?? sentLegs.find((l) => l.status === 'error')?.error ?? 'Erreur inconnue'}
+        </span>
       )}
 
-      {modalOpen && (
-        <ReviewModal
-          dryRunning={dryRunning}
-          dryRunResult={dryRunResult}
-          sending={sending}
-          sentResult={sentResult}
-          canSend={!!canSend}
-          onClose={closeModal}
-          onConfirm={confirmSend}
-        />
-      )}
+      <ReviewModal
+        open={modalOpen}
+        dryRunning={dryRunning}
+        dryRunResult={dryRunResult}
+        sending={sending}
+        sentResult={sentResult}
+        canSend={!!canSend}
+        onClose={closeModal}
+        onConfirm={confirmSend}
+      />
     </div>
   );
 }
 
 function ReviewModal({
+  open,
   dryRunning,
   dryRunResult,
   sending,
@@ -221,6 +196,7 @@ function ReviewModal({
   onClose,
   onConfirm,
 }: {
+  open: boolean;
   dryRunning: boolean;
   dryRunResult: ForwardResult | null;
   sending: boolean;
@@ -229,68 +205,6 @@ function ReviewModal({
   onClose: () => void;
   onConfirm: () => void;
 }) {
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  // Query the panel's currently-focusable elements (skips disabled/hidden).
-  const getFocusable = useCallback((): HTMLElement[] => {
-    const panel = panelRef.current;
-    if (!panel) return [];
-    return Array.from(
-      panel.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      ),
-    );
-  }, []);
-
-  // Move focus into the modal on open (first focusable, else the panel itself).
-  useEffect(() => {
-    const focusable = getFocusable();
-    if (focusable.length > 0) {
-      focusable[0].focus();
-    } else {
-      panelRef.current?.focus();
-    }
-  }, [getFocusable]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !sending) {
-        onClose();
-        return;
-      }
-      // Trap Tab within the modal: wrap from last→first (Tab) and first→last
-      // (Shift+Tab). If focus somehow escaped the panel, pull it back in.
-      if (e.key === 'Tab') {
-        const focusable = getFocusable();
-        if (focusable.length === 0) {
-          e.preventDefault();
-          panelRef.current?.focus();
-          return;
-        }
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        const active = document.activeElement as HTMLElement | null;
-        const inPanel = active ? panelRef.current?.contains(active) : false;
-        if (!inPanel) {
-          e.preventDefault();
-          (e.shiftKey ? last : first).focus();
-        } else if (e.shiftKey && active === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && active === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
-    };
-  }, [onClose, sending, getFocusable]);
-
   const forwards = dryRunResult?.forwards ?? [];
   const unmapped = dryRunResult?.unmappedItems ?? [];
   const sentLegs = sentResult?.forwards ?? [];
@@ -298,191 +212,144 @@ function ReviewModal({
   const erroredAnyModal = sentLegs.some((f) => f.status === 'error');
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="forward-review-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-    >
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-gray-900/80 backdrop-blur-xs"
-        onClick={() => !sending && onClose()}
-      />
-      {/* Panel */}
-      <div
-        ref={panelRef}
-        tabIndex={-1}
-        className="relative flex max-h-[90vh] w-full max-w-xl flex-col rounded-xl bg-gray-800 ring-1 ring-inset ring-white/10 shadow-2xl outline-none"
-      >
-        <header className="border-b border-white/10 px-5 py-4">
-          <h2 id="forward-review-title" className="text-base font-semibold text-white">
-            Vérifier la commande fournisseur
-          </h2>
-          <p className="mt-1 text-xs text-gray-400">
-            Chaque leg sera créé chez son fournisseur. Le dry-run sauve le payload sans rien envoyer.
-          </p>
-        </header>
+    // Catalyst Dialog handles focus trap, Escape, backdrop and scroll lock.
+    // While a live send is in-flight, closing is blocked (Escape + backdrop).
+    <Dialog open={open} onClose={sending ? () => {} : onClose} size="xl">
+      <DialogTitle>Vérifier la commande fournisseur</DialogTitle>
+      <DialogDescription>
+        Chaque leg sera créé chez son fournisseur. Le dry-run sauve le payload sans rien envoyer.
+      </DialogDescription>
 
-        <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
-          {sentResult && sentLegs.length > 0 ? (
-            // One row per leg so a partial send ({AE:sent, CJ:error}) is legible:
-            // the sent legs show their reference, the errored legs show why.
-            <div
+      <DialogBody className="space-y-4">
+        {sentResult && sentLegs.length > 0 ? (
+          // One row per leg so a partial send ({AE:sent, CJ:error}) is legible:
+          // the sent legs show their reference, the errored legs show why.
+          <div
+            className={
+              sentAnyModal
+                ? 'rounded-lg bg-indigo-500/10 px-4 py-3 ring-1 ring-inset ring-indigo-500/20'
+                : 'rounded-lg bg-zinc-950/40 px-4 py-3 ring-1 ring-inset ring-white/10'
+            }
+          >
+            <p
               className={
-                sentAnyModal
-                  ? 'rounded-lg bg-indigo-500/10 px-4 py-3 ring-1 ring-inset ring-indigo-500/20'
-                  : 'rounded-lg bg-gray-900/50 px-4 py-3 ring-1 ring-inset ring-white/10'
+                sentAnyModal ? 'text-sm font-medium text-indigo-400' : 'text-sm font-medium text-white'
               }
             >
-              <p className={sentAnyModal ? 'text-sm font-medium text-indigo-400' : 'text-sm font-medium text-white'}>
-                {erroredAnyModal
-                  ? sentAnyModal
-                    ? 'Envoi partiel'
-                    : "Échec de l'envoi"
-                  : 'Envoyée'}
-              </p>
-              {sentLegs.map((leg, i) =>
-                leg.status === 'sent' ? (
-                  <p key={i} className="mt-1 text-xs text-gray-400">
-                    {leg.supplier === 'aliexpress'
-                      ? `AE #${leg.supplierOrderId} — connecte-toi sur aliexpress.com pour finaliser le paiement.`
-                      : `${leg.supplier} #${leg.supplierOrderId}`}
+              {erroredAnyModal
+                ? sentAnyModal
+                  ? 'Envoi partiel'
+                  : "Échec de l'envoi"
+                : 'Envoyée'}
+            </p>
+            {sentLegs.map((leg, i) =>
+              leg.status === 'sent' ? (
+                <p key={i} className="mt-1 text-xs text-zinc-400">
+                  {leg.supplier === 'aliexpress'
+                    ? `AE #${leg.supplierOrderId} : connecte-toi sur aliexpress.com pour finaliser le paiement.`
+                    : `${leg.supplier} #${leg.supplierOrderId}`}
+                </p>
+              ) : (
+                <p key={i} className="mt-1 text-xs text-zinc-400">
+                  {legName(leg.supplier)} : {leg.error ?? 'erreur inconnue'}
+                </p>
+              ),
+            )}
+          </div>
+        ) : sentResult?.status === 'error' ? (
+          <div className="rounded-lg bg-zinc-950/40 px-4 py-3 ring-1 ring-inset ring-white/10">
+            <p className="text-sm font-medium text-white">Erreur lors de l&apos;envoi</p>
+            <p className="mt-1 text-xs text-zinc-400">{sentResult.error}</p>
+          </div>
+        ) : dryRunning ? (
+          <div className="flex items-center justify-center gap-2 py-8 text-sm text-zinc-400">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-indigo-400" />
+            Préparation du payload fournisseur…
+          </div>
+        ) : dryRunResult?.status === 'error' || !dryRunResult?.ok ? (
+          <div className="rounded-lg bg-zinc-950/40 px-4 py-3 ring-1 ring-inset ring-white/10">
+            <p className="text-sm font-medium text-white">Impossible de préparer la commande</p>
+            <p className="mt-1 text-xs text-zinc-400">{dryRunResult?.error ?? 'Erreur inconnue'}</p>
+          </div>
+        ) : (
+          <>
+            {forwards.map((leg, legIdx) => {
+              const addr = leg.payload.address;
+              const items = leg.payload.items;
+              return (
+                <div key={legIdx} className="space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-indigo-400">
+                    Leg {legIdx + 1} · {legName(leg.supplier)}
                   </p>
-                ) : (
-                  <p key={i} className="mt-1 text-xs text-gray-400">
-                    {legName(leg.supplier)} : {leg.error ?? 'erreur inconnue'}
-                  </p>
-                ),
-              )}
-            </div>
-          ) : sentResult?.status === 'error' ? (
-            <div className="rounded-lg bg-gray-900/50 px-4 py-3 ring-1 ring-inset ring-white/10">
-              <p className="text-sm font-medium text-white">Erreur lors de l&apos;envoi</p>
-              <p className="mt-1 text-xs text-gray-400">{sentResult.error}</p>
-            </div>
-          ) : dryRunning ? (
-            <div className="flex items-center justify-center gap-2 py-8 text-sm text-gray-400">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-indigo-400" />
-              Préparation du payload fournisseur…
-            </div>
-          ) : dryRunResult?.status === 'error' || !dryRunResult?.ok ? (
-            <div className="rounded-lg bg-gray-900/50 px-4 py-3 ring-1 ring-inset ring-white/10">
-              <p className="text-sm font-medium text-white">Impossible de préparer la commande</p>
-              <p className="mt-1 text-xs text-gray-400">
-                {dryRunResult?.error ?? 'Erreur inconnue'}
-              </p>
-            </div>
-          ) : (
-            <>
-              {forwards.map((leg, legIdx) => {
-                const addr = leg.payload.address;
-                const items = leg.payload.items;
-                const legLabel =
-                  leg.supplier === 'aliexpress'
-                    ? 'AliExpress'
-                    : leg.supplier.charAt(0).toUpperCase() + leg.supplier.slice(1);
-                return (
-                  <div key={legIdx} className="space-y-3">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-indigo-400">
-                      Leg {legIdx + 1} — {legLabel}
-                    </p>
 
-                    <Section title="Adresse de livraison">
-                      <div className="text-sm leading-relaxed text-gray-400">
-                        {addr.fullName && (
-                          <div className="font-medium text-white">{addr.fullName}</div>
-                        )}
-                        {addr.address1 && <div>{addr.address1}</div>}
-                        {addr.address2 && <div>{addr.address2}</div>}
-                        <div>
-                          {[addr.zip, addr.city].filter(Boolean).join(' ')}
-                          {addr.countryCode && ` · ${addr.countryCode.toUpperCase()}`}
-                        </div>
+                  <Section title="Adresse de livraison">
+                    <div className="text-sm leading-relaxed text-zinc-400">
+                      {addr.fullName && <div className="font-medium text-white">{addr.fullName}</div>}
+                      {addr.address1 && <div>{addr.address1}</div>}
+                      {addr.address2 && <div>{addr.address2}</div>}
+                      <div>
+                        {[addr.zip, addr.city].filter(Boolean).join(' ')}
+                        {addr.countryCode && ` · ${addr.countryCode.toUpperCase()}`}
                       </div>
-                    </Section>
+                    </div>
+                  </Section>
 
-                    <Section title={`Produits (${items.length})`}>
-                      {items.length === 0 ? (
-                        <p className="text-xs text-gray-400">
-                          Aucun produit mappable — envoi impossible.
-                        </p>
-                      ) : (
-                        <ul className="space-y-1.5">
-                          {items.map((it, i) => (
-                            <li key={i} className="flex items-baseline gap-2 text-xs">
-                              <span className="font-mono text-gray-400">{it.externalId}</span>
-                              <span className="text-gray-500">×{it.quantity}</span>
-                              {it.skuAttr && (
-                                <span className="font-mono text-gray-500">{it.skuAttr}</span>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </Section>
-                  </div>
-                );
-              })}
+                  <Section title={`Produits (${items.length})`}>
+                    {items.length === 0 ? (
+                      <p className="text-xs text-zinc-400">Aucun produit mappable, envoi impossible.</p>
+                    ) : (
+                      <ul className="space-y-1.5">
+                        {items.map((it, i) => (
+                          <li key={i} className="flex items-baseline gap-2 text-xs">
+                            <span className="font-mono text-zinc-400">{it.externalId}</span>
+                            <span className="text-zinc-500">×{it.quantity}</span>
+                            {it.skuAttr && <span className="font-mono text-zinc-500">{it.skuAttr}</span>}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </Section>
+                </div>
+              );
+            })}
 
-              {unmapped.length > 0 && (
-                <Section title={`Items non mappés (${unmapped.length})`}>
-                  <ul className="space-y-1.5">
-                    {unmapped.map((u, i) => (
-                      <li key={i} className="text-xs text-gray-400">
-                        <div className="font-medium text-white">{u.title}</div>
-                        <div className="text-gray-400">{u.reason}</div>
-                      </li>
-                    ))}
-                  </ul>
-                </Section>
-              )}
-            </>
-          )}
-        </div>
+            {unmapped.length > 0 && (
+              <Section title={`Items non mappés (${unmapped.length})`}>
+                <ul className="space-y-1.5">
+                  {unmapped.map((u, i) => (
+                    <li key={i} className="text-xs text-zinc-400">
+                      <div className="font-medium text-white">{u.title}</div>
+                      <div className="text-zinc-400">{u.reason}</div>
+                    </li>
+                  ))}
+                </ul>
+              </Section>
+            )}
+          </>
+        )}
+      </DialogBody>
 
-        <footer className="flex items-center justify-end gap-2 border-t border-white/10 bg-gray-900/50 px-5 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={sending}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-white disabled:opacity-50"
-          >
-            {sentResult?.ok || sentAnyModal ? 'Fermer' : 'Annuler'}
-          </button>
-          {/* Hide the confirm button once ANY leg was placed — a re-click on a
-              partial send would only hit the 23505 "already in-flight" error. */}
-          {!sentResult?.ok && !sentAnyModal && (
-            <button
-              type="button"
-              onClick={onConfirm}
-              disabled={!canSend || sending || dryRunning}
-              className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {sending ? 'Envoi…' : "Confirmer l'envoi"}
-            </button>
-          )}
-        </footer>
-      </div>
-    </div>
+      <DialogActions>
+        <Button plain onClick={onClose} disabled={sending}>
+          {sentResult?.ok || sentAnyModal ? 'Fermer' : 'Annuler'}
+        </Button>
+        {/* Hide the confirm button once ANY leg was placed — a re-click on a
+            partial send would only hit the 23505 "already in-flight" error. */}
+        {!sentResult?.ok && !sentAnyModal && (
+          <Button color="indigo" onClick={onConfirm} disabled={!canSend || sending || dryRunning}>
+            {sending ? 'Envoi…' : "Confirmer l'envoi"}
+          </Button>
+        )}
+      </DialogActions>
+    </Dialog>
   );
 }
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
-        {title}
-      </h3>
-      <div className="rounded-lg bg-gray-900/50 px-4 py-3 ring-1 ring-inset ring-white/10">
-        {children}
-      </div>
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">{title}</h3>
+      <div className="rounded-lg bg-zinc-950/40 px-4 py-3 ring-1 ring-inset ring-white/10">{children}</div>
     </section>
   );
 }

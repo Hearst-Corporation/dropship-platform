@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import {
   HomeIcon,
@@ -45,6 +46,17 @@ function isActive(pathname: string | null, href: string, exact?: boolean): boole
 export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
+  // Dark is class-based (.dark wrapper below covers the SSR paint), but
+  // Headless UI v2 Dialogs (mobile nav sidebar, agent drawer) portal into
+  // document.body, OUTSIDE the wrapper. Mirror the class on <html> so the
+  // portals (and the overscroll area) render dark too.
+  useEffect(() => {
+    document.documentElement.classList.add('dark');
+    return () => {
+      document.documentElement.classList.remove('dark');
+    };
+  }, []);
+
   const sidebar = (
     <Sidebar>
       <SidebarHeader>
@@ -70,21 +82,23 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
 
   const navbar = (
     <Navbar>
-      <NavbarSpacer />
       <NavbarSection>
         <NavbarItem href="/admin" aria-label="Dashboard">
           Hearst Merchant
         </NavbarItem>
       </NavbarSection>
+      <NavbarSpacer />
     </Navbar>
   );
 
   return (
     <div className="dark">
       <SidebarLayout sidebar={sidebar} navbar={navbar}>
-        {/* Reserve space on the right for the fixed SuperAgent rail (lg:w-96).
-            min-w-0 lets the parent overflow-x-clip contain wide tables. */}
-        <div className="min-w-0 lg:pr-96">{children}</div>
+        {/* Reserve space on the right for the fixed SuperAgent rail (xl:w-96).
+            The rail only docks at xl: on lg laptops the content would be left
+            with ~300px otherwise. min-w-0 lets the parent overflow-x-clip
+            contain wide tables. */}
+        <div className="min-w-0 xl:pr-96">{children}</div>
       </SidebarLayout>
     </div>
   );
