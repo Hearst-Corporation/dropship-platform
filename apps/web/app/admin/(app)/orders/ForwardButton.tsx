@@ -184,7 +184,7 @@ export function ForwardButton({ orderId, alreadySent }: Props) {
           {sentLegs.length > 0 ? (
             <div className="flex flex-col gap-0.5">
               {sentLegs.map((leg, i) => (
-                <span key={i} className={leg.status === 'error' ? 'text-red-400' : undefined}>
+                <span key={i} className={leg.status === 'error' ? 'text-gray-400' : undefined}>
                   {leg.status === 'sent'
                     ? `Envoyée — ${legRef(leg)}`
                     : `Échec — ${legName(leg.supplier)}${leg.error ? ` : ${leg.error}` : ''}`}
@@ -332,7 +332,7 @@ function ReviewModal({
               className={
                 sentAnyModal
                   ? 'rounded-lg bg-indigo-500/10 px-4 py-3 ring-1 ring-inset ring-indigo-500/20'
-                  : 'rounded-lg bg-red-500/10 px-4 py-3 ring-1 ring-inset ring-red-500/20'
+                  : 'rounded-lg bg-gray-800/50 px-4 py-3 ring-1 ring-inset ring-white/10'
               }
             >
               <p className={sentAnyModal ? 'text-sm font-medium text-indigo-400' : 'text-sm font-medium text-white'}>
@@ -350,14 +350,14 @@ function ReviewModal({
                       : `${leg.supplier} #${leg.supplierOrderId}`}
                   </p>
                 ) : (
-                  <p key={i} className="mt-1 text-xs text-red-400">
+                  <p key={i} className="mt-1 text-xs text-gray-400">
                     {legName(leg.supplier)} : {leg.error ?? 'erreur inconnue'}
                   </p>
                 ),
               )}
             </div>
           ) : sentResult?.status === 'error' ? (
-            <div className="rounded-lg bg-red-500/10 px-4 py-3 ring-1 ring-inset ring-red-500/20">
+            <div className="rounded-lg bg-gray-800/50 px-4 py-3 ring-1 ring-inset ring-white/10">
               <p className="text-sm font-medium text-white">Erreur lors de l&apos;envoi</p>
               <p className="mt-1 text-xs text-gray-400">{sentResult.error}</p>
             </div>
@@ -367,7 +367,7 @@ function ReviewModal({
               Préparation du payload fournisseur…
             </div>
           ) : dryRunResult?.status === 'error' || !dryRunResult?.ok ? (
-            <div className="rounded-lg bg-red-500/10 px-4 py-3 ring-1 ring-inset ring-red-500/20">
+            <div className="rounded-lg bg-gray-800/50 px-4 py-3 ring-1 ring-inset ring-white/10">
               <p className="text-sm font-medium text-white">Impossible de préparer la commande</p>
               <p className="mt-1 text-xs text-gray-400">
                 {dryRunResult?.error ?? 'Erreur inconnue'}
@@ -471,7 +471,6 @@ function ReviewModal({
 function Section({
   title,
   children,
-  tone = 'default',
 }: {
   title: string;
   children: React.ReactNode;
@@ -479,22 +478,10 @@ function Section({
 }) {
   return (
     <section>
-      <h3
-        className={
-          tone === 'warn'
-            ? 'mb-2 text-xs font-semibold uppercase tracking-wider text-amber-400'
-            : 'mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500'
-        }
-      >
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
         {title}
       </h3>
-      <div
-        className={
-          tone === 'warn'
-            ? 'rounded-lg bg-amber-500/10 px-4 py-3 ring-1 ring-inset ring-amber-500/20'
-            : 'rounded-lg bg-gray-900/50 px-4 py-3 ring-1 ring-inset ring-white/10'
-        }
-      >
+      <div className="rounded-lg bg-gray-900/50 px-4 py-3 ring-1 ring-inset ring-white/10">
         {children}
       </div>
     </section>

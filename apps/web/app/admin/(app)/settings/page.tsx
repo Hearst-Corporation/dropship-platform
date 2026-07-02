@@ -2,14 +2,13 @@ import type { ReactNode } from 'react';
 import { getDbRead } from '@/lib/db';
 import { Heading, Subheading } from '@/components/catalyst/heading';
 import { Text, TextLink, Strong, Code } from '@/components/catalyst/text';
+import { AdminBadge } from '@/components/admin/AdminBadge';
 import { Badge } from '@/components/catalyst/badge';
 import { Button } from '@/components/catalyst/button';
 import { DescriptionList, DescriptionTerm, DescriptionDetails } from '@/components/catalyst/description-list';
 import { getSupplierPolicyView, type SupplierPolicyRow } from '@/lib/suppliers/policy-view';
 
 export const dynamic = 'force-dynamic';
-
-type BadgeColor = 'zinc' | 'green' | 'amber' | 'red' | 'indigo' | 'blue';
 
 async function getSettings() {
   const db = getDbRead();
@@ -41,7 +40,7 @@ export default async function SettingsPage() {
   const expiresAt = aliExpires?.value ? new Date(parseInt(aliExpires.value)) : null;
   const isExpired = expiresAt ? Date.now() > expiresAt.getTime() : false;
 
-  const aliColor: BadgeColor = isConnected && !isExpired ? 'green' : isConnected ? 'amber' : 'zinc';
+  const aliStatus = isConnected && !isExpired ? 'connected' : isConnected ? 'pending' : 'offline';
   const aliLabel = isConnected && !isExpired ? 'Connecté' : isConnected ? 'Token expiré' : 'Non connecté';
 
   return (
@@ -60,7 +59,7 @@ export default async function SettingsPage() {
       <ProviderSection
         name="AliExpress DS API"
         meta="AppKey 531346 · App Category: Drop Shipping"
-        badge={<Badge color={aliColor}>{aliLabel}</Badge>}
+        badge={<AdminBadge status={aliStatus}>{aliLabel}</AdminBadge>}
         first
       >
         {isConnected ? (
@@ -102,7 +101,7 @@ export default async function SettingsPage() {
       <ProviderSection
         name="CJ Dropshipping API"
         meta="Email: adriennejkovic@gmail.com"
-        badge={<Badge color="zinc">API Key manquante</Badge>}
+        badge={<AdminBadge status="missing-key">API Key manquante</AdminBadge>}
       >
         <Text>
           L&apos;authentification CJ nécessite une <Strong>API Key dédiée</Strong> (pas le mot de passe du compte). Va
@@ -147,7 +146,7 @@ const CAPABILITY_KEYS = Object.keys(CAPABILITY_LABELS);
 function CapabilityIcon({ ok }: { ok: boolean }) {
   if (ok) {
     return (
-      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
         <svg className="h-2.5 w-2.5" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
           <path
             fillRule="evenodd"
@@ -159,7 +158,7 @@ function CapabilityIcon({ ok }: { ok: boolean }) {
     );
   }
   return (
-    <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+    <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
       <svg className="h-2.5 w-2.5" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
         <path
           fillRule="evenodd"
@@ -172,14 +171,14 @@ function CapabilityIcon({ ok }: { ok: boolean }) {
 }
 
 function ConnectionBadge({ state }: { state: string }) {
-  const map: Record<string, { color: BadgeColor; label: string }> = {
-    connected: { color: 'green', label: 'Connecte' },
-    error: { color: 'red', label: 'Erreur' },
-    'missing-key': { color: 'amber', label: 'Cle manquante' },
-    unknown: { color: 'zinc', label: 'Inconnu' },
+  const map: Record<string, { status: string; label: string }> = {
+    connected: { status: 'connected', label: 'Connecté' },
+    error: { status: 'error', label: 'Erreur' },
+    'missing-key': { status: 'missing-key', label: 'Clé manquante' },
+    unknown: { status: 'unknown', label: 'Inconnu' },
   };
-  const { color, label } = map[state] ?? { color: 'zinc' as BadgeColor, label: state };
-  return <Badge color={color}>{label}</Badge>;
+  const { status, label } = map[state] ?? { status: state, label: state };
+  return <AdminBadge status={status}>{label}</AdminBadge>;
 }
 
 function ActiveSupplierCard({ row }: { row: SupplierPolicyRow }) {
@@ -196,7 +195,7 @@ function ActiveSupplierCard({ row }: { row: SupplierPolicyRow }) {
             <ConnectionBadge state={row.connectionState} />
           </div>
           {isLimitedSourcing && (
-            <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+            <p className="mt-1 text-xs text-zinc-500">
               Sourcing seul - pas d auto-forward
             </p>
           )}
@@ -221,7 +220,7 @@ function AutomationCard({ row }: { row: SupplierPolicyRow }) {
         <div className="flex-1">
           <span className="text-sm font-semibold text-zinc-900 dark:text-white">{row.label}</span>
         </div>
-        <Badge color="blue">Automatisation</Badge>
+        <Badge color="zinc">Automatisation</Badge>
       </div>
       <Text className="mt-1.5 text-xs text-zinc-500">
         Couche d automatisation - pas un fournisseur valide
@@ -234,7 +233,7 @@ function ExcludedRow({ row }: { row: SupplierPolicyRow }) {
   return (
     <div className="flex flex-col gap-1 rounded-lg border border-zinc-100 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900 sm:flex-row sm:items-start sm:gap-4">
       <div className="flex shrink-0 items-center gap-2">
-        <Badge color="red">Exclu</Badge>
+        <Badge color="zinc">Exclu</Badge>
         <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{row.label}</span>
       </div>
       {row.exclusionNote && (

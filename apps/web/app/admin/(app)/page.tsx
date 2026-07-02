@@ -306,7 +306,7 @@ export default async function PortfolioDashboard() {
           <DescriptionTerm>Taux d&apos;erreur</DescriptionTerm>
           <DescriptionDetails className="tabular-nums">
             {errorRate > 5 ? (
-              <Badge color="amber">{errorRate.toFixed(1)}%</Badge>
+              <Badge color="zinc">{errorRate.toFixed(1)}%</Badge>
             ) : (
               <span>{errorRate.toFixed(1)}%</span>
             )}

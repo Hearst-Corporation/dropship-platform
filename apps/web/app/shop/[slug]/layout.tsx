@@ -48,17 +48,14 @@ export default async function ShopLayout({
       <style dangerouslySetInnerHTML={{ __html: design.cssVars }} />
       <StoreAnalytics ids={publicAnalytics(store)} consent={consent} />
       <CookieBanner />
-      {/* No layout-level header: each storefront template renders its own
-          theme-matched nav, and the generic page renders its own hero. A layout
-          header here would double up with those and, being position:absolute,
-          overlap the content underneath it. */}
+      {/* Footer unique — les templates n'en rendent plus leur propre copie. */}
       <main>{children}</main>
 
       <footer className="bg-zinc-950 text-white py-14">
         <div className="max-w-7xl mx-auto px-4 text-center space-y-4 flex flex-col items-center">
           <BrandLogo
             name={store.name}
-            accentColor={store.accentColor}
+            accentColor={design.palette.accent}
             tone="inverse"
             size="footer"
           />

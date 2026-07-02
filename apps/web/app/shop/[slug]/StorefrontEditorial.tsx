@@ -1,3 +1,4 @@
+import { DS, dsClass } from '@/lib/design/css-vars';
 import type { StoreConfig } from '@/lib/store-config';
 import { formatMoney, type listProducts } from '@/lib/medusa-store';
 import { StoreLogo } from '@/components/ui';
@@ -19,24 +20,24 @@ export function StorefrontEditorial({
   const sellingPoints = store.landingContent?.selling_points ?? [];
 
   return (
-    <div className="bg-white">
+    <div className={`min-h-screen ${dsClass.bg} ${dsClass.text}`} style={{ fontFamily: DS.fontBody }}>
       {/* Nav */}
       <nav
         aria-label="Navigation principale"
-        className="bg-white/90 backdrop-blur-md border-b border-zinc-100"
+        className={`backdrop-blur-md border-b ${dsClass.border} ${dsClass.surface}/90`}
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <Link
               href={`/shop/${store.slug}`}
-              className="flex items-center gap-2 font-semibold text-zinc-900 text-lg"
+              className={`flex items-center gap-2 font-semibold text-lg ${dsClass.text}`}
             >
               <StoreLogo emoji={store.logoEmoji} size={24} className="text-zinc-700" />
               <span>{store.name}</span>
             </Link>
             <Link
               href={`/shop/${store.slug}/cart`}
-              className="flex items-center gap-1.5 text-sm text-zinc-600 hover:text-zinc-900 transition-colors"
+              className={`flex items-center gap-1.5 text-sm ${dsClass.textMuted} hover:opacity-80 transition-colors`}
               aria-label="Panier"
             >
               <svg
@@ -73,7 +74,8 @@ export function StorefrontEditorial({
             <div className="sm:max-w-lg">
               {heroHeadline ? (
                 <h1
-                  className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-6xl"
+                  className={`text-4xl font-bold tracking-tight sm:text-6xl ${dsClass.text}`}
+                  style={{ fontFamily: DS.fontDisplay, letterSpacing: DS.headingTracking }}
                   dangerouslySetInnerHTML={{ __html: sanitizeRichText(heroHeadline) }}
                 />
               ) : (
@@ -82,13 +84,13 @@ export function StorefrontEditorial({
                 </h1>
               )}
               {heroLede && (
-                <p className="mt-4 text-xl text-zinc-500">{heroLede}</p>
+                <p className={`mt-4 text-xl ${dsClass.textMuted}`}>{heroLede}</p>
               )}
               <div className="mt-8">
                 <Link
                   href={`#products`}
                   className="inline-block rounded-md px-8 py-3 text-center font-medium text-white transition-opacity hover:opacity-90"
-                  style={{ backgroundColor: store.primaryColor }}
+                  style={{ backgroundColor: DS.primary }}
                 >
                   Voir la collection
                 </Link>
@@ -145,7 +147,7 @@ export function StorefrontEditorial({
                   <div key={i} className="flex flex-col gap-3">
                     <div
                       className="h-1 w-8 rounded"
-                      style={{ backgroundColor: store.accentColor }}
+                      style={{ backgroundColor: DS.accent }}
                     />
                     <h3 className="text-base font-semibold text-zinc-900">
                       {point.title}
@@ -238,7 +240,7 @@ export function StorefrontEditorial({
           <section aria-labelledby="showcase-heading">
             <div
               className="relative px-6 py-32 sm:px-12 sm:py-40 lg:px-16"
-              style={{ backgroundColor: store.primaryColor }}
+              style={{ backgroundColor: DS.primary }}
             >
               <div aria-hidden="true" className="absolute inset-0 bg-black/30" />
               <div className="relative mx-auto flex max-w-3xl flex-col items-center text-center">
@@ -279,32 +281,6 @@ export function StorefrontEditorial({
           </section>
         )}
       </main>
-
-      {/* Footer */}
-      <footer
-        aria-labelledby="footer-heading"
-        className="border-t border-zinc-100 bg-white"
-      >
-        <h2 id="footer-heading" className="sr-only">
-          Pied de page
-        </h2>
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-            <div className="flex items-center gap-2 text-sm font-medium text-zinc-700">
-              <StoreLogo
-                emoji={store.logoEmoji}
-                size={18}
-                className="text-zinc-500"
-              />
-              <span>{store.name}</span>
-            </div>
-            <p className="text-sm text-zinc-400">
-              &copy; {new Date().getFullYear()} {store.name}. Tous droits
-              reserves.
-            </p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

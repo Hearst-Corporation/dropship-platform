@@ -2,7 +2,7 @@ import { ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid';
 import { medusa, type MedusaProduct } from '@/lib/medusa';
 import { Heading, Subheading } from '@/components/catalyst/heading';
 import { Text, Strong, Code } from '@/components/catalyst/text';
-import { Badge } from '@/components/catalyst/badge';
+import { AdminBadge } from '@/components/admin/AdminBadge';
 import { Button } from '@/components/catalyst/button';
 import {
   Table,
@@ -48,7 +48,7 @@ export default async function CatalogPage() {
       {error && (
         <div>
           <Subheading level={2}>
-            <Badge color="red">Erreur Medusa</Badge>
+            <AdminBadge status="error">Erreur Medusa</AdminBadge>
           </Subheading>
           <Text className="mt-2">{error}</Text>
         </div>
@@ -95,7 +95,7 @@ export default async function CatalogPage() {
                   <Code>{p.handle}</Code>
                 </TableCell>
                 <TableCell>
-                  <Badge color={p.status === 'published' ? 'green' : 'zinc'}>{p.status}</Badge>
+                  <AdminBadge status={p.status}>{p.status}</AdminBadge>
                 </TableCell>
                 <TableCell className="tabular-nums">{p.variants?.length ?? 0}</TableCell>
                 <TableCell className="text-right">

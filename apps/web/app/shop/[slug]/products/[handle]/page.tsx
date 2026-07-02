@@ -7,7 +7,7 @@ import { formatMoney, getProduct } from '@/lib/medusa-store';
 import { AddToCartButton } from '@/app/products/[handle]/AddToCartButton';
 import { breadcrumbList, productSchema, productUrl, storeUrl, withCanonical } from '@/lib/seo';
 import { Truck, ShieldCheck, RotateCcw } from 'lucide-react';
-import { TrackPageView } from '@/components/analytics/TrackPageView';
+import { DS } from '@/lib/design/css-vars';
 import { StoreLogo } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
@@ -102,7 +102,7 @@ export default async function ShopProductPage({
         <Link
           href={`/shop/${slug}`}
           className="hover:underline inline-flex items-center gap-1.5"
-          style={{ color: store.accentColor }}
+          style={{ color: DS.accent }}
         >
           <StoreLogo emoji={store.logoEmoji} size={14} strokeWidth={1.75} />
           {store.name}
@@ -115,7 +115,7 @@ export default async function ShopProductPage({
         {/* Image */}
         <div
           className="relative aspect-square rounded-2xl overflow-hidden shadow-md"
-          style={{ backgroundColor: 'var(--ds-bg-alt, rgba(0,0,0,0.05))' }}
+          style={{ backgroundColor: 'var(--ds-surface, rgba(0,0,0,0.05))' }}
         >
           {imageUrl ? (
             <Image
@@ -143,7 +143,7 @@ export default async function ShopProductPage({
           </h1>
 
           {price !== undefined && (
-            <div className="text-4xl font-bold mb-6" style={{ color: store.accentColor }}>
+            <div className="text-4xl font-bold mb-6" style={{ color: DS.accent }}>
               {formatMoney(price, variant?.calculated_price?.currency_code || 'eur')}
             </div>
           )}

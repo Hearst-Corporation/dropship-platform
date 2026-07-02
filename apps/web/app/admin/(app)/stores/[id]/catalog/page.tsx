@@ -4,6 +4,7 @@ import { getDbRead } from '@/lib/db';
 import { resolveStoreId } from '@/lib/resolve-store';
 import { Heading, Subheading } from '@/components/catalyst/heading';
 import { Text } from '@/components/catalyst/text';
+import { AdminBadge } from '@/components/admin/AdminBadge';
 import { Badge } from '@/components/catalyst/badge';
 import { Button } from '@/components/catalyst/button';
 import {
@@ -157,7 +158,7 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
                   p.cost_cents > 0
                     ? Math.round(((p.price_cents - p.cost_cents) / p.cost_cents) * 100)
                     : 0;
-                const supplierColor = p.supplier === 'ai-generated' ? 'zinc' : 'green';
+                const supplierColor = 'zinc';
                 return (
                   <TableRow key={p.id}>
                     <TableCell>
@@ -208,9 +209,9 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
                     </TableCell>
                     <TableCell className="text-right">
                       {p.medusa_product_id ? (
-                        <Badge color="green">Live</Badge>
+                        <AdminBadge status="live">Live</AdminBadge>
                       ) : (
-                        <Badge color="zinc">En attente</Badge>
+                        <AdminBadge status="pending">En attente</AdminBadge>
                       )}
                     </TableCell>
                   </TableRow>

@@ -50,9 +50,9 @@ export function LuxuryUpgradeButton({
   };
 
   return (
-    <section className="overflow-hidden rounded-xl bg-gray-800/50 ring-1 ring-amber-500/20">
-      <div className="border-b border-amber-500/20 px-5 pb-3 pt-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-amber-400">
+    <section className="overflow-hidden rounded-xl bg-gray-800/50 ring-1 ring-indigo-500/20">
+      <div className="border-b border-indigo-500/20 px-5 pb-3 pt-4">
+        <p className="text-xs font-medium uppercase tracking-wide text-indigo-400">
           Passage en mode luxe
         </p>
         <h3 className="mt-1 text-base font-semibold tracking-tight text-white">
@@ -78,9 +78,9 @@ export function LuxuryUpgradeButton({
             type="button"
             onClick={() => setConfirming(true)}
             disabled={pending}
-            className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-medium text-gray-900 transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex items-center gap-2 rounded-full bg-indigo-500 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-xs text-amber-400">
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-indigo-400/20 text-xs text-indigo-200">
               →
             </span>
             {isLuxury ? 'Re-générer en mode luxe' : 'Passer en mode luxe'}
@@ -91,7 +91,7 @@ export function LuxuryUpgradeButton({
               type="button"
               onClick={run}
               disabled={pending}
-              className="rounded-full bg-amber-500 px-5 py-2.5 text-sm font-medium text-gray-900 transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-full bg-indigo-500 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {pending ? 'Pipeline en cours… (60-120s)' : 'Confirmer le lancement'}
             </button>
@@ -112,7 +112,7 @@ export function LuxuryUpgradeButton({
           </p>
         )}
         {error && (
-          <p className="rounded-md bg-red-500/10 px-3 py-2 text-xs text-red-400 ring-1 ring-red-500/20">
+          <p className="rounded-md bg-gray-900/50 px-3 py-2 text-xs text-gray-400 ring-1 ring-white/10">
             {error}
           </p>
         )}

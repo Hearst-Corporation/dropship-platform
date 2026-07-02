@@ -1,10 +1,7 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { TEMPLATE_CATALOG } from '@/lib/template-catalog';
-import { StorefrontEditorial } from '@/app/shop/[slug]/StorefrontEditorial';
-import { StorefrontBold } from '@/app/shop/[slug]/StorefrontBold';
-import { StorefrontMinimal } from '@/app/shop/[slug]/StorefrontMinimal';
-import { StorefrontShowcase } from '@/app/shop/[slug]/StorefrontShowcase';
+import { pickStorefrontComponent } from '@/lib/storefront-routing';
 import { buildMockStore, MOCK_PRODUCTS } from './_mock';
 
 export const dynamic = 'force-dynamic';
@@ -36,16 +33,7 @@ export default async function TemplatePreviewPage({
   const store = buildMockStore(id, entry.label);
   const products = MOCK_PRODUCTS;
 
-  const storefrontJsx =
-    entry.register === 'luxury' ? (
-      <StorefrontShowcase store={store} products={products} />
-    ) : entry.mode === 'mono' ? (
-      <StorefrontMinimal store={store} products={products} />
-    ) : entry.mode === 'split' ? (
-      <StorefrontBold store={store} products={products} />
-    ) : (
-      <StorefrontEditorial store={store} products={products} />
-    );
+  const storefrontJsx = pickStorefrontComponent(entry, { store, products });
 
   return (
     <div>
@@ -75,7 +63,7 @@ export default async function TemplatePreviewPage({
         <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-500">
           {id}
         </span>
-        <span className="ml-auto rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+        <span className="ml-auto rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
           Apercu avec donnees fictives
         </span>
       </div>

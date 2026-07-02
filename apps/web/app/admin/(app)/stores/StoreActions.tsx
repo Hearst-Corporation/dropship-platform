@@ -50,7 +50,7 @@ export function StoreActions({
         disabled={deleting}
         aria-label={`Supprimer ${storeName}`}
         title={error || `Supprimer ${storeName}`}
-        className={error ? 'text-red-600 dark:text-red-500' : undefined}
+        className={error ? 'text-zinc-500' : undefined}
       >
         <TrashIcon className={iconCls} aria-hidden />
       </Button>

@@ -179,7 +179,7 @@ export default async function StoreAnalyticsPage({ params, searchParams }: Props
       </div>
 
       {dataError && (
-        <div className="rounded-md border border-amber-500/30 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-300">
+        <div className="rounded-md border border-zinc-950/10 bg-zinc-950/[0.02] px-4 py-3 text-sm text-zinc-950 dark:border-white/10 dark:bg-white/[0.02] dark:text-white">
           Données temporairement indisponibles. Réessaie dans un instant.
         </div>
       )}

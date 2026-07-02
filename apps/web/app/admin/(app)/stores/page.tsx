@@ -5,7 +5,7 @@ import { getDbRead } from '@/lib/db';
 import { StoreAvatar } from '@/components/ui';
 import { Heading, Subheading } from '@/components/catalyst/heading';
 import { Text } from '@/components/catalyst/text';
-import { Badge } from '@/components/catalyst/badge';
+import { AdminBadge } from '@/components/admin/AdminBadge';
 import { Button } from '@/components/catalyst/button';
 import {
   Table,
@@ -23,8 +23,6 @@ import {
 import { StoreActions } from './StoreActions';
 
 export const dynamic = 'force-dynamic';
-
-type StatusColor = 'green' | 'amber' | 'red';
 
 interface StoreRow {
   id: string;
@@ -54,10 +52,10 @@ function pickStoreCover(s: StoreRow): string | null {
   return null;
 }
 
-function statusOf(s: StoreRow): { color: StatusColor; label: string } {
-  if (s.status === 'active') return { color: 'green', label: 'En ligne' };
-  if (s.status === 'creating') return { color: 'amber', label: 'Création en cours' };
-  return { color: 'red', label: 'Erreur' };
+function statusOf(s: StoreRow): { status: string; label: string } {
+  if (s.status === 'active') return { status: 'active', label: 'En ligne' };
+  if (s.status === 'creating') return { status: 'creating', label: 'Création en cours' };
+  return { status: 'error', label: 'Erreur' };
 }
 
 export default async function StoresPage({
@@ -165,7 +163,7 @@ export default async function StoresPage({
                     </TableCell>
                     <TableCell className="text-zinc-500">{store.niche}</TableCell>
                     <TableCell>
-                      <Badge color={s.color}>{s.label}</Badge>
+                      <AdminBadge status={s.status}>{s.label}</AdminBadge>
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-zinc-500">
                       {store.product_count}

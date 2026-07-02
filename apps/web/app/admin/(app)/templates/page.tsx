@@ -4,7 +4,8 @@ import {
   TEMPLATE_CATALOG,
   type TemplateRegister,
 } from '@/lib/template-catalog';
-import { Heading, Subheading } from '@/components/catalyst/heading';
+import { Subheading } from '@/components/catalyst/heading';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import { Text, Code, Strong } from '@/components/catalyst/text';
 import { Badge } from '@/components/catalyst/badge';
 import { Button } from '@/components/catalyst/button';
@@ -53,12 +54,10 @@ export default async function TemplatesGalleryPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <Heading>Templates de storefront</Heading>
-        <Text className="mt-2">
-          {`${TEMPLATE_CATALOG.length - 1} layouts disponibles. Chaque template peut être assigné à n'importe quelle boutique. Clique sur "Voir en live" pour un preview rendu avec des données fictives.`}
-        </Text>
-      </div>
+      <AdminPageHeader
+        title="Templates de storefront"
+        subtitle={`${TEMPLATE_CATALOG.length - 1} layouts disponibles. Chaque template peut être assigné à n'importe quelle boutique. Clique sur "Voir en live" pour un preview rendu avec des données fictives.`}
+      />
 
       {(['luxury', 'premium', 'mass'] as TemplateRegister[]).map((reg) => {
         const entries = byRegister[reg];

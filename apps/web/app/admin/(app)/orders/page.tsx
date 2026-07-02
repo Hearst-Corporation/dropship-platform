@@ -5,11 +5,14 @@ import { DryRunPendingButton } from './DryRunPendingButton';
 import { MarkPaidButton } from './MarkPaidButton';
 import { formatMoney } from '@/lib/medusa-store';
 import { aliExpressOrderUrl } from '@/lib/suppliers/aliexpress';
-import { Heading, Subheading } from '@/components/catalyst/heading';
+import { Subheading } from '@/components/catalyst/heading';
 import { Text, TextLink, Strong } from '@/components/catalyst/text';
 import { Badge } from '@/components/catalyst/badge';
 import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from '@/components/catalyst/table';
-import { DescriptionTerm, DescriptionDetails } from '@/components/catalyst/description-list';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import { AdminStatCard } from '@/components/admin/AdminStatCard';
+import { AdminStatsGrid } from '@/components/admin/AdminStatsGrid';
+import { AdminBadge } from '@/components/admin/AdminBadge';
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid';
 
 export const dynamic = 'force-dynamic';
@@ -129,31 +132,19 @@ export default async function OrdersPage() {
 
   return (
     <div className="flex min-w-0 flex-1 flex-col space-y-8">
-      <div className="flex min-w-0 flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0">
-          <Heading>Carnet de commandes</Heading>
-          <Text>
-            Forward chaque commande payée vers le fournisseur. Le dry-run sauve le payload sans rien envoyer.
-          </Text>
-        </div>
-        <DryRunPendingButton />
-      </div>
+      <AdminPageHeader
+        title="Carnet de commandes"
+        subtitle="Forward chaque commande payée vers le fournisseur. Le dry-run sauve le payload sans rien envoyer."
+        actions={<DryRunPendingButton />}
+      />
 
-      <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <AdminStatsGrid cols={4}>
         {kpis.map((kpi) => (
-          <div
-            key={kpi.label}
-            className="min-w-0 border-t border-zinc-950/10 pt-4 dark:border-white/10"
-          >
-            <DescriptionTerm>{kpi.label}</DescriptionTerm>
-            <DescriptionDetails>
-              <Strong className="text-2xl/8 tabular-nums">{kpi.value}</Strong>
-            </DescriptionDetails>
-          </div>
+          <AdminStatCard key={kpi.label} label={kpi.label} value={kpi.value} />
         ))}
-      </dl>
+      </AdminStatsGrid>
 
-      {fetchError && <Text className="text-red-600 dark:text-red-400">Erreur Medusa : {fetchError}</Text>}
+      {fetchError && <Text>Erreur Medusa : {fetchError}</Text>}
 
       {awaitingPayment.length > 0 && (
         <div className="min-w-0 border-t border-zinc-950/10 pt-8 dark:border-white/10">
@@ -215,7 +206,7 @@ export default async function OrdersPage() {
                       </TextLink>
                     </TableCell>
                     <TableCell>
-                      <Badge color={stale ? 'amber' : 'zinc'}>il y a {ageLabel}</Badge>
+                      <Badge color="zinc">il y a {ageLabel}</Badge>
                       {stale && (
                         <Text className="mt-1 text-xs">proche annulation</Text>
                       )}
@@ -264,8 +255,6 @@ export default async function OrdersPage() {
                 const legs = forwardsByOrder.get(order.id) ?? [];
                 // Consider "sent" if any leg has status=sent.
                 const sent = legs.some((f) => f.status === 'sent');
-                const paymentOk =
-                  order.payment_status === 'captured' || order.payment_status === 'authorized';
                 return (
                   <TableRow key={order.id}>
                     <TableCell>
@@ -290,9 +279,9 @@ export default async function OrdersPage() {
                       {formatMoney(order.total, order.currency_code)}
                     </TableCell>
                     <TableCell>
-                      <Badge color={paymentOk ? 'green' : 'zinc'}>
+                      <AdminBadge status={order.payment_status ?? order.status ?? 'pending'}>
                         {order.payment_status ?? order.status ?? '—'}
-                      </Badge>
+                      </AdminBadge>
                     </TableCell>
                     <TableCell>
                       {legs.length === 0 ? (
@@ -304,9 +293,9 @@ export default async function OrdersPage() {
                               if (leg.supplier === 'aliexpress') {
                                 return (
                                   <div key={legIdx} className="flex flex-col items-start gap-0.5">
-                                    <Badge color={leg.paid_at ? 'green' : 'zinc'}>
+                                    <AdminBadge status={leg.paid_at ? 'paid' : 'pending'}>
                                       {leg.paid_at ? 'payée' : 'à payer'}
-                                    </Badge>
+                                    </AdminBadge>
                                     <TextLink
                                       href={aliExpressOrderUrl(leg.supplier_order_id)}
                                       target="_blank"
@@ -320,7 +309,7 @@ export default async function OrdersPage() {
                               }
                               return (
                                 <div key={legIdx} className="flex flex-col items-start gap-0.5">
-                                  <Badge color="zinc">envoyée</Badge>
+                                  <AdminBadge status="sent">envoyée</AdminBadge>
                                   <span className="font-mono text-xs text-zinc-500">
                                     {leg.supplier} #{leg.supplier_order_id}
                                   </span>
@@ -329,15 +318,15 @@ export default async function OrdersPage() {
                             }
                             if (leg.status === 'dry_run') {
                               return (
-                                <Badge key={legIdx} color="green">
+                                <AdminBadge status="ready">
                                   dry-run prêt ({leg.supplier})
-                                </Badge>
+                                </AdminBadge>
                               );
                             }
                             // error
                             return (
                               <div key={legIdx} className="flex max-w-52 flex-col items-start gap-1">
-                                <Badge color="red">erreur ({leg.supplier})</Badge>
+                                <AdminBadge status="error">erreur ({leg.supplier})</AdminBadge>
                                 {leg.error_message && (
                                   <Text className="line-clamp-2 text-xs" title={leg.error_message}>
                                     {leg.error_message}

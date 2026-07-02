@@ -1,6 +1,7 @@
-import { Heading, Subheading } from '@/components/catalyst/heading';
+import { Subheading } from '@/components/catalyst/heading';
 import { Text, TextLink } from '@/components/catalyst/text';
-import { Badge } from '@/components/catalyst/badge';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import { AdminBadge } from '@/components/admin/AdminBadge';
 import {
   Table,
   TableHead,
@@ -24,20 +25,21 @@ const CHANNEL_LABEL: Record<string, string> = {
   amazon: 'Amazon Ads',
 };
 
-const CHANNEL_BADGE: Record<string, 'blue' | 'indigo' | 'pink' | 'amber' | 'zinc'> = {
-  google: 'blue',
-  meta: 'indigo',
-  tiktok: 'pink',
-  amazon: 'amber',
-};
-
-const STATUS_BADGE: Record<string, 'green' | 'zinc' | 'red'> = {
-  live: 'green',
-  active: 'green',
-  paused: 'zinc',
-  draft: 'zinc',
-  error: 'red',
-};
+function ChannelLabel({ channel, connected }: { channel: string; connected: boolean }) {
+  return (
+    <span className="inline-flex items-center gap-2 font-medium text-zinc-950 dark:text-white">
+      <span
+        aria-hidden="true"
+        className={
+          connected
+            ? 'size-1.5 shrink-0 rounded-full bg-indigo-500'
+            : 'size-1.5 shrink-0 rounded-full bg-zinc-300 dark:bg-zinc-600'
+        }
+      />
+      {CHANNEL_LABEL[channel] ?? channel}
+    </span>
+  );
+}
 
 function eur(n: number): string {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
@@ -47,8 +49,6 @@ function roas(revenue: number, spent: number): string {
 }
 
 export default async function ObservabilityPage() {
-  // Fail-soft : une erreur DB ne doit pas crasher la page. On retombe sur des
-  // données vides et on affiche une bannière ambre pour le signaler.
   let campaigns: Awaited<ReturnType<typeof getAllCampaigns>> = [];
   let connections: ReturnType<typeof getChannelConnections> = [];
   let dataError = false;
@@ -68,7 +68,6 @@ export default async function ObservabilityPage() {
   const totalViews = campaigns.reduce((s, c) => s + c.views, 0);
   const activeCount = campaigns.filter((c) => c.status === 'live' || c.status === 'active').length;
 
-  // Per-channel aggregation from REAL campaigns.
   const channels: AdChannel[] = ['google', 'meta', 'tiktok', 'amazon'];
   const byChannel = channels.map((ch) => {
     const cc = campaigns.filter((c) => c.channel === ch);
@@ -83,24 +82,18 @@ export default async function ObservabilityPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <Text>Marketing · Pub payée</Text>
-          <Heading>Campagnes & revenus</Heading>
-          <Text className="mt-1 max-w-2xl">
-            Campagnes réelles publiées depuis la plateforme (Google, Meta, TikTok, Amazon).
-            Dépenses estimées sur le budget, revenus mesurés sur les events de conversion.
-          </Text>
-        </div>
-      </div>
+      <AdminPageHeader
+        title="Campagnes & revenus"
+        subtitle="Campagnes réelles publiées depuis la plateforme (Google, Meta, TikTok, Amazon). Dépenses estimées sur le budget, revenus mesurés sur les events de conversion."
+        meta="Marketing · Pub payée"
+      />
 
       {dataError && (
-        <div className="rounded-md border border-amber-500/30 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-300">
+        <div className="rounded-md border border-zinc-950/10 bg-zinc-950/[0.02] px-4 py-3 text-sm text-zinc-950 dark:border-white/10 dark:bg-white/[0.02] dark:text-white">
           Données temporairement indisponibles. Réessaie dans un instant.
         </div>
       )}
 
-      {/* KPIs globaux — réels */}
       <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
         <Subheading>Vue d&apos;ensemble</Subheading>
         <dl className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -131,7 +124,6 @@ export default async function ObservabilityPage() {
         </dl>
       </section>
 
-      {/* Par canal — connexion réelle + perfs réelles */}
       <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
         <Subheading>Par canal</Subheading>
         <Table dense className="mt-4 [--gutter:--spacing(4)]">
@@ -149,10 +141,12 @@ export default async function ObservabilityPage() {
             {byChannel.map((c) => (
               <TableRow key={c.channel}>
                 <TableCell>
-                  <Badge color={CHANNEL_BADGE[c.channel]}>{CHANNEL_LABEL[c.channel]}</Badge>
+                  <ChannelLabel channel={c.channel} connected={c.connected} />
                 </TableCell>
                 <TableCell>
-                  {c.connected ? <Badge color="green">Connecté</Badge> : <Badge color="zinc">Non connecté</Badge>}
+                  <AdminBadge status={c.connected ? 'connected' : 'zinc'}>
+                    {c.connected ? 'Connecté' : 'Non connecté'}
+                  </AdminBadge>
                 </TableCell>
                 <TableCell className="text-right tabular-nums text-zinc-950 dark:text-white">{eur(c.spent)}</TableCell>
                 <TableCell className="text-right tabular-nums text-zinc-950 dark:text-white">{eur(c.revenue)}</TableCell>
@@ -164,7 +158,6 @@ export default async function ObservabilityPage() {
         </Table>
       </section>
 
-      {/* Campagnes — réelles */}
       <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
         <Subheading>Campagnes</Subheading>
         {campaigns.length === 0 ? (
@@ -193,19 +186,19 @@ export default async function ObservabilityPage() {
                 <TableRow key={c.id}>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Badge color={STATUS_BADGE[c.status] ?? 'zinc'}>{c.status}</Badge>
+                      <AdminBadge status={c.status}>{c.status}</AdminBadge>
                       <span className="font-medium text-zinc-950 dark:text-white">{c.hook ?? 'Campagne'}</span>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge color={CHANNEL_BADGE[c.channel] ?? 'zinc'}>{CHANNEL_LABEL[c.channel] ?? c.channel}</Badge>
+                    <ChannelLabel channel={c.channel} connected />
                   </TableCell>
                   <TableCell className="text-zinc-500">{c.storeName ?? '—'}</TableCell>
                   <TableCell className="text-right tabular-nums text-zinc-500">
                     {c.dailyBudgetEur != null ? `${eur(c.dailyBudgetEur)}/j` : '—'}
                   </TableCell>
                   <TableCell className="text-right tabular-nums text-zinc-950 dark:text-white">{eur(c.spentEur)}</TableCell>
-                  <TableCell className="text-right tabular-nums text-indigo-600 dark:text-indigo-400">{eur(c.revenueEur)}</TableCell>
+                  <TableCell className="text-right tabular-nums text-zinc-950 dark:text-white">{eur(c.revenueEur)}</TableCell>
                   <TableCell className="text-right tabular-nums">{roas(c.revenueEur, c.spentEur)}</TableCell>
                   <TableCell className="text-right tabular-nums text-zinc-950 dark:text-white">{c.conversions}</TableCell>
                 </TableRow>
