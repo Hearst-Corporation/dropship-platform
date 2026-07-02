@@ -58,7 +58,7 @@ export function RunReportSections({ report }: { report: StoreRunReport | null })
 
   return (
     <>
-      <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
+      <section className="border-t border-zinc-800 pt-8">
         <div className="flex items-start justify-between gap-4">
           <Subheading>Run agent</Subheading>
           <AdminBadge status={report.assets.status}>
@@ -84,25 +84,25 @@ export function RunReportSections({ report }: { report: StoreRunReport | null })
         </DescriptionList>
       </section>
 
-      <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
+      <section className="border-t border-zinc-800 pt-8">
         <Subheading>Fournisseurs et dropshippers</Subheading>
         <Text className="mt-1">
           Politique appliquée pendant le run: sources interrogées, plateformes exclues et justification.
         </Text>
-        <AdminDataTable minWidth="min-w-[46rem]" className="mt-4">
+        <AdminDataTable className="mt-4">
           <Table dense>
             <TableHead>
               <TableRow>
                 <TableHeader>Fournisseur</TableHeader>
                 <TableHeader>Statut</TableHeader>
-                <TableHeader className="text-right">Produits</TableHeader>
-                <TableHeader>Raison</TableHeader>
+                <TableHeader className="text-right hidden sm:table-cell">Produits</TableHeader>
+                <TableHeader className="hidden md:table-cell">Raison</TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
               {suppliersSorted.map((s) => (
                 <TableRow key={s.id}>
-                  <TableCell className="font-medium text-zinc-950 dark:text-white">{s.label}</TableCell>
+                  <TableCell className="font-medium text-white">{s.label}</TableCell>
                   <TableCell>
                     <AdminBadge status={s.productsFound > 0 ? 'active' : s.status}>
                       {s.productsFound > 0
@@ -116,8 +116,8 @@ export function RunReportSections({ report }: { report: StoreRunReport | null })
                               : 'Hors socle'}
                     </AdminBadge>
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">{s.productsFound || '—'}</TableCell>
-                  <TableCell className="max-w-md text-zinc-500 dark:text-zinc-400">
+                  <TableCell className="text-right tabular-nums hidden sm:table-cell">{s.productsFound || '—'}</TableCell>
+                  <TableCell className="max-w-md text-zinc-500 hidden md:table-cell">
                     <span className="line-clamp-2">{s.reason}</span>
                   </TableCell>
                 </TableRow>
@@ -128,22 +128,22 @@ export function RunReportSections({ report }: { report: StoreRunReport | null })
       </section>
 
       {report.products.length > 0 && (
-        <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
+        <section className="border-t border-zinc-800 pt-8">
           <Subheading>Sélection produits du run</Subheading>
           <Text className="mt-1">
             Prix, coût, marge, risque et adéquation marché évalués par l&rsquo;agent.
           </Text>
-          <AdminDataTable minWidth="min-w-[54rem]" className="mt-4">
+          <AdminDataTable className="mt-4">
             <Table dense>
               <TableHead>
                 <TableRow>
                   <TableHeader>Produit</TableHeader>
-                  <TableHeader>Fournisseur</TableHeader>
+                  <TableHeader className="hidden sm:table-cell">Fournisseur</TableHeader>
                   <TableHeader className="text-right">Prix</TableHeader>
-                  <TableHeader className="text-right">Coût</TableHeader>
-                  <TableHeader className="text-right">Marge</TableHeader>
-                  <TableHeader>Risque</TableHeader>
-                  <TableHeader>Marché</TableHeader>
+                  <TableHeader className="text-right hidden md:table-cell">Coût</TableHeader>
+                  <TableHeader className="text-right hidden md:table-cell">Marge</TableHeader>
+                  <TableHeader className="hidden lg:table-cell">Risque</TableHeader>
+                  <TableHeader className="hidden lg:table-cell">Marché</TableHeader>
                   <TableHeader>Statut</TableHeader>
                 </TableRow>
               </TableHead>
@@ -151,21 +151,21 @@ export function RunReportSections({ report }: { report: StoreRunReport | null })
                 {report.products.map((p) => (
                   <TableRow key={`${p.supplier}-${p.externalId}`}>
                     <TableCell className="max-w-xs">
-                      <span className="line-clamp-1 font-medium text-zinc-950 dark:text-white">{p.title}</span>
+                      <span className="line-clamp-1 font-medium text-white">{p.title}</span>
                       <span className="mt-0.5 line-clamp-1 block text-xs text-zinc-500">{p.reason}</span>
                     </TableCell>
-                    <TableCell className="text-zinc-500">{p.supplier}</TableCell>
-                    <TableCell className="text-right tabular-nums text-zinc-950 dark:text-white">{eur(p.priceCents)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{p.costCents > 0 ? eur(p.costCents) : '—'}</TableCell>
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell className="text-zinc-500 hidden sm:table-cell">{p.supplier}</TableCell>
+                    <TableCell className="text-right tabular-nums text-white">{eur(p.priceCents)}</TableCell>
+                    <TableCell className="text-right tabular-nums hidden md:table-cell">{p.costCents > 0 ? eur(p.costCents) : '—'}</TableCell>
+                    <TableCell className="text-right tabular-nums hidden md:table-cell">
                       {p.marginPct != null ? `${p.marginPct}%` : '—'}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden lg:table-cell">
                       <AdminBadge status={p.riskLevel === 'low' ? 'ok' : p.riskLevel}>
                         {RISK_LABEL[p.riskLevel] ?? p.riskLevel}
                       </AdminBadge>
                     </TableCell>
-                    <TableCell className="max-w-48 text-zinc-500 dark:text-zinc-400">
+                    <TableCell className="max-w-48 text-zinc-500 hidden lg:table-cell">
                       <span className="line-clamp-2">{p.marketFit}</span>
                     </TableCell>
                     <TableCell>
@@ -182,7 +182,7 @@ export function RunReportSections({ report }: { report: StoreRunReport | null })
       )}
 
       {plan && (
-        <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
+        <section className="border-t border-zinc-800 pt-8">
           <div className="flex items-start justify-between gap-4">
             <Subheading>Plan Google Ads de lancement</Subheading>
             <div className="flex items-center gap-2">
@@ -221,18 +221,18 @@ export function RunReportSections({ report }: { report: StoreRunReport | null })
 
           <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div>
-              <Text className="font-medium text-zinc-950! dark:text-white!">Titres (RSA, max 30 car.)</Text>
+              <Text className="font-medium text-white!">Titres (RSA, max 30 car.)</Text>
               <ul className="mt-2 space-y-1">
                 {plan.headlines.map((h, i) => (
-                  <li key={i} className="text-sm text-zinc-600 dark:text-zinc-400">{i + 1}. {h}</li>
+                  <li key={i} className="text-sm text-zinc-500">{i + 1}. {h}</li>
                 ))}
               </ul>
             </div>
             <div>
-              <Text className="font-medium text-zinc-950! dark:text-white!">Descriptions (max 90 car.)</Text>
+              <Text className="font-medium text-white!">Descriptions (max 90 car.)</Text>
               <ul className="mt-2 space-y-1">
                 {plan.descriptions.map((d, i) => (
-                  <li key={i} className="text-sm text-zinc-600 dark:text-zinc-400">{i + 1}. {d}</li>
+                  <li key={i} className="text-sm text-zinc-500">{i + 1}. {d}</li>
                 ))}
               </ul>
             </div>
@@ -273,9 +273,9 @@ export function RunReportSections({ report }: { report: StoreRunReport | null })
       )}
 
       {report.events.length > 0 && (
-        <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
+        <section className="border-t border-zinc-800 pt-8">
           <Subheading>Logs du run agent</Subheading>
-          <div className="mt-4 max-h-80 overflow-y-auto rounded-lg p-4 ring-1 ring-zinc-950/10 dark:ring-white/10">
+          <div className="mt-4 max-h-80 overflow-y-auto rounded-lg p-4 ring-1 ring-zinc-800">
             <div className="flex flex-col gap-1 font-mono text-xs">
               {report.events.map((e, i) => (
                 <div key={i} className="flex items-start gap-3">
@@ -285,12 +285,12 @@ export function RunReportSections({ report }: { report: StoreRunReport | null })
                   <span
                     className={
                       e.type === 'error'
-                        ? 'font-medium text-zinc-950 dark:text-white'
+                        ? 'font-medium text-white'
                         : e.type === 'success'
-                          ? 'text-indigo-600 dark:text-indigo-400'
+                          ? 'text-indigo-400'
                           : e.type === 'step'
-                            ? 'font-medium text-zinc-950 dark:text-white'
-                            : 'text-zinc-500 dark:text-zinc-400'
+                            ? 'font-medium text-white'
+                            : 'text-zinc-500'
                     }
                   >
                     {e.message}

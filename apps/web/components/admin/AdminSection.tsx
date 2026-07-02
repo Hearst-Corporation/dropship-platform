@@ -1,5 +1,6 @@
 import clsx from 'clsx'
 import type React from 'react'
+import { adminAccentTop, adminHighlightWash, adminPanel } from './admin-surface'
 
 /**
  * A titled card surface for the admin (dark-mode aware). Wraps content in a
@@ -15,27 +16,54 @@ export interface AdminSectionProps {
   className?: string
   /** Drop the inner padding (useful when the child is a full-bleed table). */
   flush?: boolean
+  /** Subtle indigo gradient wash — for dashboard hero panels. */
+  highlight?: boolean
 }
 
-export function AdminSection({ title, description, actions, children, className, flush = false }: AdminSectionProps) {
+export function AdminSection({
+  title,
+  description,
+  actions,
+  children,
+  className,
+  flush = false,
+  highlight = false,
+}: AdminSectionProps) {
   const hasHeader = Boolean(title || description || actions)
   return (
     <section
       className={clsx(
         className,
-        'rounded-xl border border-zinc-950/10 bg-white dark:border-white/10 dark:bg-zinc-900',
+        adminPanel,
+        adminAccentTop,
+        'relative overflow-hidden',
+        highlight && adminHighlightWash,
       )}
     >
       {hasHeader ? (
-        <div className="flex flex-col gap-2 border-b border-zinc-950/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 dark:border-white/10">
+        <div
+          className={clsx(
+            'relative flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-end sm:justify-between border-b border-zinc-800 bg-zinc-950',
+          )}
+        >
           <div className="min-w-0">
-            {title ? <h2 className="text-sm/6 font-semibold text-zinc-950 dark:text-white">{title}</h2> : null}
-            {description ? <p className="mt-0.5 text-xs/5 text-zinc-500 dark:text-zinc-400">{description}</p> : null}
+            {title ? (
+              <h2 className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.15em] text-white dark:text-white">
+                <span
+                  className="hidden size-2.5 shrink-0 bg-indigo-500 sm:inline-block"
+                  aria-hidden
+                />
+                {title}
+              </h2>
+            ) : null}
+            {description ? (
+              <p className="mt-1.5 text-xs font-medium text-zinc-400 dark:text-zinc-500">{description}</p>
+            ) : null}
           </div>
           {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
         </div>
       ) : null}
-      <div className={clsx(!flush && 'p-5 sm:p-6')}>{children}</div>
+      <div className={clsx('relative bg-zinc-950', !flush && 'p-6 sm:p-8')}>{children}</div>
     </section>
   )
 }

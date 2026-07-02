@@ -19,17 +19,30 @@ export interface AdminPageHeaderProps {
 
 export function AdminPageHeader({ title, subtitle, meta, actions, className }: AdminPageHeaderProps) {
   return (
-    <div className={clsx(className, 'flex flex-col gap-4 pb-6 sm:flex-row sm:items-start sm:justify-between')}>
-      <div className="min-w-0">
-        <Heading>{title}</Heading>
-        {subtitle ? <p className="mt-1 text-sm/6 text-zinc-500 dark:text-zinc-400">{subtitle}</p> : null}
-        {meta ? (
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs/5 text-zinc-500 dark:text-zinc-400">
-            {meta}
-          </div>
-        ) : null}
+    <div
+      className={clsx(
+        className,
+        'relative flex flex-col gap-6 border-b border-zinc-800 pb-8 sm:flex-row sm:items-end sm:justify-between',
+      )}
+    >
+      <div className="flex min-w-0 gap-6">
+        <span
+          className="mt-2 hidden w-1.5 shrink-0 self-stretch bg-indigo-500 sm:block"
+          aria-hidden
+        />
+        <div className="min-w-0">
+          <Heading>{title}</Heading>
+          {subtitle ? <p className="mt-2 max-w-2xl text-sm text-zinc-500">{subtitle}</p> : null}
+          {meta ? (
+            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+              {meta}
+            </div>
+          ) : null}
+        </div>
       </div>
-      {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">{actions}</div> : null}
+      {actions ? (
+        <div className="flex shrink-0 flex-wrap items-center gap-3 sm:justify-end">{actions}</div>
+      ) : null}
     </div>
   )
 }

@@ -498,13 +498,13 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
             La publicité démarre au jour 1, dès que le site est terminé. Pas de phase de mise en place du site.
           </Text>
         </div>
-        <AdminDataTable minWidth="min-w-2xl">
+        <AdminDataTable>
           <Table dense>
             <TableHead>
               <TableRow>
                 <TableHeader>Jour</TableHeader>
                 <TableHeader>Action</TableHeader>
-                <TableHeader>Critère de validation</TableHeader>
+                <TableHeader className="hidden sm:table-cell">Critère de validation</TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -512,7 +512,7 @@ export default async function StoreCampaignPage({ params }: { params: Promise<{ 
                 <TableRow key={m.day}>
                   <TableCell className="font-medium tabular-nums">{m.day}</TableCell>
                   <TableCell className="whitespace-normal text-zinc-600 dark:text-zinc-300">{m.action}</TableCell>
-                  <TableCell className="whitespace-normal text-zinc-500 dark:text-zinc-400">{m.criteria}</TableCell>
+                  <TableCell className="whitespace-normal text-zinc-500 dark:text-zinc-400 hidden sm:table-cell">{m.criteria}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

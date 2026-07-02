@@ -1,15 +1,12 @@
 import clsx from 'clsx'
 import type React from 'react'
 import { ArrowTrendingDownIcon, ArrowTrendingUpIcon } from '@heroicons/react/16/solid'
+import { adminAccentTop, adminPanel } from './admin-surface'
 
 /**
  * Compact KPI card for the admin dashboard. Shows a label, a big value, an
  * optional hint line, an optional colored delta chip, and an optional icon.
  * Dark-mode aware. Server-safe.
- *
- * The `delta.value` string is rendered verbatim — pass real, pre-computed
- * text (e.g. "+12,4 %"). Do NOT fabricate a delta where no source exists;
- * omit `delta` instead.
  */
 type Tone = 'default' | 'positive' | 'warning' | 'danger'
 
@@ -20,53 +17,68 @@ export interface AdminStatCardProps {
   delta?: { value: string; positive?: boolean }
   icon?: React.ComponentType<{ className?: string }>
   tone?: Tone
+  chart?: React.ReactNode
 }
 
-// Single-accent policy: the only hue allowed is the accent ('indigo').
-// `positive` gets a subtle indigo accent; `warning`/`danger` stay neutral
-// zinc (disambiguated by their label text, never by color). No forbidden hue.
 const toneValue: Record<Tone, string> = {
-  default: 'text-zinc-950 dark:text-white',
-  positive: 'text-indigo-600 dark:text-indigo-400',
-  warning: 'text-zinc-950 dark:text-white',
-  danger: 'text-zinc-950 dark:text-white',
+  default: 'text-white dark:text-white',
+  positive: 'text-white dark:text-white',
+  warning: 'text-white dark:text-white',
+  danger: 'text-white dark:text-white',
 }
 
-const toneIcon: Record<Tone, string> = {
-  default: 'text-zinc-400 dark:text-zinc-500',
-  positive: 'text-indigo-500 dark:text-indigo-400',
-  warning: 'text-zinc-400 dark:text-zinc-500',
-  danger: 'text-zinc-400 dark:text-zinc-500',
+const toneIconWrap: Record<Tone, string> = {
+  default: 'text-zinc-500 dark:text-zinc-500',
+  positive: 'text-zinc-500 dark:text-zinc-500',
+  warning: 'text-zinc-500 dark:text-zinc-500',
+  danger: 'text-zinc-500 dark:text-zinc-500',
 }
 
-export function AdminStatCard({ label, value, hint, delta, icon: Icon, tone = 'default' }: AdminStatCardProps) {
+export function AdminStatCard({ label, value, hint, delta, icon: Icon, tone = 'default', chart }: AdminStatCardProps) {
   return (
-    <div className="rounded-xl border border-zinc-950/10 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
-      <div className="flex items-start justify-between gap-3">
-        <p className="truncate text-xs/5 font-medium text-zinc-500 dark:text-zinc-400">{label}</p>
-        {Icon ? <Icon className={clsx('size-5 shrink-0', toneIcon[tone])} /> : null}
-      </div>
-      <div className="mt-2 flex items-baseline gap-2">
-        <span className={clsx('text-2xl font-semibold tracking-tight tabular-nums', toneValue[tone])}>{value}</span>
-        {delta ? (
-          <span
-            className={clsx(
-              'inline-flex items-center gap-0.5 text-xs font-medium tabular-nums',
-              delta.positive
-                ? 'text-indigo-600 dark:text-indigo-400'
-                : 'text-zinc-500 dark:text-zinc-400',
-            )}
-          >
-            {delta.positive ? (
-              <ArrowTrendingUpIcon className="size-3.5" />
-            ) : (
-              <ArrowTrendingDownIcon className="size-3.5" />
-            )}
-            {delta.value}
+    <div
+      className={clsx(
+        'group relative flex flex-col justify-between overflow-hidden p-6 bg-zinc-950 dark:bg-zinc-950',
+      )}
+    >
+      <div className="relative z-10">
+        <div className="flex items-start justify-between gap-3">
+          <p className="truncate text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-500 dark:text-zinc-500">
+            {label}
+          </p>
+          {Icon ? (
+            <span className={clsx('flex size-6 shrink-0 items-center justify-end', toneIconWrap[tone])}>
+              <Icon className="size-4" />
+            </span>
+          ) : null}
+        </div>
+        <div className="mt-4 flex items-baseline gap-2">
+          <span className={clsx('text-3xl font-bold tracking-tight tabular-nums', toneValue[tone])}>
+            {value}
           </span>
-        ) : null}
+          {delta ? (
+            <span
+              className={clsx(
+                'inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs font-bold tabular-nums',
+                delta.positive ? 'text-indigo-400 dark:text-indigo-400' : 'text-zinc-500 dark:text-zinc-500'
+              )}
+            >
+              {delta.positive ? (
+                <ArrowTrendingUpIcon className="size-3.5" />
+              ) : (
+                <ArrowTrendingDownIcon className="size-3.5" />
+              )}
+              {delta.value}
+            </span>
+          ) : null}
+        </div>
+        {hint ? <p className="mt-2 truncate text-xs font-medium text-zinc-500 dark:text-zinc-500">{hint}</p> : null}
       </div>
-      {hint ? <p className="mt-1 truncate text-xs/5 text-zinc-500 dark:text-zinc-400">{hint}</p> : null}
+      {chart ? (
+        <div className="absolute inset-x-0 bottom-0 z-0 h-16 opacity-40">
+          {chart}
+        </div>
+      ) : null}
     </div>
   )
 }

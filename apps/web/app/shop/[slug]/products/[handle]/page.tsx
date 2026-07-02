@@ -8,6 +8,7 @@ import { AddToCartButton } from '@/app/products/[handle]/AddToCartButton';
 import { breadcrumbList, productSchema, productUrl, storeUrl, withCanonical } from '@/lib/seo';
 import { Truck, ShieldCheck, RotateCcw } from 'lucide-react';
 import { DS } from '@/lib/design/css-vars';
+import { TrackPageView } from '@/components/analytics/TrackPageView';
 import { StoreLogo } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';

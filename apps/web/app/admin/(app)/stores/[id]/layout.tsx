@@ -47,7 +47,7 @@ export default async function StoreLayout({
         </span>
         <span className="min-w-0 truncate text-base/6 font-semibold text-zinc-950 dark:text-white">
           {store.name}
-        </Heading>
+        </span>
         {store.status !== 'active' && (
           <AdminBadge status={store.status}>{store.status}</AdminBadge>
         )}

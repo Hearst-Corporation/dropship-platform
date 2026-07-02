@@ -8,6 +8,7 @@ import {
 } from '@/lib/template-catalog';
 import { Subheading } from '@/components/catalyst/heading';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import { AdminSection } from '@/components/admin/AdminSection';
 import { Text, Code, Strong } from '@/components/catalyst/text';
 import { Badge } from '@/components/catalyst/badge';
 import { Button } from '@/components/catalyst/button';
@@ -65,24 +66,24 @@ export default async function TemplatesGalleryPage() {
         const entries = byRegister[reg];
         if (!entries.length) return null;
         return (
-          <section key={reg} className="flex min-w-0 flex-col gap-4">
-            <div className="flex items-baseline justify-between">
-              <Subheading>{labelForRegister(reg)}</Subheading>
-              <Text className="!text-xs">{entries.length} templates</Text>
-            </div>
+          <AdminSection
+            key={reg}
+            title={labelForRegister(reg)}
+            actions={<Text className="!text-xs">{entries.length} templates</Text>}
+          >
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
               {entries.map((t) => {
                 const preview = previewByid[t.id];
                 return (
                   <div
                     key={t.id}
-                    className="flex min-w-0 flex-col overflow-hidden rounded-lg bg-white/[0.02] ring-1 ring-zinc-950/10 transition hover:bg-white/[0.04] hover:ring-zinc-950/20 dark:ring-white/10 dark:hover:ring-white/20"
+                    className="flex min-w-0 flex-col overflow-hidden bg-zinc-950 ring-1 ring-zinc-800 transition hover:ring-zinc-700"
                   >
                     <Link
                       href={`/admin/templates/${t.id}/preview`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="relative block aspect-[16/10] w-full overflow-hidden bg-zinc-100 dark:bg-zinc-950"
+                      className="relative block aspect-[16/10] w-full overflow-hidden bg-zinc-950"
                     >
                       {preview ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -94,9 +95,9 @@ export default async function TemplatesGalleryPage() {
                           className="absolute inset-0 h-full w-full object-cover object-top"
                         />
                       ) : (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-zinc-100 dark:bg-zinc-950">
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-zinc-950">
                           <Squares2X2Icon
-                            className="size-6 text-zinc-400 dark:text-zinc-600"
+                            className="size-6 text-zinc-600"
                             aria-hidden="true"
                           />
                           <span className="text-xs font-medium text-zinc-500">
@@ -143,7 +144,7 @@ export default async function TemplatesGalleryPage() {
                 );
               })}
             </div>
-          </section>
+          </AdminSection>
         );
       })}
     </div>

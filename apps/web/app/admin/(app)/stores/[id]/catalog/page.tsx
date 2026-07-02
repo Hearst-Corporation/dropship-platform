@@ -7,7 +7,6 @@ import { Text } from '@/components/catalyst/text';
 import { AdminBadge } from '@/components/admin/AdminBadge';
 import { Badge } from '@/components/catalyst/badge';
 import { Button } from '@/components/catalyst/button';
-import { AdminBadge } from '@/components/admin/AdminBadge';
 import { AdminEmptyState } from '@/components/admin/AdminEmptyState';
 import { EllipsisHorizontalIcon } from '@heroicons/react/16/solid';
 import {
@@ -158,11 +157,11 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
             <TableHead>
               <TableRow>
                 <TableHeader>Produit</TableHeader>
-                <TableHeader>Source</TableHeader>
-                <TableHeader className="text-right">Coût</TableHeader>
+                <TableHeader className="hidden sm:table-cell">Source</TableHeader>
+                <TableHeader className="text-right hidden md:table-cell">Coût</TableHeader>
                 <TableHeader className="text-right">Prix</TableHeader>
-                <TableHeader className="text-right">Marge</TableHeader>
-                <TableHeader className="text-right">Image</TableHeader>
+                <TableHeader className="text-right hidden sm:table-cell">Marge</TableHeader>
+                <TableHeader className="text-right hidden lg:table-cell">Image</TableHeader>
                 <TableHeader className="text-right">État</TableHeader>
                 <TableHeader className="relative w-0">
                   <span className="sr-only">Actions</span>
@@ -207,20 +206,20 @@ export default async function StoreCatalogPage({ params }: { params: Promise<{ i
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <Badge color={supplierColor}>{p.supplier}</Badge>
                     </TableCell>
-                    <TableCell className="text-right tabular-nums text-zinc-500">
+                    <TableCell className="text-right tabular-nums text-zinc-500 hidden md:table-cell">
                       {(p.cost_cents / 100).toFixed(2)} €
                     </TableCell>
                     <TableCell className="text-right font-medium tabular-nums text-zinc-950 dark:text-white">
                       {(p.price_cents / 100).toFixed(2)} €
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell className="text-right tabular-nums hidden sm:table-cell">
                       <span className="font-medium text-indigo-500">+{margin.toFixed(2)} €</span>
                       <span className="block text-xs text-zinc-500">{marginPct}%</span>
                     </TableCell>
-                    <TableCell className="text-right tabular-nums text-zinc-500">
+                    <TableCell className="text-right tabular-nums text-zinc-500 hidden lg:table-cell">
                       {p.image_quality_score != null
                         ? `${Math.round(parseFloat(p.image_quality_score) * 100)}%`
                         : '—'}

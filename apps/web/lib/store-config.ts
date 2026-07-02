@@ -3,6 +3,15 @@ import { tryDecryptSecret } from '@/lib/secrets';
 import type { StorePalette } from '@/lib/design/presets';
 import type { StoreTemplate as CatalogStoreTemplate } from '@/lib/template-catalog';
 
+export type StoreStatus =
+  | 'draft'
+  | 'generating'
+  | 'validating'
+  | 'needs_repair'
+  | 'failed'
+  | 'ready'
+  | 'published';
+
 export interface StoreConfig {
   id: string;
   slug: string;
@@ -16,8 +25,17 @@ export interface StoreConfig {
   logoEmoji: string;
   medusaSalesChannelId: string;
   medusaPublishableKey: string;
-  status: string;
+  status: StoreStatus;
   productCount: number;
+  // Diagnostic / lifecycle fields from 035_store_status_lifecycle
+  runId: string | null;
+  errorPhase: string | null;
+  errorPath: string | null;
+  errorExpected: string | null;
+  errorReceived: string | null;
+  errorRawExcerpt: string | null;
+  readinessScore: number;
+  publishedAt: string | null;
   // Analytics IDs — all optional, all per-store. Public ones (pixel /
   // measurement / clarity) are safe to send to the client bundle. The two
   // *_token fields are server-only — never pass them to a client component.
@@ -117,6 +135,14 @@ interface StoreRow {
   medusa_publishable_key: string;
   status: string;
   product_count: number;
+  run_id: string | null;
+  error_phase: string | null;
+  error_path: string | null;
+  error_expected: string | null;
+  error_received: string | null;
+  error_raw_excerpt: string | null;
+  readiness_score: number;
+  published_at: string | null;
   ga4_measurement_id: string | null;
   ga4_api_secret: string | null;
   ga4_api_secret_enc: Buffer | null;
@@ -149,6 +175,8 @@ const STORE_COLUMNS = `
   id, slug, name, niche, tagline, description,
   primary_color, secondary_color, accent_color, logo_emoji,
   medusa_sales_channel_id, medusa_publishable_key, status, product_count,
+  run_id, error_phase, error_path, error_expected, error_received, error_raw_excerpt,
+  readiness_score, published_at,
   ga4_measurement_id,
   ga4_api_secret, ga4_api_secret_enc, ga4_api_secret_nonce,
   meta_pixel_id, meta_capi_token,
@@ -188,8 +216,16 @@ function rowToStore(r: StoreRow): StoreConfig {
     logoEmoji: r.logo_emoji,
     medusaSalesChannelId: r.medusa_sales_channel_id,
     medusaPublishableKey: r.medusa_publishable_key,
-    status: r.status,
+    status: r.status as StoreStatus,
     productCount: r.product_count,
+    runId: r.run_id,
+    errorPhase: r.error_phase,
+    errorPath: r.error_path,
+    errorExpected: r.error_expected,
+    errorReceived: r.error_received,
+    errorRawExcerpt: r.error_raw_excerpt,
+    readinessScore: r.readiness_score ?? 0,
+    publishedAt: r.published_at,
     ga4MeasurementId: r.ga4_measurement_id,
     ga4ApiSecret,
     metaPixelId: r.meta_pixel_id,
@@ -247,7 +283,7 @@ export async function getStoreBySalesChannelId(salesChannelId: string): Promise<
   const { rows } = await db.query<StoreRow>(
     `SELECT ${STORE_COLUMNS}
      FROM dropship_stores
-     WHERE medusa_sales_channel_id = $1 AND status = 'active'
+     WHERE medusa_sales_channel_id = $1 AND status = 'published'
      LIMIT 1`,
     [salesChannelId],
   );
@@ -258,8 +294,30 @@ export async function getStoreBySlug(slug: string): Promise<StoreConfig | null> 
   const db = getDbRead();
   const { rows } = await db.query<StoreRow>(
     `SELECT ${STORE_COLUMNS}
-     FROM dropship_stores WHERE slug = $1 AND status = 'active' LIMIT 1`,
+     FROM dropship_stores WHERE slug = $1 AND status = 'published' LIMIT 1`,
     [slug],
+  );
+  return rows[0] ? rowToStore(rows[0]) : null;
+}
+
+/** Load a store by slug regardless of publication status (for admin/preview only). */
+export async function getStoreBySlugAdmin(slug: string): Promise<StoreConfig | null> {
+  const db = getDbRead();
+  const { rows } = await db.query<StoreRow>(
+    `SELECT ${STORE_COLUMNS}
+     FROM dropship_stores WHERE slug = $1 LIMIT 1`,
+    [slug],
+  );
+  return rows[0] ? rowToStore(rows[0]) : null;
+}
+
+/** Load a store by id regardless of publication status (for admin only). */
+export async function getStoreById(id: string): Promise<StoreConfig | null> {
+  const db = getDbRead();
+  const { rows } = await db.query<StoreRow>(
+    `SELECT ${STORE_COLUMNS}
+     FROM dropship_stores WHERE id = $1 LIMIT 1`,
+    [id],
   );
   return rows[0] ? rowToStore(rows[0]) : null;
 }

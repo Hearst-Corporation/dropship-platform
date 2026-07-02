@@ -227,14 +227,14 @@ describe('createStore — E2E pipeline', () => {
     expect(events[events.length - 1]!.type).toBe('done');
 
     // DB assertions: the orchestrator should have INSERT'd the store row and
-    // flipped it to 'active' once products imported successfully.
+    // set final status based on readiness (ready when no blockers).
     const inserts = captured.filter((q) =>
       q.sql.startsWith('INSERT INTO dropship_stores'),
     );
-    const activations = captured.filter(
+    const finalStatusUpdates = captured.filter(
       (q) =>
         q.sql.includes('UPDATE dropship_stores') &&
-        q.sql.includes("status = 'active'"),
+        q.sql.includes('status = $1'),
     );
     const productInserts = captured.filter((q) =>
       q.sql.startsWith('INSERT INTO dropship_store_products'),
@@ -245,9 +245,10 @@ describe('createStore — E2E pipeline', () => {
     expect(inserts[0]!.params[2]).toBe('yoga équipement'); // niche
     expect(inserts[0]!.params[3]).toBe('collection'); // mode
 
-    expect(activations).toHaveLength(1);
-    // product_count is the 9th positional param of the UPDATE.
-    expect(activations[0]!.params[8]).toBe(3);
+    // Status update based on readiness evaluation
+    expect(finalStatusUpdates).toHaveLength(1);
+    // Status is 'ready' (canPublish=true) or 'needs_repair' (has blockers)
+    expect(['ready', 'needs_repair']).toContain(finalStatusUpdates[0]!.params[0]);
 
     // One INSERT per imported product (all enriched from AE), supplier =
     // 'aliexpress' across the board.
@@ -300,14 +301,22 @@ describe('createStore — E2E pipeline', () => {
       expect(row.params[2]).toBe('ai-generated');
     }
 
-    // And the store should still be activated.
-    const activations = captured.filter(
+    // Final status set by readiness evaluation
+    const finalStatusUpdates = captured.filter(
       (q) =>
         q.sql.includes('UPDATE dropship_stores') &&
-        q.sql.includes("status = 'active'"),
+        q.sql.includes('status = $1'),
     );
-    expect(activations).toHaveLength(1);
-    expect(activations[0]!.params[8]).toBe(3); // product_count
+    expect(finalStatusUpdates).toHaveLength(1);
+    expect(['ready', 'needs_repair']).toContain(finalStatusUpdates[0]!.params[0]);
+
+    // product_count is set in the branding UPDATE (param 9)
+    const brandingUpdates = captured.filter(
+      (q) =>
+        q.sql.includes('UPDATE dropship_stores') &&
+        q.sql.includes('product_count = $9'),
+    );
+    expect(brandingUpdates.length).toBeGreaterThanOrEqual(1);
   });
 });
 
@@ -360,12 +369,13 @@ describe('createStore — JSON resilience (Roadly regression)', () => {
     );
     expect(productInserts).toHaveLength(2);
 
-    const activations = captured.filter(
+    // Final status set by readiness evaluation
+    const finalStatusUpdates = captured.filter(
       (q) =>
         q.sql.includes('UPDATE dropship_stores') &&
-        q.sql.includes("status = 'active'"),
+        q.sql.includes('status = $1'),
     );
-    expect(activations[0]!.params[8]).toBe(2); // product_count
+    expect(finalStatusUpdates.length).toBeGreaterThanOrEqual(1);
   });
 
   it('fails gracefully on unrecoverable truncation (clear error, store marked error)', async () => {

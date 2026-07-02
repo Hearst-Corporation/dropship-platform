@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 import { TEMPLATE_CATALOG } from '@/lib/template-catalog';
 import { pickStorefrontComponent } from '@/lib/storefront-routing';
 import { buildMockStore, MOCK_PRODUCTS } from './_mock';
+import Link from 'next/link';
+import { Badge } from '@/components/catalyst/badge';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,7 +63,7 @@ export default async function TemplatePreviewPage({
         <span className="font-semibold text-zinc-900">{entry.label}</span>
         <Badge color="zinc" className="font-mono">
           {id}
-        </span>
+        </Badge>
         <span className="ml-auto rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
           Apercu avec donnees fictives
         </span>

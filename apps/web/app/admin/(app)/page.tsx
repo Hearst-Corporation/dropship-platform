@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import { getDbRead } from '@/lib/db';
 import { StoreAvatar } from '@/components/ui';
 import { TextLink } from '@/components/catalyst/text';
@@ -20,8 +21,10 @@ import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import { AdminSection } from '@/components/admin/AdminSection';
 import { AdminStatsGrid } from '@/components/admin/AdminStatsGrid';
 import { AdminStatCard } from '@/components/admin/AdminStatCard';
+import { AdminSparkline } from '@/components/admin/AdminSparkline';
 import { AdminDataTable } from '@/components/admin/AdminDataTable';
 import { AdminEmptyState } from '@/components/admin/AdminEmptyState';
+import { AdminTimeframeSelector } from '@/components/admin/AdminTimeframeSelector';
 import {
   BuildingStorefrontIcon,
   CubeIcon,
@@ -46,21 +49,30 @@ export const revalidate = 0;
 interface StoresRow {
   active: number;
   created_7d: number;
+  prev_created_7d: number;
   total_products: number;
   products_7d: number;
+  prev_products_7d: number;
 }
 interface RevenueRow {
   revenue_30d_cents: number;
+  prev_revenue_30d_cents: number;
   revenue_7d_cents: number;
+  prev_revenue_7d_cents: number;
   orders_30d: number;
+  prev_orders_30d: number;
   orders_7d: number;
+  prev_orders_7d: number;
   aov_30d_cents: number;
+  prev_aov_30d_cents: number;
 }
 interface FunnelRow {
   view_content: number;
   add_to_cart: number;
   initiate_checkout: number;
   purchase: number;
+  prev_view_content: number;
+  prev_purchase: number;
 }
 interface TopStoreRow {
   slug: string;
@@ -115,6 +127,14 @@ function gapFillTrend(trend: TrendRow[]): Array<{ label: string; ca: number; com
   });
 }
 
+function formatDelta(current: number, previous: number) {
+  if (previous === 0) return undefined;
+  const pct = ((current - previous) / previous) * 100;
+  const positive = pct >= 0;
+  const value = `${positive ? '+' : ''}${pct.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
+  return { value, positive };
+}
+
 export default async function PortfolioDashboard() {
   const db = getDbRead();
 
@@ -125,43 +145,51 @@ export default async function PortfolioDashboard() {
           `SELECT
              COUNT(*) FILTER (WHERE status = 'active')::int AS active,
              COUNT(*) FILTER (WHERE created_at > now() - interval '7 days')::int AS created_7d,
+             COUNT(*) FILTER (WHERE created_at BETWEEN now() - interval '14 days' AND now() - interval '7 days')::int AS prev_created_7d,
              COALESCE(SUM(product_count) FILTER (WHERE status = 'active'), 0)::int AS total_products,
-             COALESCE(SUM(product_count) FILTER (WHERE created_at > now() - interval '7 days'), 0)::int AS products_7d
+             COALESCE(SUM(product_count) FILTER (WHERE created_at > now() - interval '7 days'), 0)::int AS products_7d,
+             COALESCE(SUM(product_count) FILTER (WHERE created_at BETWEEN now() - interval '14 days' AND now() - interval '7 days'), 0)::int AS prev_products_7d
            FROM dropship_stores`,
         );
         return rows[0]!;
       },
-      { active: 0, created_7d: 0, total_products: 0, products_7d: 0 },
+      { active: 0, created_7d: 0, prev_created_7d: 0, total_products: 0, products_7d: 0, prev_products_7d: 0 },
     ),
     safeQuery<RevenueRow>(
       async () => {
         const { rows } = await db.query<RevenueRow>(
           `SELECT
              COALESCE(SUM(value_minor) FILTER (WHERE event_name = 'purchase' AND created_at > now() - interval '30 days'), 0)::bigint AS revenue_30d_cents,
+             COALESCE(SUM(value_minor) FILTER (WHERE event_name = 'purchase' AND created_at BETWEEN now() - interval '60 days' AND now() - interval '30 days'), 0)::bigint AS prev_revenue_30d_cents,
              COALESCE(SUM(value_minor) FILTER (WHERE event_name = 'purchase' AND created_at > now() - interval '7 days'), 0)::bigint AS revenue_7d_cents,
+             COALESCE(SUM(value_minor) FILTER (WHERE event_name = 'purchase' AND created_at BETWEEN now() - interval '14 days' AND now() - interval '7 days'), 0)::bigint AS prev_revenue_7d_cents,
              COUNT(*) FILTER (WHERE event_name = 'purchase' AND created_at > now() - interval '30 days')::int AS orders_30d,
+             COUNT(*) FILTER (WHERE event_name = 'purchase' AND created_at BETWEEN now() - interval '60 days' AND now() - interval '30 days')::int AS prev_orders_30d,
              COUNT(*) FILTER (WHERE event_name = 'purchase' AND created_at > now() - interval '7 days')::int AS orders_7d,
-             COALESCE(AVG(value_minor) FILTER (WHERE event_name = 'purchase' AND created_at > now() - interval '30 days'), 0)::bigint AS aov_30d_cents
+             COUNT(*) FILTER (WHERE event_name = 'purchase' AND created_at BETWEEN now() - interval '14 days' AND now() - interval '7 days')::int AS prev_orders_7d,
+             COALESCE(AVG(value_minor) FILTER (WHERE event_name = 'purchase' AND created_at > now() - interval '30 days'), 0)::bigint AS aov_30d_cents,
+             COALESCE(AVG(value_minor) FILTER (WHERE event_name = 'purchase' AND created_at BETWEEN now() - interval '60 days' AND now() - interval '30 days'), 0)::bigint AS prev_aov_30d_cents
            FROM dropship_funnel_events`,
         );
         return rows[0]!;
       },
-      { revenue_30d_cents: 0, revenue_7d_cents: 0, orders_30d: 0, orders_7d: 0, aov_30d_cents: 0 },
+      { revenue_30d_cents: 0, prev_revenue_30d_cents: 0, revenue_7d_cents: 0, prev_revenue_7d_cents: 0, orders_30d: 0, prev_orders_30d: 0, orders_7d: 0, prev_orders_7d: 0, aov_30d_cents: 0, prev_aov_30d_cents: 0 },
     ),
     safeQuery<FunnelRow>(
       async () => {
         const { rows } = await db.query<FunnelRow>(
           `SELECT
-             COUNT(*) FILTER (WHERE event_name = 'view_content')::int AS view_content,
-             COUNT(*) FILTER (WHERE event_name = 'add_to_cart')::int AS add_to_cart,
-             COUNT(*) FILTER (WHERE event_name = 'initiate_checkout')::int AS initiate_checkout,
-             COUNT(*) FILTER (WHERE event_name = 'purchase')::int AS purchase
-           FROM dropship_funnel_events
-           WHERE created_at > now() - interval '30 days'`,
+             COUNT(*) FILTER (WHERE event_name = 'view_content' AND created_at > now() - interval '30 days')::int AS view_content,
+             COUNT(*) FILTER (WHERE event_name = 'add_to_cart' AND created_at > now() - interval '30 days')::int AS add_to_cart,
+             COUNT(*) FILTER (WHERE event_name = 'initiate_checkout' AND created_at > now() - interval '30 days')::int AS initiate_checkout,
+             COUNT(*) FILTER (WHERE event_name = 'purchase' AND created_at > now() - interval '30 days')::int AS purchase,
+             COUNT(*) FILTER (WHERE event_name = 'view_content' AND created_at BETWEEN now() - interval '60 days' AND now() - interval '30 days')::int AS prev_view_content,
+             COUNT(*) FILTER (WHERE event_name = 'purchase' AND created_at BETWEEN now() - interval '60 days' AND now() - interval '30 days')::int AS prev_purchase
+           FROM dropship_funnel_events`,
         );
         return rows[0]!;
       },
-      { view_content: 0, add_to_cart: 0, initiate_checkout: 0, purchase: 0 },
+      { view_content: 0, add_to_cart: 0, initiate_checkout: 0, purchase: 0, prev_view_content: 0, prev_purchase: 0 },
     ),
     safeQuery<TopStoreRow[]>(
       async () => {
@@ -224,6 +252,7 @@ export default async function PortfolioDashboard() {
   const avgPerRun = Number(cost.avg_cost_per_run || 0);
   const errorRate = cost.runs ? (cost.errors / cost.runs) * 100 : 0;
   const globalConv = funnel.view_content > 0 ? (funnel.purchase / funnel.view_content) * 100 : 0;
+  const prevGlobalConv = funnel.prev_view_content > 0 ? (funnel.prev_purchase / funnel.prev_view_content) * 100 : 0;
 
   // Serialize DB rows (bigint/text -> number) for the client chart wrappers,
   // with the 14-day window gap-filled so the X axis stays regular.
@@ -239,61 +268,88 @@ export default async function PortfolioDashboard() {
   // The top-stores query LEFT JOINs every active store, so rows at 0 orders
   // come back too: only stores with at least one sale count as "top sellers".
   const sellers = topStores.filter((s) => Number(s.orders) > 0);
+  const maxRevenue = sellers.length > 0 ? Math.max(...sellers.map(s => Number(s.revenue_cents))) : 0;
+
+  const deltaRev30 = formatDelta(revenue30dCents, Number(revenue.prev_revenue_30d_cents));
 
   return (
     <div className="space-y-8">
+      {/* Hero Command Center */}
       <AdminPageHeader
         title="Vue d'ensemble"
         subtitle="KPIs agrégés sur l'ensemble des stores actifs."
+        actions={
+          <>
+            <Button href="/admin/stores/new" color="indigo">Nouveau store</Button>
+            <Button href="/admin/orders" outline>Commandes</Button>
+          </>
+        }
       />
 
+      <AdminSection flush>
+        <div className="grid grid-cols-1 lg:grid-cols-3">
+          <div className="flex flex-col justify-center border-b border-zinc-800 bg-zinc-950 p-6 lg:border-b-0 lg:border-r lg:p-8 dark:border-zinc-800 dark:bg-zinc-950">
+            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-400 dark:text-zinc-400">
+              Performance
+            </p>
+            <h2 className="mt-2 text-sm font-medium text-white dark:text-white">Chiffre d&apos;affaires (30j)</h2>
+            <div className="mt-4 flex items-baseline gap-3">
+              <span className="text-5xl font-bold tracking-tight text-white tabular-nums dark:text-white">
+                {eur(revenue30dCents)}
+              </span>
+              {deltaRev30 && (
+                <span className={`text-sm font-bold ${deltaRev30.positive ? 'text-indigo-400 dark:text-indigo-400' : 'text-zinc-400 dark:text-zinc-400'}`}>
+                  {deltaRev30.value}
+                </span>
+              )}
+            </div>
+            <p className="mt-6 text-sm text-zinc-400 dark:text-zinc-400">
+              {revenue.orders_30d.toLocaleString('fr-FR')} commandes au total. Panier moyen de <span className="font-semibold text-white dark:text-white">{eur(aov30dCents)}</span>.
+            </p>
+          </div>
+          <div className="p-6 bg-zinc-950 lg:col-span-2 lg:p-8 dark:bg-zinc-950">
+            <div className="mb-8 flex items-center justify-between gap-3">
+              <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-400 dark:text-zinc-400">Tendance</h3>
+              <AdminTimeframeSelector />
+            </div>
+            <DashboardTrend data={trendData} />
+          </div>
+        </div>
+      </AdminSection>
+
       {/* KPIs */}
-      <AdminStatsGrid cols={3}>
+      <AdminStatsGrid cols={4}>
         <AdminStatCard
           label="Stores actifs"
           value={stores.active.toLocaleString('fr-FR')}
+          delta={formatDelta(stores.created_7d, stores.prev_created_7d)}
           hint={`+${stores.created_7d} sur 7j`}
           icon={BuildingStorefrontIcon}
         />
         <AdminStatCard
           label="Produits"
           value={stores.total_products.toLocaleString('fr-FR')}
+          delta={formatDelta(stores.products_7d, stores.prev_products_7d)}
           hint={`+${stores.products_7d} sur 7j`}
           icon={CubeIcon}
         />
         <AdminStatCard
-          label="CA 30j"
-          value={eur(revenue30dCents)}
-          hint={`${revenue.orders_30d.toLocaleString('fr-FR')} commandes`}
-          icon={CurrencyEuroIcon}
-        />
-        <AdminStatCard
           label="CA 7j"
           value={eur(revenue7dCents)}
+          delta={formatDelta(revenue7dCents, Number(revenue.prev_revenue_7d_cents))}
           hint={`${revenue.orders_7d.toLocaleString('fr-FR')} commandes`}
           icon={CurrencyEuroIcon}
-        />
-        <AdminStatCard
-          label="Panier moyen 30j"
-          value={eur(aov30dCents)}
-          hint="Sur commandes payées"
-          icon={ShoppingBagIcon}
+          chart={<AdminSparkline data={trendData.map(d => d.ca)} color="black" />}
         />
         <AdminStatCard
           label="Conversion globale 30j"
           value={`${globalConv.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`}
-          hint={`${funnel.purchase.toLocaleString('fr-FR')} achats / ${funnel.view_content.toLocaleString('fr-FR')} vues`}
+          delta={formatDelta(globalConv, prevGlobalConv)}
+          hint={`${funnel.purchase.toLocaleString('fr-FR')} achats`}
           icon={FunnelIcon}
+          chart={<AdminSparkline data={funnelSteps.map(d => d.value)} color="black" />}
         />
       </AdminStatsGrid>
-
-      {/* Trend — CA & commandes sur 14 jours */}
-      <AdminSection
-        title="Tendance 14j"
-        description="CA (€, axe gauche) et commandes (axe droit) par jour sur les 14 derniers jours."
-      >
-        <DashboardTrend data={trendData} />
-      </AdminSection>
 
       {/* Deux colonnes : funnel + top stores */}
       <div className="grid grid-cols-1 gap-6 2xl:grid-cols-2">
@@ -322,37 +378,40 @@ export default async function PortfolioDashboard() {
               description="Aucun store actif n'a enregistré de commande sur les 7 derniers jours."
             />
           ) : (
-            <AdminDataTable minWidth="min-w-[32rem]" bare>
+            <AdminDataTable>
               <Table dense>
                 <TableHead>
                   <TableRow>
-                    <TableHeader className="w-10 text-right">#</TableHeader>
+                    <TableHeader className="w-10 text-right hidden sm:table-cell">#</TableHeader>
                     <TableHeader>Store</TableHeader>
                     <TableHeader className="text-right">CA 7j</TableHeader>
-                    <TableHeader className="text-right">Cmd</TableHeader>
+                    <TableHeader className="text-right hidden sm:table-cell">Cmd</TableHeader>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {sellers.map((s, idx) => (
-                    <TableRow key={s.slug} href={`/admin/stores/${s.slug}`}>
-                      <TableCell className="text-right text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
-                        {idx + 1}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <StoreAvatar slug={s.slug} name={s.name} size={28} />
-                          <div className="min-w-0">
-                            <div className="truncate font-medium">{s.name}</div>
-                            <div className="truncate text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
-                              /shop/{s.slug}
+                  {sellers.map((s, idx) => {
+                    const rev = Number(s.revenue_cents);
+                    return (
+                      <TableRow key={s.slug} href={`/admin/stores/${s.slug}`}>
+                        <TableCell className="text-right text-xs tabular-nums text-zinc-400 dark:text-zinc-400 hidden sm:table-cell">
+                          {idx + 1}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-4">
+                            <StoreAvatar slug={s.slug} name={s.name} size={32} />
+                            <div className="min-w-0">
+                              <div className="truncate font-bold text-white dark:text-white">{s.name}</div>
+                              <div className="truncate text-[10px] tracking-widest uppercase tabular-nums text-zinc-500 dark:text-zinc-400">
+                                /shop/{s.slug}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">{eur(Number(s.revenue_cents))}</TableCell>
-                      <TableCell className="text-right tabular-nums">{s.orders.toLocaleString('fr-FR')}</TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums font-medium text-white dark:text-white">{eur(rev)}</TableCell>
+                        <TableCell className="text-right tabular-nums text-zinc-400 dark:text-zinc-400 hidden sm:table-cell">{s.orders.toLocaleString('fr-FR')}</TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </AdminDataTable>
@@ -405,18 +464,18 @@ export default async function PortfolioDashboard() {
           description="Signaux nécessitant une attention immédiate."
         >
           {errorRate > 5 ? (
-            <div className="flex items-start gap-3 rounded-lg border border-zinc-950/10 bg-zinc-950/[0.02] p-4 dark:border-white/10 dark:bg-white/[0.02]">
+            <div className="flex items-start gap-4 border border-zinc-800 bg-zinc-950 p-5 dark:border-white/10 dark:bg-white/[0.02]">
               <ExclamationTriangleIcon className="size-5 shrink-0 text-zinc-400 dark:text-zinc-500" />
               <div className="min-w-0">
-                <p className="text-sm font-medium text-zinc-950 dark:text-white">
+                <p className="text-sm font-bold text-white dark:text-white">
                   Taux d&apos;erreur agent élevé
                 </p>
-                <p className="mt-0.5 text-xs/5 text-zinc-500 dark:text-zinc-400">
+                <p className="mt-1 text-xs/5 text-zinc-400 dark:text-zinc-400">
                   {cost.errors.toLocaleString('fr-FR')} erreurs sur {cost.runs.toLocaleString('fr-FR')} runs (
                   {errorRate.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %) sur les
                   30 derniers jours.
                 </p>
-                <TextLink href="/admin/observability" className="mt-1 inline-block text-xs">
+                <TextLink href="/admin/observability" className="mt-2 inline-block text-[10px] font-bold uppercase tracking-widest text-indigo-400">
                   Voir l&apos;observabilité
                 </TextLink>
               </div>

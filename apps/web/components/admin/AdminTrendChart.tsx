@@ -63,7 +63,7 @@ function DarkTooltip({
 function EmptyState({ height }: { height: number }) {
   return (
     <div
-      className="flex items-center justify-center rounded-lg border border-white/10 bg-zinc-900 text-sm text-zinc-500"
+      className="flex items-center justify-center bg-zinc-50 text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:bg-zinc-900/50 dark:text-zinc-500"
       style={{ height }}
     >
       Pas encore de données
@@ -84,30 +84,11 @@ export default function AdminTrendChart({
   return (
     <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-        <defs>
-          {series.map((s, i) => {
-            const color = s.color ?? DEFAULT_COLORS[i % DEFAULT_COLORS.length];
-            return (
-              <linearGradient
-                key={s.key}
-                id={`admin-trend-${s.key}`}
-                x1="0"
-                y1="0"
-                x2="0"
-                y2="1"
-              >
-                <stop offset="0%" stopColor={color} stopOpacity={0.35} />
-                <stop offset="100%" stopColor={color} stopOpacity={0.02} />
-              </linearGradient>
-            );
-          })}
-        </defs>
-        <CartesianGrid stroke={GRID_STROKE} vertical={false} />
         <XAxis
           dataKey={xKey}
           tick={AXIS_TICK}
           tickLine={false}
-          axisLine={{ stroke: GRID_STROKE }}
+          axisLine={false}
         />
         <YAxis
           tick={AXIS_TICK}
@@ -117,11 +98,11 @@ export default function AdminTrendChart({
         />
         <Tooltip
           content={<DarkTooltip />}
-          cursor={{ stroke: 'rgba(255,255,255,0.15)' }}
+          cursor={{ stroke: 'rgba(255,255,255,0.05)', strokeWidth: 2 }}
         />
         <Legend
-          wrapperStyle={{ fontSize: 12, color: '#a1a1aa' }}
-          iconType="circle"
+          wrapperStyle={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600, color: '#71717a' }}
+          iconType="rect"
         />
         {series.map((s, i) => {
           const color = s.color ?? DEFAULT_COLORS[i % DEFAULT_COLORS.length];
@@ -133,8 +114,8 @@ export default function AdminTrendChart({
               name={s.label}
               stroke={color}
               strokeWidth={2}
-              fill={`url(#admin-trend-${s.key})`}
-              activeDot={{ r: 4, strokeWidth: 0 }}
+              fill="transparent"
+              activeDot={{ r: 4, strokeWidth: 0, fill: color }}
               dot={false}
             />
           );

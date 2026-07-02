@@ -176,7 +176,7 @@ export function ForwardButton({ orderId, alreadySent }: Props) {
               {sentLegs.map((leg, i) => (
                 <span key={i} className={leg.status === 'error' ? 'text-gray-400' : undefined}>
                   {leg.status === 'sent'
-                    ? `Envoyée — ${legRef(leg)}`
+                    ? `Envoyée — ${leg.supplier === 'aliexpress' ? 'AE' : leg.supplier} #${leg.supplierOrderId}`
                     : `Échec — ${legName(leg.supplier)}${leg.error ? ` : ${leg.error}` : ''}`}
                 </span>
               ))}
@@ -237,8 +237,6 @@ function ReviewModal({
 
       <DialogBody className="space-y-4">
         {sentResult && sentLegs.length > 0 ? (
-          // One row per leg so a partial send ({AE:sent, CJ:error}) is legible:
-          // the sent legs show their reference, the errored legs show why.
           <div
             className={
               sentAnyModal
@@ -293,49 +291,15 @@ function ReviewModal({
             {forwards.map((leg, legIdx) => {
               const addr = leg.payload.address;
               const items = leg.payload.items;
+              const legLabel =
+                leg.supplier === 'aliexpress'
+                  ? 'AliExpress'
+                  : leg.supplier.charAt(0).toUpperCase() + leg.supplier.slice(1);
               return (
                 <div key={legIdx} className="space-y-3">
                   <p className="text-xs font-semibold uppercase tracking-wider text-indigo-400">
-                    Leg {legIdx + 1} · {legName(leg.supplier)}
+                    Leg {legIdx + 1} — {legLabel}
                   </p>
-                ) : (
-                  <p key={i} className="mt-1 text-xs text-gray-400">
-                    {legName(leg.supplier)} : {leg.error ?? 'erreur inconnue'}
-                  </p>
-                ),
-              )}
-            </div>
-          ) : sentResult?.status === 'error' ? (
-            <div className="rounded-lg bg-gray-800/50 px-4 py-3 ring-1 ring-inset ring-white/10">
-              <p className="text-sm font-medium text-white">Erreur lors de l&apos;envoi</p>
-              <p className="mt-1 text-xs text-gray-400">{sentResult.error}</p>
-            </div>
-          ) : dryRunning ? (
-            <div className="flex items-center justify-center gap-2 py-8 text-sm text-gray-400">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-indigo-400" />
-              Préparation du payload fournisseur…
-            </div>
-          ) : dryRunResult?.status === 'error' || !dryRunResult?.ok ? (
-            <div className="rounded-lg bg-gray-800/50 px-4 py-3 ring-1 ring-inset ring-white/10">
-              <p className="text-sm font-medium text-white">Impossible de préparer la commande</p>
-              <p className="mt-1 text-xs text-gray-400">
-                {dryRunResult?.error ?? 'Erreur inconnue'}
-              </p>
-            </div>
-          ) : (
-            <>
-              {forwards.map((leg, legIdx) => {
-                const addr = leg.payload.address;
-                const items = leg.payload.items;
-                const legLabel =
-                  leg.supplier === 'aliexpress'
-                    ? 'AliExpress'
-                    : leg.supplier.charAt(0).toUpperCase() + leg.supplier.slice(1);
-                return (
-                  <div key={legIdx} className="space-y-3">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-indigo-400">
-                      Leg {legIdx + 1} — {legLabel}
-                    </p>
 
                   <Section title="Adresse de livraison">
                     <div className="text-sm leading-relaxed text-zinc-400">

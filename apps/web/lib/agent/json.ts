@@ -31,6 +31,87 @@ export function extractJson<T = unknown>(text: string | null | undefined): T | n
   return null;
 }
 
+export interface JsonExtractionError {
+  phase: string;
+  message: string;
+  /** Path inside the schema where the validation failed (Zod path). */
+  path?: string;
+  /** Expected type/value at the failing path. */
+  expected?: string;
+  /** Received value/type at the failing path. */
+  received?: string;
+  /** First 200 chars of the raw LLM response (or parsed JSON). */
+  rawExcerpt?: string;
+  /** Zod issue list when validation failed. */
+  zodErrors?: any[];
+}
+
+export interface JsonExtractionResult<T> {
+  parsed: T | null;
+  error?: JsonExtractionError;
+}
+
+export function extractAndValidateJson<T>(
+  text: string | null | undefined,
+  schema: import('zod').ZodType<T>,
+  phase: string
+): JsonExtractionResult<T> {
+  if (!text || typeof text !== 'string') {
+    return { parsed: null, error: { phase, message: 'Texte vide ou null' } };
+  }
+
+  const candidates = candidateBodies(text);
+  let lastParseError: Error | null = null;
+  let parsedJson: unknown = null;
+
+  for (const body of candidates) {
+    try {
+      parsedJson = JSON.parse(body);
+      lastParseError = null;
+      break;
+    } catch (e) {
+      lastParseError = e instanceof Error ? e : new Error(String(e));
+    }
+  }
+
+  if (lastParseError || !parsedJson) {
+    return {
+      parsed: null,
+      error: {
+        phase,
+        message: 'JSON invalide ou tronqué',
+        rawExcerpt: text.slice(0, 200) + (text.length > 200 ? '...' : ''),
+      }
+    };
+  }
+
+  const validation = schema.safeParse(parsedJson);
+  if (!validation.success) {
+    const firstIssue = validation.error.issues[0];
+    const path = firstIssue?.path?.map((p) => String(p)).join('.') ?? undefined;
+    const expected = firstIssue?.message ?? undefined;
+    const received =
+      firstIssue && 'received' in firstIssue
+        ? String((firstIssue as { received?: unknown }).received)
+        : undefined;
+
+    return {
+      parsed: null,
+      error: {
+        phase,
+        message: 'Erreur de validation du schéma',
+        path,
+        expected,
+        received,
+        zodErrors: validation.error.issues,
+        rawExcerpt: JSON.stringify(parsedJson).slice(0, 200) + '...',
+      }
+    };
+  }
+
+  return { parsed: validation.data };
+}
+
 /**
  * Produce parseable candidates in best-effort order:
  *   a. The full trimmed text (covers happy path).

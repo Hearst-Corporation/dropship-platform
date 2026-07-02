@@ -93,8 +93,9 @@ export function LuxuryUpgradeButton({
           </Button>
         ) : (
           <div className="flex flex-wrap items-center gap-3 pt-1">
-            <button
+            <Button
               type="button"
+              color="indigo"
               onClick={run}
               disabled={pending}
               className="rounded-full bg-indigo-500 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40"
@@ -118,6 +119,6 @@ export function LuxuryUpgradeButton({
           </p>
         )}
       </div>
-    </AdminSection>
+    </section>
   );
 }

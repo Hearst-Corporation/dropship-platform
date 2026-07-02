@@ -185,7 +185,7 @@ function IntegrationRow({
             <Subheading level={3}>{name}</Subheading>
             {badge}
           </div>
-          <p className="mt-0.5 text-xs/5 text-zinc-500 dark:text-zinc-400">{meta}</p>
+          <p className="mt-0.5 text-xs/5 text-zinc-500">{meta}</p>
         </div>
         <div className="shrink-0">{action}</div>
       </div>
@@ -197,8 +197,8 @@ function IntegrationRow({
 function Field({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div>
-      <dt className="text-xs/5 text-zinc-500 dark:text-zinc-400">{label}</dt>
-      <dd className="text-sm text-zinc-950 dark:text-white">{value}</dd>
+      <dt className="text-xs/5 text-zinc-500">{label}</dt>
+      <dd className="text-sm text-white">{value}</dd>
     </div>
   );
 }
@@ -266,12 +266,12 @@ function CapabilityChips({
   hasData: boolean;
 }) {
   if (!hasData) {
-    return <span className="text-xs text-zinc-400 dark:text-zinc-600">–</span>;
+    return <span className="text-xs text-zinc-500">–</span>;
   }
   const satisfied = CAPABILITY_KEYS.filter((key) => !!capabilities[key]);
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+      <span className="text-xs tabular-nums text-zinc-500">
         {satisfied.length}/{CAPABILITY_KEYS.length}
       </span>
       {satisfied.map((key) => (
@@ -301,14 +301,14 @@ function SupplierPolicyTable({ rows }: { rows: SupplierPolicyRow[] }) {
   }
 
   return (
-    <AdminDataTable minWidth="min-w-[44rem]" bare>
+    <AdminDataTable>
       <Table dense>
         <TableHead>
           <TableRow>
             <TableHeader>Fournisseur</TableHeader>
             <TableHeader>Statut</TableHeader>
-            <TableHeader>Connexion</TableHeader>
-            <TableHeader>Capacités</TableHeader>
+            <TableHeader className="hidden sm:table-cell">Connexion</TableHeader>
+            <TableHeader className="hidden lg:table-cell">Capacités</TableHeader>
           </TableRow>
         </TableHead>
         <TableBody className="[&>tr:last-child>td]:border-b-0">
@@ -324,11 +324,11 @@ function SupplierPolicyTable({ rows }: { rows: SupplierPolicyRow[] }) {
               <TableRow key={row.id}>
                 <TableCell>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium text-zinc-950 dark:text-white">{row.label}</span>
+                    <span className="font-medium text-white">{row.label}</span>
                     {row.tier && <Badge color="zinc">{row.tier}</Badge>}
                   </div>
                   {row.exclusionNote && (
-                    <p className="mt-0.5 max-w-md text-xs text-zinc-500 dark:text-zinc-400">
+                    <p className="mt-0.5 max-w-md text-xs text-zinc-500">
                       {row.exclusionNote}
                     </p>
                   )}
@@ -336,14 +336,14 @@ function SupplierPolicyTable({ rows }: { rows: SupplierPolicyRow[] }) {
                 <TableCell>
                   <Badge color={sMeta.color}>{sMeta.label}</Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden sm:table-cell">
                   {row.connectionState === 'unknown' ? (
-                    <span className="text-zinc-400 dark:text-zinc-600">–</span>
+                    <span className="text-zinc-500">–</span>
                   ) : (
                     <Badge color={cMeta.color}>{cMeta.label}</Badge>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden lg:table-cell">
                   <CapabilityChips capabilities={row.capabilities} hasData={hasCapabilities} />
                 </TableCell>
               </TableRow>

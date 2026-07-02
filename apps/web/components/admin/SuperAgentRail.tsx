@@ -26,19 +26,19 @@ const RAIL_WIDTH = 'xl:w-96';
 function StepLine({ step }: { step: ChatStep }) {
   const icon =
     step.kind === 'thinking' ? null : step.kind === 'confirm' ? (
-      <SparklesIcon className="size-3.5 shrink-0 text-zinc-400 dark:text-zinc-500" aria-hidden />
+      <SparklesIcon className="size-3.5 shrink-0 text-zinc-500 dark:text-zinc-600" aria-hidden />
     ) : (
-      <WrenchScrewdriverIcon className="size-3.5 shrink-0 text-indigo-400" aria-hidden />
+      <WrenchScrewdriverIcon className="size-3.5 shrink-0 text-indigo-500" aria-hidden />
     );
   return (
     <div
       className={cn(
-        'flex items-start gap-1.5 rounded-md px-2 py-1 text-xs',
-        step.isError ? 'bg-white/10 text-zinc-300' : 'bg-white/5 text-zinc-400',
+        'flex items-start gap-2 px-2 py-1.5 text-xs',
+        step.isError ? 'text-zinc-300' : 'text-zinc-500',
       )}
     >
       {icon}
-      <span className="wrap-break-word font-mono leading-relaxed">{step.text}</span>
+      <span className="wrap-break-word font-mono leading-relaxed uppercase tracking-wider">{step.text}</span>
     </div>
   );
 }
@@ -47,7 +47,7 @@ function Bubble({ msg }: { msg: ChatMessage }) {
   if (msg.role === 'user') {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-indigo-500 px-3 py-2 text-sm text-white">
+        <div className="max-w-[85%] rounded-none bg-indigo-600 px-4 py-3 text-sm text-white">
           {msg.text}
         </div>
       </div>
@@ -63,7 +63,7 @@ function Bubble({ msg }: { msg: ChatMessage }) {
         </div>
       )}
       {msg.text && (
-        <div className="max-w-[90%] whitespace-pre-wrap rounded-2xl rounded-bl-sm bg-white/5 px-3 py-2 text-sm text-zinc-100 ring-1 ring-white/10">
+        <div className="max-w-[90%] whitespace-pre-wrap rounded-none bg-zinc-900 px-4 py-3 text-sm text-zinc-100 border border-zinc-800">
           {msg.text}
         </div>
       )}
@@ -75,11 +75,11 @@ function Bubble({ msg }: { msg: ChatMessage }) {
 function TypingIndicator() {
   return (
     <div className="flex">
-      <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm bg-white/5 px-3 py-2.5 ring-1 ring-white/10">
+      <div className="flex items-center gap-2 rounded-none bg-zinc-900 px-4 py-4 border border-zinc-800">
         {[0, 1, 2].map((i) => (
           <span
             key={i}
-            className="size-1.5 animate-pulse rounded-full bg-zinc-500"
+            className="size-1.5 rounded-none bg-zinc-500 animate-pulse"
             style={{ animationDelay: `${i * 150}ms` }}
           />
         ))}
@@ -133,35 +133,33 @@ function ChatBody({ messages, running, error, send, reset, draft, setDraft, onCl
       (!lastMessage.text && (!lastMessage.steps || lastMessage.steps.length === 0)));
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col bg-zinc-950">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-        <div className="flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-lg bg-indigo-500/15 text-indigo-400">
-            <SparklesIcon className="size-4" aria-hidden />
+      <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-5">
+        <div className="flex items-center gap-3">
+          <span className="flex size-3 shrink-0 items-center justify-center bg-indigo-600">
           </span>
           <div>
-            <p className="text-sm font-semibold text-white">Super Agent</p>
-            <p className="text-xs text-zinc-500">Assistant admin · OpenAI</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white">Super Agent</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Assistant admin · OpenAI</p>
           </div>
         </div>
         <button
           type="button"
           onClick={reset}
           title="Nouvelle conversation"
-          className="rounded-md p-1.5 text-zinc-500 hover:bg-white/5 hover:text-white"
+          className="rounded-none p-2 text-zinc-500 hover:bg-zinc-900 hover:text-white transition-colors"
         >
           <ArrowPathIcon className="size-4" aria-hidden />
         </button>
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+      <div ref={scrollRef} className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
         {messages.length === 0 && !running ? (
-          <div className="flex h-full flex-col items-center justify-center text-center">
-            <ChatBubbleLeftRightIcon className="size-8 text-zinc-600" aria-hidden />
-            <p className="mt-3 text-sm font-medium text-zinc-300">Demande à l&apos;agent</p>
-            <p className="mt-1 max-w-64 text-xs text-zinc-500">
+          <div className="flex h-full flex-col items-start justify-center">
+            <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-500">Demande à l&apos;agent</p>
+            <p className="mt-2 text-sm text-zinc-400">
               Gère tes stores, lance des recherches, interroge la base. Il agit sur l&apos;admin.
             </p>
           </div>
@@ -170,15 +168,15 @@ function ChatBody({ messages, running, error, send, reset, draft, setDraft, onCl
         )}
         {waitingFirstOutput && <TypingIndicator />}
         {error && (
-          <div className="rounded-md bg-white/10 px-3 py-2 text-xs text-zinc-300 ring-1 ring-white/15">
+          <div className="rounded-none bg-zinc-900 px-4 py-3 text-xs text-zinc-300 border border-zinc-800">
             {error}
           </div>
         )}
       </div>
 
       {/* Composer */}
-      <form onSubmit={submit} className="border-t border-white/10 p-3">
-        <div className="flex items-end gap-2 rounded-xl bg-white/5 p-2 ring-1 ring-white/10 focus-within:ring-indigo-500">
+      <form onSubmit={submit} className="border-t border-zinc-800 p-4">
+        <div className="flex items-end gap-2 bg-zinc-900 p-2 border border-zinc-800 focus-within:border-indigo-600 transition-colors">
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -189,13 +187,13 @@ function ChatBody({ messages, running, error, send, reset, draft, setDraft, onCl
               }
             }}
             rows={1}
-            placeholder="Message à l'agent…"
-            className="max-h-32 min-h-6 flex-1 resize-none bg-transparent text-sm text-white placeholder:text-zinc-500 focus:outline-hidden"
+            placeholder="MESSAGE À L'AGENT…"
+            className="max-h-32 min-h-6 flex-1 resize-none bg-transparent px-2 text-[10px] font-bold uppercase tracking-widest text-white placeholder:text-zinc-600 focus:outline-hidden"
           />
           <button
             type="submit"
             disabled={running || draft.trim().length === 0}
-            className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500 text-white transition-colors hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex size-8 shrink-0 items-center justify-center bg-indigo-600 text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40 rounded-none"
           >
             {running ? (
               <ArrowPathIcon className="size-4 animate-spin" aria-hidden />
@@ -227,7 +225,7 @@ export function SuperAgentRail() {
       <aside
         className={cn(
           'hidden lg:fixed lg:inset-y-0 lg:right-0 lg:z-40 lg:flex lg:flex-col',
-          'border-l border-white/10 bg-zinc-900',
+          'border-l border-zinc-800 bg-zinc-950',
           RAIL_WIDTH,
         )}
       >
@@ -238,7 +236,7 @@ export function SuperAgentRail() {
       <button
         type="button"
         onClick={() => setMobileOpen(true)}
-        className="fixed bottom-5 right-5 z-40 flex size-12 items-center justify-center rounded-full bg-indigo-500 text-white shadow-lg shadow-indigo-900/40 hover:bg-indigo-400 xl:hidden"
+        className="fixed bottom-5 right-5 z-40 flex size-12 items-center justify-center rounded-none bg-indigo-500 text-white shadow-none hover:bg-indigo-400 xl:hidden"
         aria-label="Ouvrir l'assistant"
       >
         <SparklesIcon className="size-5" aria-hidden />
@@ -252,7 +250,7 @@ export function SuperAgentRail() {
         <div className="fixed inset-0 flex justify-end">
           <DialogPanel
             transition
-            className="relative flex w-full max-w-md transform flex-col bg-zinc-900 ring-1 ring-white/10 transition duration-300 ease-in-out data-closed:translate-x-full"
+            className="relative flex w-full max-w-md transform flex-col bg-zinc-950 ring-1 ring-white/10 transition duration-300 ease-in-out data-closed:translate-x-full"
           >
             <button
               type="button"
@@ -262,7 +260,7 @@ export function SuperAgentRail() {
             >
               <XMarkIcon className="size-5" aria-hidden />
             </button>
-            <ChatBody />
+            <ChatBody {...chatProps} />
           </DialogPanel>
         </div>
       </Dialog>

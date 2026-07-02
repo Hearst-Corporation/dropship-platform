@@ -140,7 +140,7 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
         </DescriptionList>
       </section>
 
-      <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
+      <section className="border-t border-zinc-800 pt-8">
         <div className="flex items-start justify-between gap-4">
           <Subheading>Informations</Subheading>
           <AdminBadge status={statusActive ? 'active' : store.status}>
@@ -193,7 +193,7 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
         </DescriptionList>
       </section>
 
-      <section className="flex flex-wrap items-center justify-between gap-4 border-t border-zinc-950/10 pt-8 dark:border-white/10">
+      <section className="flex flex-wrap items-center justify-between gap-4 border-t border-zinc-800 pt-8">
         <div className="min-w-0">
           <Subheading>Catalogue</Subheading>
           <Text className="mt-1">

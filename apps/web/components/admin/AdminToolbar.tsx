@@ -1,9 +1,11 @@
 'use client'
 
+import clsx from 'clsx'
 import type React from 'react'
 import { MagnifyingGlassIcon } from '@heroicons/react/16/solid'
 import { Input, InputGroup } from '@/components/catalyst/input'
 import { Select } from '@/components/catalyst/select'
+import { adminPanel } from './admin-surface'
 
 /**
  * Filter/search toolbar for admin list pages. Search input on the left,
@@ -30,10 +32,12 @@ export interface AdminToolbarProps {
   actions?: React.ReactNode
   /** Result count / summary, right-aligned. */
   count?: React.ReactNode
+  /** Wrap in a bordered panel (list pages). */
+  boxed?: boolean
 }
 
-export function AdminToolbar({ search, filters, actions, count }: AdminToolbarProps) {
-  return (
+export function AdminToolbar({ search, filters, actions, count, boxed = false }: AdminToolbarProps) {
+  const inner = (
     <div className="flex flex-wrap items-center gap-3">
       {search ? (
         <div className="min-w-0 flex-1 sm:max-w-xs">
@@ -77,4 +81,8 @@ export function AdminToolbar({ search, filters, actions, count }: AdminToolbarPr
       )}
     </div>
   )
+
+  if (!boxed) return inner
+
+  return <div className={clsx(adminPanel, 'p-3 sm:p-4')}>{inner}</div>
 }

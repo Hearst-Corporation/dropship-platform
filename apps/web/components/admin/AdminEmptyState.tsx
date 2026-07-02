@@ -13,17 +13,17 @@ export interface AdminEmptyStateProps {
 
 export function AdminEmptyState({ icon: Icon, title, description, action }: AdminEmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
+    <div className="flex flex-col items-center justify-center px-6 py-20 text-center bg-zinc-950">
       {Icon ? (
-        <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-zinc-100 dark:bg-white/5">
-          <Icon className="size-6 text-zinc-400 dark:text-zinc-500" />
+        <div className="mb-6 flex size-12 items-center justify-center bg-zinc-900">
+          <Icon className="size-6 text-zinc-500" />
         </div>
       ) : null}
-      <h3 className="text-sm/6 font-semibold text-zinc-950 dark:text-white">{title}</h3>
+      <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-white">{title}</h3>
       {description ? (
-        <p className="mt-1 max-w-sm text-sm/6 text-zinc-500 dark:text-zinc-400">{description}</p>
+        <p className="mt-2 max-w-sm text-sm font-medium text-zinc-500">{description}</p>
       ) : null}
-      {action ? <div className="mt-4">{action}</div> : null}
+      {action ? <div className="mt-6">{action}</div> : null}
     </div>
   )
 }

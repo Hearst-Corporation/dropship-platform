@@ -243,11 +243,11 @@ export default async function StoreAnalyticsPage({ params, searchParams }: Props
               <TableRow>
                 <TableHeader>Source</TableHeader>
                 <TableHeader>Campagne</TableHeader>
-                <TableHeader className="text-right">Sessions</TableHeader>
-                <TableHeader className="text-right">Cart</TableHeader>
-                <TableHeader className="text-right">Checkout</TableHeader>
+                <TableHeader className="text-right hidden sm:table-cell">Sessions</TableHeader>
+                <TableHeader className="text-right hidden md:table-cell">Cart</TableHeader>
+                <TableHeader className="text-right hidden lg:table-cell">Checkout</TableHeader>
                 <TableHeader className="text-right">Achats</TableHeader>
-                <TableHeader className="text-right">Revenu</TableHeader>
+                <TableHeader className="text-right hidden sm:table-cell">Revenu</TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -259,16 +259,16 @@ export default async function StoreAnalyticsPage({ params, searchParams }: Props
                       <Strong>{r.source}</Strong>
                     </TableCell>
                     <TableCell className="text-zinc-500">{r.campaign}</TableCell>
-                    <TableCell className="text-right tabular-nums">{r.visits}</TableCell>
-                    <TableCell className="text-right tabular-nums">{r.adds_to_cart}</TableCell>
-                    <TableCell className="text-right tabular-nums">{r.initiate_checkouts}</TableCell>
+                    <TableCell className="text-right tabular-nums hidden sm:table-cell">{r.visits}</TableCell>
+                    <TableCell className="text-right tabular-nums hidden md:table-cell">{r.adds_to_cart}</TableCell>
+                    <TableCell className="text-right tabular-nums hidden lg:table-cell">{r.initiate_checkouts}</TableCell>
                     <TableCell className="text-right tabular-nums">
                       <Strong>{r.purchases}</Strong>
                       {r.adds_to_cart > 0 && (
                         <span className="ml-1.5 text-xs text-zinc-500">{conv.toFixed(0)} %</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell className="text-right tabular-nums hidden sm:table-cell">
                       <Strong>
                         {r.revenue_minor > 0 ? formatMoney(r.revenue_minor / 100, 'eur') : '—'}
                       </Strong>

@@ -7,18 +7,20 @@ import { filterByImageQuality, type ImageQualityVerdict } from './image-quality'
 import { generateCollectionHero, generateMonoAssets } from './asset-generator';
 import { suggestTemplate } from '@/lib/template-catalog';
 import { writeLandingContent } from './landing-writer';
-import { extractJson } from './json';
+import { extractJson, extractAndValidateJson, type JsonExtractionError } from './json';
+import { GeneratedCatalogSchema, EnrichedCatalogSchema } from './store-schema';
 import { trackedOpenAIMessage } from './openai-agent';
 import { runContext } from './run-context';
 import { rankAndKeepTop } from './product-scorer';
 import { buildMedusaHandle, slugifyTitle } from './handle';
 import { buildPaletteFromPreset, getPreset } from '@/lib/design/presets';
 import { generateGoogleAdsPlan, stageGoogleAdsPlan } from './ads-planner';
+import { evaluateStoreReadiness } from './store-readiness';
 import {
   saveStoreReport,
-  type ProductRunReport,
   type StoreRunReport,
   type SupplierRunOutcome,
+  type ProductRunReport,
 } from './store-report';
 
 export interface StoreCreationInput {
@@ -99,6 +101,92 @@ interface BrandingResult {
 // buildMedusaHandle so the Google Merchant feed and the import path share
 // the same convention.
 const slugify = slugifyTitle;
+
+/**
+ * Find an existing resumable store for this (storeName, niche) pair, or create
+ * a new draft. A resumable store is one that is not yet published and not fully
+ * ready: draft, generating, validating, needs_repair, or failed. This prevents
+ * the Lumora/Habibi duplicate rows caused by retries creating a new slug each
+ * time. If the operator explicitly wants a fresh version, they can rename the
+ * store or delete the old draft first.
+ */
+type DbLike = { query: (sql: string, params?: unknown[]) => Promise<{ rows: unknown[]; rowCount: number | null }> };
+
+async function findOrCreateDraftStore(
+  db: DbLike,
+  input: StoreCreationInput,
+): Promise<{ storeId: string; slug: string; isResume: boolean }> {
+  const baseSlug = slugify(input.storeName);
+  const candidateSlug = `${baseSlug}-${Date.now().toString(36)}`;
+
+  // Look for an existing resumable store with the same name/niche.
+  const existingRes = await db.query<{ id: string; slug: string }>(
+    `SELECT id, slug
+     FROM dropship_stores
+     WHERE name = $1 AND niche = $2
+       AND status IN ('draft', 'generating', 'validating', 'needs_repair', 'failed')
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [input.storeName, input.niche],
+  );
+
+  if (existingRes.rows[0]) {
+    const row = existingRes.rows[0];
+    await db.query(
+      `UPDATE dropship_stores
+       SET status = 'generating', error_phase = NULL, error_path = NULL,
+           error_expected = NULL, error_received = NULL, error_raw_excerpt = NULL,
+           error_message = NULL, readiness_score = 0, updated_at = now()
+       WHERE id = $1`,
+      [row.id],
+    );
+    return { storeId: row.id, slug: row.slug, isResume: true };
+  }
+
+  // No resumable store: create a fresh draft.
+  const insertRes = await db.query<{ id: string }>(
+    `INSERT INTO dropship_stores (slug, name, niche, mode, status, template)
+     VALUES ($1, $2, $3, $4, 'draft', 'auto')
+     RETURNING id`,
+    [candidateSlug, input.storeName, input.niche, input.mode ?? 'collection'],
+  );
+  return { storeId: insertRes.rows[0]!.id, slug: candidateSlug, isResume: false };
+}
+
+async function persistStructuredError(
+  db: DbLike,
+  storeId: string,
+  status: 'failed' | 'needs_repair' | 'generating',
+  message: string,
+  error?: JsonExtractionError | null,
+): Promise<void> {
+  try {
+    await db.query(
+      `UPDATE dropship_stores
+       SET status = $1,
+           error_message = $2,
+           error_phase = $3,
+           error_path = $4,
+           error_expected = $5,
+           error_received = $6,
+           error_raw_excerpt = $7,
+           updated_at = now()
+       WHERE id = $8`,
+      [
+        status,
+        message,
+        error?.phase ?? null,
+        error?.path ?? null,
+        error?.expected ?? null,
+        error?.received ?? null,
+        error?.rawExcerpt ? error.rawExcerpt.slice(0, 1000) : null,
+        storeId,
+      ],
+    );
+  } catch (e) {
+    console.error('[store-creator] persistStructuredError failed', e);
+  }
+}
 
 interface SupplierSearchOutcome {
   products: RawProduct[];
@@ -222,8 +310,11 @@ async function callJsonModel<T>(
   prompt: string,
   maxTokens: number,
   emit: (e: AgentEvent) => void,
-): Promise<{ parsed: T | null; finishReason: string | null }> {
+  schema?: import('zod').ZodType<T>,
+): Promise<{ parsed: T | null; finishReason: string | null; errorDetails?: any }> {
   let finishReason: string | null = null;
+  let lastErrorDetails: any = null;
+
   for (let attempt = 1; attempt <= 2; attempt++) {
     const { text, finishReason: fr } = await trackedOpenAIMessage(
       { step },
@@ -231,14 +322,27 @@ async function callJsonModel<T>(
       { maxTokens, jsonMode: true },
     );
     finishReason = fr;
-    const parsed = extractJson<T>(text);
-    if (parsed) return { parsed, finishReason };
-    emit({
-      type: 'progress',
-      message: `⚠ Réponse IA non parsable (tentative ${attempt}/2)${text ? ` · début: ${text.slice(0, 120)}` : ' · réponse vide'}`,
-    });
+
+    if (schema) {
+      const { parsed, error } = extractAndValidateJson(text, schema, step);
+      if (parsed) return { parsed, finishReason };
+      
+      lastErrorDetails = error;
+      emit({
+        type: 'progress',
+        message: `⚠ Erreur de validation (tentative ${attempt}/2) · ${error?.message}`,
+        data: { error }
+      });
+    } else {
+      const parsed = extractJson<T>(text);
+      if (parsed) return { parsed, finishReason };
+      emit({
+        type: 'progress',
+        message: `⚠ Réponse IA non parsable (tentative ${attempt}/2)${text ? ` · début: ${text.slice(0, 120)}` : ' · réponse vide'}`,
+      });
+    }
   }
-  return { parsed: null, finishReason };
+  return { parsed: null, finishReason, errorDetails: lastErrorDetails };
 }
 
 /** Shared FR/EN operator-brief block injected into the selection prompts. */
@@ -300,19 +404,7 @@ async function generateProductsWithClaude(
     ? 'Write ALL content in French (titles, descriptions).'
     : 'Write ALL content in English.';
 
-  const { parsed, finishReason } = await callJsonModel<{
-    products: Array<{
-      id: string;
-      originalTitle: string;
-      enrichedTitle: string;
-      enrichedDescription: string;
-      costCents: number;
-      retailPriceCents: number;
-      imageUrl: string;
-      supplierUrl: string;
-    } & RiskFields>;
-    branding: BrandingResult;
-  }>(
+  const { parsed, finishReason, errorDetails } = await callJsonModel<import('zod').infer<typeof GeneratedCatalogSchema>>(
     'generate-products',
     `You are a dropshipping expert. Create a complete product catalog for a dropshipping store.
 
@@ -351,14 +443,22 @@ Return ONLY valid JSON:
 Hard color rule: the three colors must form a coherent palette. If you cannot guarantee that, default to a monochromatic palette built from one hue (e.g. primary=#1F3D2C dark, secondary=#EAF2EC light, accent=#2E7D5C mid). Random complementary stunts ruin the storefront.`,
     tokenBudgetForProducts(maxProducts),
     emit,
+    GeneratedCatalogSchema
   );
 
   if (!parsed) {
-    throw new Error(
-      finishReason === 'length'
-        ? 'Réponse IA tronquée (limite de tokens) — réessayez ou réduisez le nombre de produits'
-        : 'Réponse IA non exploitable pour la génération produits (JSON invalide après 2 tentatives)',
-    );
+    // Truncation takes precedence over validation errors.
+    if (finishReason === 'length') {
+      const e = new Error('Réponse IA tronquée (limite de tokens) — réessayez ou réduisez le nombre de produits') as Error & { details?: JsonExtractionError };
+      e.details = errorDetails;
+      throw e;
+    }
+    if (errorDetails) {
+      const e = new Error(`Erreur de validation JSON: ${errorDetails.message}`) as Error & { details?: JsonExtractionError };
+      e.details = errorDetails;
+      throw e;
+    }
+    throw new Error('Réponse IA non exploitable pour la génération produits (JSON invalide après 2 tentatives)');
   }
 
   if (!parsed.products?.length || !parsed.branding) {
@@ -416,16 +516,7 @@ async function enrichSupplierProductsWithClaude(
     2,
   );
 
-  const { parsed, finishReason } = await callJsonModel<{
-    products: Array<{
-      index: number;
-      enrichedTitle: string;
-      enrichedDescription: string;
-      retailPriceCents: number;
-      costCents: number;
-    } & RiskFields>;
-    branding: BrandingResult;
-  }>(
+  const { parsed, finishReason, errorDetails } = await callJsonModel<import('zod').infer<typeof EnrichedCatalogSchema>>(
     'enrich-products',
     `You are an expert dropshipping product specialist and copywriter.
 
@@ -467,14 +558,23 @@ response is long:
 }`,
     tokenBudgetForProducts(maxProducts),
     emit,
+    EnrichedCatalogSchema
   );
 
   if (!parsed) {
-    throw new Error(
-      finishReason === 'length'
-        ? 'Réponse IA tronquée (limite de tokens) — réessayez ou réduisez le nombre de produits'
-        : 'Réponse IA non exploitable pour l enrichissement (JSON invalide après 2 tentatives)',
-    );
+    // Truncation takes precedence over validation errors — if the response was
+    // cut off, that is the root cause even if the fragment also fails validation.
+    if (finishReason === 'length') {
+      const e = new Error('Réponse IA tronquée (limite de tokens) — réessayez ou réduisez le nombre de produits') as Error & { details?: JsonExtractionError };
+      e.details = errorDetails;
+      throw e;
+    }
+    if (errorDetails) {
+      const e = new Error(`Erreur de validation JSON: ${errorDetails.message}`) as Error & { details?: JsonExtractionError };
+      e.details = errorDetails;
+      throw e;
+    }
+    throw new Error('Réponse IA non exploitable pour l enrichissement (JSON invalide après 2 tentatives)');
   }
 
   // A salvaged (truncated) payload can carry products whose `index` is missing
@@ -553,14 +653,13 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
 
   const run = async () => {
     const db = getDb();
-    const slug = slugify(input.storeName) + '-' + Date.now().toString(36);
 
     // Report scaffold filled as the run progresses; saved on success AND error.
     const report: StoreRunReport = {
       version: 1,
       storeId: '',
       storeName: input.storeName,
-      slug,
+      slug: '',
       niche: input.niche,
       mode,
       language,
@@ -578,31 +677,35 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
     try {
       emit({ type: 'step', message: `Démarrage de l'agent pour "${input.storeName}" (niche: ${input.niche})` });
 
-      // Insert with the chosen template right away — landing-writer + asset
-      // generator both read `template` from the row to decide whether to use
-      // the luxury voice / luxury prompts. Defaults to 'auto' (legacy mode).
-      // Template resolution at creation time: an explicit operator choice
-      // wins; otherwise the agent picks a niche-fit template from the catalog
-      // instead of shipping the bare 'auto' layout.
+      // Find or create a draft. This is the idempotency gate: retries on the
+      // same name/niche resume the existing draft instead of spawning a new
+      // store row (Lumora/Habibi duplication root cause).
+      const { storeId, slug, isResume } = await findOrCreateDraftStore(db, input);
+      report.storeId = storeId;
+      report.slug = slug;
+
+      // Template resolution: explicit operator choice wins; otherwise agent picks.
       const requestedTemplate = input.template && input.template !== 'auto' ? input.template : null;
       const chosenTemplate =
         requestedTemplate ??
         suggestTemplate({ niche: input.niche, mode, productCount: maxProducts, brief });
 
-      const insertRes = await db.query<{ id: string }>(
-        `INSERT INTO dropship_stores (slug, name, niche, mode, status, template) VALUES ($1, $2, $3, $4, 'creating', $5) RETURNING id`,
-        [slug, input.storeName, input.niche, mode, chosenTemplate],
+      await db.query(
+        `UPDATE dropship_stores
+         SET status = 'generating', template = $1, updated_at = now()
+         WHERE id = $2`,
+        [chosenTemplate, storeId],
       );
-      const storeId = insertRes.rows[0]!.id;
-      report.storeId = storeId;
       report.template = chosenTemplate;
 
       emit({
         type: 'progress',
-        message: requestedTemplate
-          ? `Template imposé par l'opérateur: ${chosenTemplate}`
-          : `Template retenu par l'agent: ${chosenTemplate}`,
-        data: { template: chosenTemplate },
+        message: isResume
+          ? `Reprise du draft existant · ${slug}`
+          : requestedTemplate
+            ? `Template imposé par l'opérateur: ${chosenTemplate}`
+            : `Template retenu par l'agent: ${chosenTemplate}`,
+        data: { template: chosenTemplate, slug, resumed: isResume },
       });
 
       if (brief) {
@@ -903,10 +1006,9 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
 
       // Mono stores can't go 'active' until hero asset generation succeeds;
       // collection stores have no asset pipeline, so they activate here.
-      const activateNow = mode !== 'mono';
       await db.query(
         `UPDATE dropship_stores SET
-           ${activateNow ? "status = 'active', " : ''}tagline = $1, description = $2,
+           tagline = $1, description = $2,
            primary_color = $3, secondary_color = $4, accent_color = $5,
            logo_emoji = $6, medusa_sales_channel_id = $7,
            medusa_publishable_key = $8, product_count = $9,
@@ -1070,26 +1172,18 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
 
         if (hasHero) {
           report.assets = { status: 'generated', notes: 'Hero et déclinaisons générés par le pipeline visuel.' };
-          await db.query(
-            `UPDATE dropship_stores SET status = 'active', updated_at = now() WHERE id = $1`,
-            [storeId],
-          );
         } else {
-          // Assets failed (fal/Comfy provider down). Activate the store
-          // anyway — the storefront falls back to the supplier images and
-          // the operator can re-trigger asset generation later via the admin
-          // regenerator. Persisting `creating` would make the storefront 404
-          // permanently which is a worse outcome than imperfect visuals.
+          // Assets failed (fal/Comfy provider down).
           const errMsg = assets?.errors[0] || lastAssetError || 'Génération des assets échouée';
           report.assets = {
             status: 'pending_generation',
             notes: `Provider visuel indisponible (${errMsg}). Photos fournisseur en attendant, régénération possible depuis l admin.`,
           };
           await db.query(
-            `UPDATE dropship_stores SET status = 'active', error_message = $1, updated_at = now() WHERE id = $2`,
+            `UPDATE dropship_stores SET error_message = $1, updated_at = now() WHERE id = $2`,
             [errMsg, storeId],
           );
-          emit({ type: 'progress', message: `⚠ Assets non générés après ${MAX_ASSET_RETRIES} tentatives: ${errMsg}. Boutique activée avec photos supplier.` });
+          emit({ type: 'progress', message: `⚠ Assets non générés après ${MAX_ASSET_RETRIES} tentatives: ${errMsg}.` });
         }
       }
 
@@ -1139,22 +1233,43 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
         emit({ type: 'progress', message: 'Rapport de run persisté (fournisseurs, risques, plan ads, logs)' });
       }
 
+      // Evaluate readiness and update final status
+      emit({ type: 'step', message: 'Validation finale du store...' });
+      await db.query(
+        `UPDATE dropship_stores SET status = 'validating', updated_at = now() WHERE id = $1`,
+        [storeId],
+      );
+
+      const readiness = await evaluateStoreReadiness(storeId);
+      const finalStatus = readiness.canPublish ? 'ready' : 'needs_repair';
+
+      await db.query(
+        `UPDATE dropship_stores
+         SET status = $1, readiness_score = $2, updated_at = now()
+         WHERE id = $3`,
+        [finalStatus, readiness.score, storeId],
+      );
+
       emit({
         type: 'success',
-        message: `✅ "${input.storeName}" créé avec ${imported} produit${imported > 1 ? 's' : ''} !`,
+        message: `✅ "${input.storeName}" créé avec ${imported} produit${imported > 1 ? 's' : ''} ! Readiness: ${readiness.score}/100 · Statut: ${finalStatus}`,
         data: {
           storeId, slug, storeName: input.storeName, productCount: imported, mode, url: `/shop/${slug}`,
           adsPlan: { source: adsPlan.source, dailyBudgetEur: adsPlan.dailyBudgetEur, countries: adsPlan.countries },
           medusaOnline: medusaOk,
+          readiness,
         },
       });
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erreur inconnue';
-      await db.query(
-        `UPDATE dropship_stores SET status='error', error_message=$1, updated_at=now() WHERE slug=$2`,
-        [msg, slug],
-      ).catch(() => {});
+      const structured = (err instanceof Error && 'details' in err)
+        ? (err as Error & { details?: JsonExtractionError }).details
+        : null;
+
+      if (report.storeId) {
+        await persistStructuredError(db, report.storeId, 'failed', msg, structured);
+      }
       emit({ type: 'error', message: msg });
       // Persist what we have — a failed run must still be inspectable.
       if (report.storeId) await saveStoreReport(db, report);

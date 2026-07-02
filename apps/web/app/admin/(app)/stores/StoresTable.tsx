@@ -38,17 +38,23 @@ interface StoresTableProps {
   paginated?: boolean;
 }
 
-type StatusFilter = 'all' | 'active' | 'creating' | 'failed';
+type StatusFilter = 'all' | 'published' | 'ready' | 'generating' | 'needs_repair' | 'failed' | 'draft';
 
 function bucketOf(status: string): Exclude<StatusFilter, 'all'> {
-  if (status === 'active') return 'active';
-  if (status === 'creating') return 'creating';
+  if (status === 'published' || status === 'active') return 'published';
+  if (status === 'ready') return 'ready';
+  if (status === 'generating' || status === 'creating') return 'generating';
+  if (status === 'needs_repair') return 'needs_repair';
+  if (status === 'draft') return 'draft';
   return 'failed';
 }
 
 function statusLabel(status: string): string {
-  if (status === 'active') return 'En ligne';
-  if (status === 'creating') return 'Création en cours';
+  if (status === 'published' || status === 'active') return 'En ligne';
+  if (status === 'ready') return 'Prêt (non publié)';
+  if (status === 'generating' || status === 'creating') return 'Génération…';
+  if (status === 'needs_repair') return 'À réparer';
+  if (status === 'draft') return 'Brouillon';
   return 'Erreur';
 }
 
@@ -88,6 +94,7 @@ export function StoresTable({ rows, paginated = false }: StoresTableProps) {
   return (
     <div className="space-y-4">
       <AdminToolbar
+        boxed
         search={{
           value: search,
           onChange: setSearch,
@@ -100,8 +107,10 @@ export function StoresTable({ rows, paginated = false }: StoresTableProps) {
             onChange: (v) => setStatusFilter(v as StatusFilter),
             options: [
               { label: 'Tous les statuts', value: 'all' },
-              { label: 'En ligne', value: 'active' },
-              { label: 'En création', value: 'creating' },
+              { label: 'En ligne', value: 'published' },
+              { label: 'Prêt', value: 'ready' },
+              { label: 'En génération', value: 'generating' },
+              { label: 'À réparer', value: 'needs_repair' },
               { label: 'En erreur', value: 'failed' },
             ],
           },
@@ -128,20 +137,20 @@ export function StoresTable({ rows, paginated = false }: StoresTableProps) {
           }
         />
       ) : (
-        <AdminDataTable minWidth="min-w-[44rem]">
+        <AdminDataTable>
           <Table dense>
             <TableHead>
               <TableRow>
                 <TableHeader>Store</TableHeader>
                 <TableHeader>Statut</TableHeader>
-                <TableHeader className="text-right">Produits</TableHeader>
-                <TableHeader className="text-right">Créé</TableHeader>
+                <TableHeader className="text-right hidden sm:table-cell">Produits</TableHeader>
+                <TableHeader className="text-right hidden md:table-cell">Créé</TableHeader>
                 <TableHeader className="text-right">Actions</TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
               {filtered.map((store) => {
-                const isFailed = store.status !== 'active' && store.status !== 'creating';
+                const isFailed = store.status === 'failed' || store.status === 'error' || store.status === 'needs_repair';
                 const subtext = [`/shop/${store.slug}`, store.niche || null]
                   .filter(Boolean)
                   .join(' · ');
@@ -149,7 +158,7 @@ export function StoresTable({ rows, paginated = false }: StoresTableProps) {
                   <TableRow key={store.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <div className="relative size-9 shrink-0 overflow-hidden rounded-lg bg-zinc-100 ring-1 ring-zinc-950/10 dark:bg-white/5 dark:ring-white/10">
+                        <div className="relative size-9 shrink-0 overflow-hidden rounded-lg bg-zinc-950 ring-1 ring-zinc-800">
                           {store.cover ? (
                             <Image
                               src={store.cover}
@@ -168,11 +177,11 @@ export function StoresTable({ rows, paginated = false }: StoresTableProps) {
                           )}
                         </div>
                         <div className="min-w-0">
-                          <div className="truncate font-medium text-zinc-950 dark:text-white">
+                          <div className="truncate font-medium text-white">
                             {store.name}
                           </div>
                           <div
-                            className="truncate text-xs text-zinc-500 dark:text-zinc-400"
+                            className="truncate text-xs text-zinc-500"
                             title={subtext}
                           >
                             {subtext}
@@ -185,7 +194,7 @@ export function StoresTable({ rows, paginated = false }: StoresTableProps) {
                         <AdminBadge status={store.status}>{statusLabel(store.status)}</AdminBadge>
                         {isFailed && store.error_message ? (
                           <span
-                            className="max-w-[18rem] truncate text-xs text-zinc-500 dark:text-zinc-400"
+                            className="max-w-[18rem] truncate text-xs text-zinc-500"
                             title={store.error_message}
                           >
                             {store.error_message}
@@ -193,10 +202,10 @@ export function StoresTable({ rows, paginated = false }: StoresTableProps) {
                         ) : null}
                       </div>
                     </TableCell>
-                    <TableCell className="text-right tabular-nums text-zinc-500 dark:text-zinc-400">
+                    <TableCell className="text-right tabular-nums text-zinc-500 hidden sm:table-cell">
                       {store.product_count}
                     </TableCell>
-                    <TableCell className="text-right whitespace-nowrap tabular-nums text-zinc-500 dark:text-zinc-400">
+                    <TableCell className="text-right whitespace-nowrap tabular-nums text-zinc-500 hidden md:table-cell">
                       {formatDate(store.created_at)}
                     </TableCell>
                     <TableCell>
@@ -204,7 +213,7 @@ export function StoresTable({ rows, paginated = false }: StoresTableProps) {
                         <Button plain href={`/admin/stores/${store.id}`}>
                           Gérer
                         </Button>
-                        {store.status === 'active' && (
+                        {(store.status === 'published' || store.status === 'active' || store.status === 'ready') && (
                           <Button
                             plain
                             href={`/shop/${store.slug}`}

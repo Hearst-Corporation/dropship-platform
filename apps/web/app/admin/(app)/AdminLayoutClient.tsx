@@ -60,11 +60,18 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
   const sidebar = (
     <Sidebar>
       <SidebarHeader>
-        <div className="flex items-center gap-2 px-2">
-          <span className="flex size-7 items-center justify-center rounded-lg bg-indigo-500 text-sm font-bold text-white">
+        <div className="flex items-center gap-2.5 px-2">
+          <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 text-sm font-bold text-white shadow-sm shadow-indigo-500/30">
             H
           </span>
-          <span className="text-sm font-semibold text-zinc-950 dark:text-white">Hearst Merchant</span>
+          <div className="min-w-0">
+            <span className="block truncate text-sm font-semibold text-zinc-950 dark:text-white">
+              Hearst Merchant
+            </span>
+            <span className="block text-[10px] font-medium uppercase tracking-wider text-indigo-500 dark:text-indigo-400">
+              Dropship
+            </span>
+          </div>
         </div>
       </SidebarHeader>
       <SidebarBody>

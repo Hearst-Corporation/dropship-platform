@@ -163,13 +163,13 @@ export function CatalogTable({ products }: { products: MedusaProduct[] }) {
           />
         </AdminDataTable>
       ) : (
-        <AdminDataTable minWidth="min-w-[40rem]">
+        <AdminDataTable>
           <Table dense>
             <TableHead>
               <TableRow>
                 <TableHeader>Produit</TableHeader>
                 <TableHeader className="text-right">Prix</TableHeader>
-                <TableHeader>Statut</TableHeader>
+                <TableHeader className="hidden sm:table-cell">Statut</TableHeader>
                 <TableHeader className="w-12 text-right">
                   <span className="sr-only">Actions</span>
                 </TableHeader>
@@ -208,7 +208,7 @@ export function CatalogTable({ products }: { products: MedusaProduct[] }) {
                         <span className="text-zinc-400 dark:text-zinc-500">{DASH}</span>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <AdminBadge status={p.status}>{STATUS_LABELS[p.status]}</AdminBadge>
                     </TableCell>
                     <TableCell className="text-right">

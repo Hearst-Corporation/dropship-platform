@@ -20,5 +20,15 @@ const colsClass: Record<NonNullable<AdminStatsGridProps['cols']>, string> = {
 }
 
 export function AdminStatsGrid({ children, cols = 4, className }: AdminStatsGridProps) {
-  return <div className={clsx(className, 'grid grid-cols-1 gap-4', colsClass[cols])}>{children}</div>
+  return (
+    <div 
+      className={clsx(
+        className, 
+        'grid grid-cols-1 bg-zinc-800 gap-px border border-zinc-800', 
+        colsClass[cols]
+      )}
+    >
+      {children}
+    </div>
+  )
 }

@@ -1,21 +1,5 @@
 'use client';
 
-import {
-  Bar,
-  BarChart,
-  Cell,
-  LabelList,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
-
-/** Dégradé indigo -> sky pour les étapes du funnel. */
-const STEP_COLORS = ['#6366f1', '#5b74f2', '#4f8cf3', '#43a4f5', '#38bdf8'];
-
-const AXIS_TICK = { fill: '#a1a1aa', fontSize: 12 };
-
 export interface AdminFunnelStep {
   label: string;
   value: number;
@@ -29,37 +13,10 @@ export interface AdminFunnelChartProps {
 function EmptyState({ height }: { height: number }) {
   return (
     <div
-      className="flex items-center justify-center rounded-lg border border-white/10 bg-zinc-900 text-sm text-zinc-500"
+      className="flex items-center justify-center bg-zinc-50 text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:bg-zinc-900/50 dark:text-zinc-500"
       style={{ height }}
     >
       Pas encore de données
-    </div>
-  );
-}
-
-function FunnelTooltip({
-  active,
-  payload,
-}: {
-  active?: boolean;
-  payload?: Array<{ payload?: AdminFunnelStep & { conv?: string | null } }>;
-}) {
-  if (!active || !payload || payload.length === 0) return null;
-  const point = payload[0]?.payload;
-  if (!point) return null;
-  return (
-    <div className="rounded border border-white/10 bg-zinc-800 px-3 py-2 text-xs text-zinc-100 shadow-lg">
-      <div className="mb-1 font-medium text-zinc-300">{point.label}</div>
-      <div className="flex items-center gap-2">
-        <span className="text-zinc-400">Volume</span>
-        <span className="ml-auto font-medium tabular-nums">{point.value}</span>
-      </div>
-      {point.conv != null && (
-        <div className="flex items-center gap-2">
-          <span className="text-zinc-400">Conversion</span>
-          <span className="ml-auto font-medium tabular-nums">{point.conv}%</span>
-        </div>
-      )}
     </div>
   );
 }
@@ -72,45 +29,45 @@ export default function AdminFunnelChart({
     return <EmptyState height={height} />;
   }
 
-  // Repère de conversion subtil : chaque étape rapportée à la première.
-  const top = steps[0]?.value ?? 0;
-  const data = steps.map((s) => ({
-    ...s,
-    conv: top > 0 ? ((s.value / top) * 100).toFixed(1) : null,
-  }));
+  const max = Math.max(...steps.map((s) => s.value));
 
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <BarChart
-        data={data}
-        layout="vertical"
-        margin={{ top: 4, right: 48, left: 8, bottom: 4 }}
-        barCategoryGap="28%"
-      >
-        <XAxis type="number" hide />
-        <YAxis
-          type="category"
-          dataKey="label"
-          tick={AXIS_TICK}
-          tickLine={false}
-          axisLine={false}
-          width={128}
-        />
-        <Tooltip
-          content={<FunnelTooltip />}
-          cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-        />
-        <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={26}>
-          {data.map((_, i) => (
-            <Cell key={i} fill={STEP_COLORS[i % STEP_COLORS.length]} />
-          ))}
-          <LabelList
-            dataKey="value"
-            position="right"
-            style={{ fill: '#e4e4e7', fontSize: 12 }}
-          />
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <div className="flex w-full flex-col justify-center py-2" style={{ minHeight: height }}>
+      {steps.map((step, i) => {
+        const pct = max > 0 ? (step.value / max) * 100 : 0;
+        const prev = i > 0 ? steps[i - 1].value : null;
+        const convFromPrev = prev && prev > 0 ? ((step.value / prev) * 100).toFixed(1) : null;
+
+        return (
+          <div key={step.label} className="group relative flex flex-col">
+            {/* Connecting line & conversion badge */}
+            {i > 0 && (
+              <div className="relative flex h-10 w-full items-center">
+                <div className="absolute left-24 sm:left-[8.5rem] top-0 h-full w-px bg-zinc-800" />
+                <div className="absolute left-24 sm:left-[8.5rem] top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-zinc-800 bg-zinc-950 px-2 py-0.5 text-[10px] font-semibold text-zinc-400">
+                  {convFromPrev ?? '0.0'}%
+                </div>
+              </div>
+            )}
+
+            {/* Bar row */}
+            <div className="relative z-10 flex items-center gap-4 sm:gap-6">
+              <div className="flex w-24 sm:w-28 shrink-0 flex-col text-right">
+                <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-zinc-500">{step.label}</span>
+                <span className="text-sm font-semibold tabular-nums text-white">{step.value.toLocaleString('fr-FR')}</span>
+              </div>
+              
+              <div className="relative flex h-8 flex-1 items-center">
+                {/* Sharp Fill */}
+                <div
+                  className="relative h-full bg-indigo-500"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
