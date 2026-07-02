@@ -6,6 +6,7 @@ import { formatMoney, listProducts } from '@/lib/medusa-store';
 import { breadcrumbList, organizationSchema, storeUrl, withCanonical } from '@/lib/seo';
 import { TrackPageView } from '@/components/analytics/TrackPageView';
 import { StoreLogo } from '@/components/ui';
+import { DS, dsClass } from '@/lib/design/css-vars';
 import { TEMPLATE_CATALOG, type StoreTemplate } from '@/lib/template-catalog';
 import { pickStorefrontComponent } from '@/lib/storefront-routing';
 
@@ -121,7 +122,7 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
       {/* Hero */}
       <section
         className="py-20 text-center text-white"
-        style={{ backgroundColor: store.primaryColor }}
+        style={{ backgroundColor: DS.primary, fontFamily: DS.fontDisplay }}
       >
         <div className="mx-auto max-w-3xl px-4">
           <div className="mb-5 inline-flex"><StoreLogo emoji={store.logoEmoji} size={56} strokeWidth={1.25} /></div>
@@ -132,7 +133,7 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
           )}
           <div
             className="mt-6 inline-block rounded-full px-6 py-2 text-sm font-medium"
-            style={{ backgroundColor: store.accentColor }}
+            style={{ backgroundColor: DS.accent }}
           >
             {store.productCount} produits disponibles
           </div>
@@ -141,7 +142,9 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
 
       {/* Products grid */}
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <h2 className="mb-8 text-2xl font-bold text-zinc-900">Nos produits</h2>
+        <h2 className={`mb-8 text-2xl font-bold ${dsClass.text}`} style={{ fontFamily: DS.fontDisplay }}>
+          Nos produits
+        </h2>
 
         {error && (
           <div
@@ -153,7 +156,7 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
         )}
 
         {!error && products.length === 0 && (
-          <p className="py-20 text-center text-zinc-500">Aucun produit disponible pour le moment.</p>
+          <p className={`py-20 text-center ${dsClass.textMuted}`}>Aucun produit disponible pour le moment.</p>
         )}
 
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -166,9 +169,9 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
               <Link
                 key={product.id}
                 href={`/shop/${slug}/products/${product.handle}`}
-                className="group overflow-hidden rounded-xl border border-zinc-100 bg-white shadow-xs transition-shadow hover:shadow-md"
+                className={`group overflow-hidden rounded-xl border shadow-xs transition-shadow hover:shadow-md ${dsClass.border} ${dsClass.surface}`}
               >
-                <div className="aspect-square overflow-hidden bg-zinc-100">
+                <div className={`aspect-square overflow-hidden ${dsClass.bg}`}>
                   {imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -177,23 +180,23 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-zinc-400">
+                    <div className={`flex h-full w-full items-center justify-center ${dsClass.textMuted}`}>
                       <StoreLogo emoji={store.logoEmoji} size={40} strokeWidth={1.25} />
                     </div>
                   )}
                 </div>
                 <div className="p-4">
-                  <h3 className="mb-2 line-clamp-2 text-sm font-semibold text-zinc-900">
+                  <h3 className={`mb-2 line-clamp-2 text-sm font-semibold ${dsClass.text}`}>
                     {product.title}
                   </h3>
                   {price !== undefined && (
-                    <div className="text-lg font-bold" style={{ color: store.accentColor }}>
+                    <div className="text-lg font-bold" style={{ color: DS.accent }}>
                       {formatMoney(price, variant?.calculated_price?.currency_code || 'eur')}
                     </div>
                   )}
                   <div
                     className="mt-3 w-full rounded-lg py-2 text-center text-sm font-medium text-white transition-opacity group-hover:opacity-90"
-                    style={{ backgroundColor: store.primaryColor }}
+                    style={{ backgroundColor: DS.primary }}
                   >
                     Voir le produit
                   </div>
@@ -208,22 +211,23 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
 }
 
 function StorePreparing({ store }: { store: import('@/lib/store-config').StoreConfig }) {
-  const accent =
-    store.palette && typeof store.palette === 'object' && 'accent' in store.palette
-      ? (store.palette as { accent?: string }).accent ?? null
-      : null;
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 px-6 text-white">
+    <main
+      className="flex min-h-screen flex-col items-center justify-center px-6"
+      style={{ backgroundColor: DS.bg, color: DS.text, fontFamily: DS.fontBody }}
+    >
       <div className="max-w-md space-y-6 text-center">
         <div className="text-5xl">{store.logoEmoji || '🛍️'}</div>
-        <h2 className="text-3xl font-bold tracking-tight">{store.name}</h2>
-        <p className="text-lg text-zinc-400">
+        <h2 className="text-3xl font-bold tracking-tight" style={{ fontFamily: DS.fontDisplay }}>
+          {store.name}
+        </h2>
+        <p className="text-lg" style={{ color: DS.textMuted }}>
           Votre boutique est en cours de préparation. Revenez dans quelques minutes.
         </p>
-        <div className="inline-flex items-center gap-2 text-sm text-zinc-500">
+        <div className="inline-flex items-center gap-2 text-sm" style={{ color: DS.textMuted }}>
           <span
-            className={`h-1.5 w-1.5 animate-pulse rounded-full${accent ? '' : ' bg-zinc-400'}`}
-            style={accent ? { backgroundColor: accent } : undefined}
+            className="h-1.5 w-1.5 animate-pulse rounded-full"
+            style={{ backgroundColor: DS.accent }}
           />
           Génération des visuels en cours…
         </div>

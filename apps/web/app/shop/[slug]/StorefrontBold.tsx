@@ -1,3 +1,4 @@
+import { DS, dsClass } from '@/lib/design/css-vars';
 import type { StoreConfig } from '@/lib/store-config';
 import { formatMoney, type listProducts } from '@/lib/medusa-store';
 import { StoreLogo } from '@/components/ui';
@@ -21,11 +22,12 @@ export function StorefrontBold({
   const remainingProducts = products.slice(1);
 
   return (
-    <div className="bg-black text-white min-h-screen">
+    <div className={`min-h-screen ${dsClass.bg} ${dsClass.text}`} style={{ fontFamily: DS.fontBody }}>
       {/* Nav */}
       <nav
         aria-label="Navigation principale"
-        className="fixed inset-x-0 top-0 z-30 bg-black/80 backdrop-blur-md border-b border-white/10"
+        className={`fixed inset-x-0 top-0 z-30 backdrop-blur-md border-b ${dsClass.border}`}
+        style={{ backgroundColor: 'color-mix(in srgb, var(--ds-bg) 85%, transparent)' }}
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
@@ -72,7 +74,7 @@ export function StorefrontBold({
       <header className="relative pt-16">
         <div
           className="relative px-6 py-40 sm:px-12 sm:py-56 lg:px-16"
-          style={{ backgroundColor: store.primaryColor }}
+          style={{ backgroundColor: DS.primary }}
         >
           {store.heroImageUrl && (
             <div className="absolute inset-0 overflow-hidden">
@@ -108,7 +110,7 @@ export function StorefrontBold({
               href="#products"
               className="mt-10 inline-block rounded-none border-2 border-white px-10 py-4 text-base font-bold uppercase tracking-widest text-white hover:bg-white hover:text-black transition-colors"
             >
-              Decouvrir
+              Découvrir
             </Link>
           </div>
         </div>
@@ -130,7 +132,7 @@ export function StorefrontBold({
                   <div key={i} className="flex flex-col gap-1">
                     <div
                       className="h-0.5 w-6 mb-2"
-                      style={{ backgroundColor: store.accentColor }}
+                      style={{ backgroundColor: DS.accent }}
                     />
                     <h3 className="text-sm font-bold uppercase tracking-wider text-white">
                       {promise.title}
@@ -204,7 +206,7 @@ export function StorefrontBold({
                             return p ? (
                               <p
                                 className="mt-2 text-xl font-bold"
-                                style={{ color: store.accentColor }}
+                                style={{ color: DS.accent }}
                               >
                                 {p}
                               </p>
@@ -268,7 +270,7 @@ export function StorefrontBold({
                             {price && (
                               <p
                                 className="shrink-0 text-sm font-bold"
-                                style={{ color: store.accentColor }}
+                                style={{ color: DS.accent }}
                               >
                                 {price}
                               </p>

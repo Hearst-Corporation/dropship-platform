@@ -4,7 +4,7 @@ import { resolveStoreId } from '@/lib/resolve-store';
 import { ASSET_KINDS, type AssetKind } from '@/lib/agent/asset-regenerator';
 import { Heading, Subheading } from '@/components/catalyst/heading';
 import { Text, Code } from '@/components/catalyst/text';
-import { Badge } from '@/components/catalyst/badge';
+import { AdminBadge } from '@/components/admin/AdminBadge';
 import { AssetRegenerator } from './AssetRegenerator';
 
 export const dynamic = 'force-dynamic';
@@ -115,7 +115,7 @@ export default async function StoreAssetsPage({ params }: { params: Promise<{ id
       {!product?.image_url && (
         <div>
           <div className="flex items-center gap-2">
-            <Badge color="zinc">Attention</Badge>
+            <AdminBadge status="warning">Attention</AdminBadge>
             <Subheading>Aucun produit de référence</Subheading>
           </div>
           <Text className="mt-2">

@@ -1,3 +1,4 @@
+import { DS, dsClass } from '@/lib/design/css-vars';
 import type { StoreConfig } from '@/lib/store-config';
 import { formatMoney, type listProducts } from '@/lib/medusa-store';
 import { StoreLogo } from '@/components/ui';
@@ -13,24 +14,20 @@ export function StorefrontMinimal({
   store: StoreConfig;
   products: Products;
 }) {
-  const currency =
-    store.palette && typeof store.palette === 'object' && 'currency' in store.palette
-      ? ((store.palette as { currency?: string }).currency ?? 'eur')
-      : 'eur';
+  const [featured, ...rest] = products;
+
+  const featuredVariant = featured?.variants?.[0];
+  const currency = featuredVariant?.calculated_price?.currency_code || 'eur';
+  const featuredPrice = featuredVariant?.calculated_price?.calculated_amount;
+  const featuredImage = featured?.thumbnail || featured?.images?.[0]?.url;
 
   const heroHeadline = store.landingContent?.hero?.headline_html;
   const heroLede = store.landingContent?.hero?.lede || store.tagline;
 
-  const [featured, ...rest] = products;
-
-  const featuredVariant = featured?.variants?.[0];
-  const featuredPrice = featuredVariant?.calculated_price?.calculated_amount;
-  const featuredImage = featured?.thumbnail || featured?.images?.[0]?.url;
-
   return (
-    <div className="min-h-screen bg-white">
+    <div className={`min-h-screen ${dsClass.bg} ${dsClass.text}`} style={{ fontFamily: DS.fontBody }}>
       {/* Nav */}
-      <nav className="sticky top-0 z-20 border-b border-gray-100 bg-white/90 backdrop-blur-sm">
+      <nav className={`sticky top-0 z-20 border-b ${dsClass.border} backdrop-blur-sm`} style={{ backgroundColor: 'color-mix(in srgb, var(--ds-bg) 90%, transparent)' }}>
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <Link href={`/shop/${store.slug}`} className="flex items-center gap-2">
             <StoreLogo emoji={store.logoEmoji} size={24} strokeWidth={1.5} className="text-gray-800" />
@@ -101,7 +98,7 @@ export function StorefrontMinimal({
                     <Link
                       href={`/shop/${store.slug}/products/${featured.handle}`}
                       className="inline-block rounded-md px-8 py-3 text-base font-medium text-white transition-opacity hover:opacity-90"
-                      style={{ backgroundColor: store.primaryColor }}
+                      style={{ backgroundColor: DS.primary }}
                     >
                       Voir le produit
                     </Link>
@@ -114,7 +111,8 @@ export function StorefrontMinimal({
                       fill="none"
                       stroke="currentColor"
                       strokeWidth={1.5}
-                      className="size-5 shrink-0 text-green-500"
+                      className="size-5 shrink-0"
+                      style={{ color: DS.success }}
                       aria-hidden="true"
                     >
                       <path
@@ -143,7 +141,7 @@ export function StorefrontMinimal({
                     ) : (
                       <div
                         className="flex aspect-square w-full items-center justify-center rounded-2xl"
-                        style={{ backgroundColor: store.secondaryColor || '#f4f4f5' }}
+                        style={{ backgroundColor: DS.surface }}
                       >
                         <StoreLogo
                           emoji={store.logoEmoji}
@@ -201,7 +199,7 @@ export function StorefrontMinimal({
                             {price !== undefined && price !== null && (
                               <p
                                 className="mt-1 text-sm font-semibold"
-                                style={{ color: store.accentColor }}
+                                style={{ color: DS.accent }}
                               >
                                 {formatMoney(price, currency)}
                               </p>

@@ -14,11 +14,8 @@ export interface StorefrontTemplateProps {
 }
 
 /**
- * Single source of truth for mapping a template catalog entry to the React
- * storefront component. Used by shop/[slug]/page.tsx and the admin preview.
- *
- * Mode `mono` wins over register `luxury` so `luxury-mono` renders the
- * long-form MonoProductLanding instead of StorefrontShowcase.
+ * Maps a template catalog entry to the React storefront component.
+ * Mode `mono` wins over register `luxury` so `luxury-mono` uses MonoProductLanding.
  */
 export function pickStorefrontComponent(
   entry: TemplateCatalogEntry | undefined,

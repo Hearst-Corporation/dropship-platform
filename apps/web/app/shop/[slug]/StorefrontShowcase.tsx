@@ -1,3 +1,5 @@
+import { DS, dsClass } from '@/lib/design/css-vars';
+import { resolveLuxuryLandingCopy } from '@/lib/design/landing-copy';
 import type { StoreConfig } from '@/lib/store-config';
 import { formatMoney, type listProducts } from '@/lib/medusa-store';
 import { StoreLogo } from '@/components/ui';
@@ -13,29 +15,26 @@ export function StorefrontShowcase({
   store: StoreConfig;
   products: Products;
 }) {
-  const currency =
-    store.palette && typeof store.palette === 'object' && 'currency' in store.palette
-      ? ((store.palette as { currency?: string }).currency ?? 'eur')
-      : 'eur';
-
-  const heroHeadline = store.landingContent?.hero?.headline_html;
-  const heroLede = store.landingContent?.hero?.lede || store.tagline;
-  const sellingPoints = store.landingContent?.selling_points ?? [];
-
-  // Split products into pairs for alternating sections
   const firstProduct = products[0];
   const secondProduct = products[1];
   const remainingProducts = products.slice(2);
 
+  const copy = resolveLuxuryLandingCopy(store);
+  const currency = firstProduct?.variants?.[0]?.calculated_price?.currency_code || 'eur';
+
+  const heroHeadline = copy.heroHeadline;
+  const heroLede = copy.heroLede;
+  const sellingPoints = copy.sellingPoints;
+
   return (
-    <div className="min-h-screen bg-white">
+    <div className={`min-h-screen ${dsClass.bg} ${dsClass.text}`} style={{ fontFamily: DS.fontBody }}>
       {/* Nav */}
-      <nav className="sticky top-0 z-20 border-b border-gray-200 bg-white">
+      <nav className={`sticky top-0 z-20 border-b ${dsClass.border}`} style={{ backgroundColor: DS.surface }}>
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <Link href={`/shop/${store.slug}`} className="flex items-center gap-3">
             <div
               className="flex h-9 w-9 items-center justify-center rounded-full text-white"
-              style={{ backgroundColor: store.primaryColor }}
+              style={{ backgroundColor: DS.primary }}
             >
               <StoreLogo emoji={store.logoEmoji} size={20} strokeWidth={1.5} />
             </div>
@@ -44,7 +43,7 @@ export function StorefrontShowcase({
           <Link
             href="/cart"
             className="group flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
-            style={{ backgroundColor: store.primaryColor }}
+            style={{ backgroundColor: DS.primary }}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -98,14 +97,14 @@ export function StorefrontShowcase({
 
               {/* Hero principal */}
               <div className="relative">
-                <div aria-hidden="true" className="absolute inset-0 hidden h-full w-1/2 lg:block" style={{ backgroundColor: `color-mix(in srgb, ${store.primaryColor} 8%, transparent)` }} />
-                <div className="relative" style={{ backgroundColor: `color-mix(in srgb, ${store.primaryColor} 8%, transparent)` }}>
+                <div aria-hidden="true" className="absolute inset-0 hidden h-full w-1/2 lg:block" style={{ backgroundColor: 'color-mix(in srgb, var(--ds-primary) 8%, transparent)' }} />
+                <div className="relative" style={{ backgroundColor: 'color-mix(in srgb, var(--ds-primary) 8%, transparent)' }}>
                   <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:grid lg:grid-cols-2 lg:px-8">
                     <div className="mx-auto max-w-2xl py-20 lg:max-w-none lg:py-32">
                       <div className="lg:pr-16">
-                        {store.landingContent?.hero?.kicker && (
-                          <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-gray-500">
-                            {store.landingContent.hero.kicker}
+                        {copy.heroKicker && (
+                          <p className={`mb-4 text-sm font-semibold uppercase tracking-widest ${dsClass.textMuted}`}>
+                            {copy.heroKicker}
                           </p>
                         )}
                         {heroHeadline ? (
@@ -125,7 +124,7 @@ export function StorefrontShowcase({
                           <Link
                             href={firstProduct ? `/shop/${store.slug}/products/${firstProduct.handle}` : `#produits`}
                             className="inline-block rounded-md px-8 py-3 font-medium text-white transition-opacity hover:opacity-90"
-                            style={{ backgroundColor: store.primaryColor }}
+                            style={{ backgroundColor: DS.primary }}
                           >
                             Voir la boutique
                           </Link>
@@ -200,7 +199,7 @@ export function StorefrontShowcase({
                         <Link
                           href={`/shop/${store.slug}/products/${firstProduct.handle}`}
                           className="inline-block rounded-md border border-transparent px-8 py-3 font-medium text-white transition-opacity hover:opacity-90"
-                          style={{ backgroundColor: store.accentColor || store.primaryColor }}
+                          style={{ backgroundColor: DS.accent }}
                         >
                           Decouvrir
                         </Link>
@@ -238,7 +237,7 @@ export function StorefrontShowcase({
                         <Link
                           href={`/shop/${store.slug}/products/${secondProduct.handle}`}
                           className="inline-block rounded-md border border-transparent px-8 py-3 font-medium text-white transition-opacity hover:opacity-90"
-                          style={{ backgroundColor: store.accentColor || store.primaryColor }}
+                          style={{ backgroundColor: DS.accent }}
                         >
                           Decouvrir
                         </Link>
@@ -326,7 +325,7 @@ export function StorefrontShowcase({
             {store.landingContent?.trust_promises && store.landingContent.trust_promises.length > 0 && (
               <section
                 className="py-16"
-                style={{ backgroundColor: `color-mix(in srgb, ${store.primaryColor} 5%, transparent)` }}
+                style={{ backgroundColor: 'color-mix(in srgb, var(--ds-primary) 5%, transparent)' }}
               >
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                   <h2 className="text-2xl font-bold tracking-tight text-gray-900">
@@ -347,7 +346,7 @@ export function StorefrontShowcase({
                       <div key={promise.title} className="flex flex-col gap-3">
                         <div
                           className="h-1 w-8 rounded-full"
-                          style={{ backgroundColor: store.accentColor || store.primaryColor }}
+                          style={{ backgroundColor: DS.accent }}
                         />
                         <h3 className="font-semibold text-gray-900">{promise.title}</h3>
                         <p className="text-sm text-gray-600">{promise.body}</p>

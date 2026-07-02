@@ -215,7 +215,7 @@ export function AssetRegenerator({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {!referenceImageUrl && (
-            <Text className="max-w-[16rem] text-right text-xs text-zinc-400 dark:text-zinc-500">
+            <Text className="max-w-[16rem] text-right text-xs text-gray-500">
               Génère d&apos;abord un cutout produit
             </Text>
           )}
@@ -301,9 +301,7 @@ export function AssetRegenerator({
                   {running ? 'Génération en cours…' : 'Lancer'}
                 </Button>
                 {error && (
-                  <span className="text-xs font-medium text-zinc-950 dark:text-white">
-                    Erreur : {error}
-                  </span>
+                  <Text className="text-xs text-gray-400">{error}</Text>
                 )}
               </div>
 
@@ -314,7 +312,7 @@ export function AssetRegenerator({
                       key={l.id}
                       className={
                         l.type === 'error'
-                          ? 'font-medium text-white'
+                          ? 'text-gray-400'
                           : l.type === 'success'
                             ? 'text-indigo-400'
                             : l.type === 'step'
@@ -393,7 +391,7 @@ export function AssetRegenerator({
                         </Text>
                       )}
                       {r.errorMessage && (
-                        <Text className="line-clamp-2 text-xs text-zinc-400 dark:text-zinc-500" title={r.errorMessage}>
+                        <Text className="line-clamp-2 text-xs text-gray-400" title={r.errorMessage}>
                           {r.errorMessage}
                         </Text>
                       )}

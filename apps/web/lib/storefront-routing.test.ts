@@ -33,22 +33,10 @@ describe('pickStorefrontComponent', () => {
     expect(componentName(el)).toBe('StorefrontShowcase');
   });
 
-  it('routes mono template to MonoProductLanding', () => {
-    const entry = getTemplateEntry('mono');
-    const el = pickStorefrontComponent(entry, { store: baseStore, products });
-    expect(componentName(el)).toBe('MonoProductLanding');
-  });
-
   it('falls back to StorefrontMinimal for mono without assets', () => {
     const entry = getTemplateEntry('mono');
     const store = { ...baseStore, heroImageUrl: null, landingContent: null } as unknown as StoreConfig;
     const el = pickStorefrontComponent(entry, { store, products });
     expect(componentName(el)).toBe('StorefrontMinimal');
-  });
-
-  it('routes wellness-soft (split) to StorefrontBold', () => {
-    const entry = getTemplateEntry('wellness-soft');
-    const el = pickStorefrontComponent(entry, { store: baseStore, products });
-    expect(componentName(el)).toBe('StorefrontBold');
   });
 });

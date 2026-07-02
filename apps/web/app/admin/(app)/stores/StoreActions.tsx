@@ -49,7 +49,8 @@ export function StoreActions({
         onClick={() => setConfirmOpen(true)}
         disabled={deleting}
         aria-label={`Supprimer ${storeName}`}
-        title={`Supprimer ${storeName}`}
+        title={error || `Supprimer ${storeName}`}
+        className={error ? 'text-zinc-500' : undefined}
       >
         <TrashIcon className={iconCls} aria-hidden />
       </Button>

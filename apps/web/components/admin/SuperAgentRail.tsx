@@ -145,26 +145,14 @@ function ChatBody({ messages, running, error, send, reset, draft, setDraft, onCl
             <p className="text-xs text-zinc-500">Assistant admin · OpenAI</p>
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={reset}
-            title="Nouvelle conversation"
-            className="rounded-md p-1.5 text-zinc-500 hover:bg-white/5 hover:text-white"
-          >
-            <ArrowPathIcon className="size-4" aria-hidden />
-          </button>
-          {onClose ? (
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Fermer"
-              className="rounded-md p-1.5 text-zinc-500 hover:bg-white/5 hover:text-white"
-            >
-              <XMarkIcon className="size-5" aria-hidden />
-            </button>
-          ) : null}
-        </div>
+        <button
+          type="button"
+          onClick={reset}
+          title="Nouvelle conversation"
+          className="rounded-md p-1.5 text-zinc-500 hover:bg-white/5 hover:text-white"
+        >
+          <ArrowPathIcon className="size-4" aria-hidden />
+        </button>
       </div>
 
       {/* Messages */}
@@ -202,7 +190,7 @@ function ChatBody({ messages, running, error, send, reset, draft, setDraft, onCl
             }}
             rows={1}
             placeholder="Message à l'agent…"
-            className="max-h-32 min-h-6 flex-1 resize-none bg-transparent text-sm text-white field-sizing-content placeholder:text-zinc-500 focus:outline-hidden"
+            className="max-h-32 min-h-6 flex-1 resize-none bg-transparent text-sm text-white placeholder:text-zinc-500 focus:outline-hidden"
           />
           <button
             type="submit"
@@ -238,7 +226,7 @@ export function SuperAgentRail() {
           area would drop to ~300px with the sidebar + rail both open) */}
       <aside
         className={cn(
-          'hidden xl:fixed xl:inset-y-0 xl:right-0 xl:z-40 xl:flex xl:flex-col',
+          'hidden lg:fixed lg:inset-y-0 lg:right-0 lg:z-40 lg:flex lg:flex-col',
           'border-l border-white/10 bg-zinc-900',
           RAIL_WIDTH,
         )}
@@ -266,7 +254,15 @@ export function SuperAgentRail() {
             transition
             className="relative flex w-full max-w-md transform flex-col bg-zinc-900 ring-1 ring-white/10 transition duration-300 ease-in-out data-closed:translate-x-full"
           >
-            <ChatBody {...chatProps} onClose={() => setMobileOpen(false)} />
+            <button
+              type="button"
+              onClick={() => setMobileOpen(false)}
+              className="absolute right-3 top-3 z-10 rounded-md p-1.5 text-zinc-400 hover:bg-white/5 hover:text-white"
+              aria-label="Fermer"
+            >
+              <XMarkIcon className="size-5" aria-hidden />
+            </button>
+            <ChatBody />
           </DialogPanel>
         </div>
       </Dialog>

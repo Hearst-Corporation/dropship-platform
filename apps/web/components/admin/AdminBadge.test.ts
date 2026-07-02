@@ -31,6 +31,12 @@ describe('statusColor (single-accent policy)', () => {
       'connecté',
       'paid',
       'payé',
+      'payée',
+      'captured',
+      'authorized',
+      'prêt à vendre',
+      'envoyée',
+      'en cours',
     ]) {
       expect(statusColor(s)).toBe('indigo');
     }

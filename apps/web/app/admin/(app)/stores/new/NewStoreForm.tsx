@@ -11,14 +11,12 @@ import {
 } from '@heroicons/react/20/solid';
 import { Heading, Subheading } from '@/components/catalyst/heading';
 import { Text } from '@/components/catalyst/text';
-import { Badge } from '@/components/catalyst/badge';
+import { AdminBadge } from '@/components/admin/AdminBadge';
 import { Fieldset, FieldGroup, Field, Label, Description } from '@/components/catalyst/fieldset';
 import { Input } from '@/components/catalyst/input';
 import { Select } from '@/components/catalyst/select';
-import { Textarea } from '@/components/catalyst/textarea';
 import { CheckboxField, Checkbox } from '@/components/catalyst/checkbox';
 import { Button } from '@/components/catalyst/button';
-import { TEMPLATE_CATALOG } from '@/lib/template-catalog';
 
 interface AgentEvent {
   type: 'step' | 'progress' | 'success' | 'error' | 'done';
@@ -38,12 +36,9 @@ function NewStoreForm() {
   const [niche, setNiche] = useState('');
   const [storeName, setStoreName] = useState('');
   const [mode, setMode] = useState<'mono' | 'collection'>('mono');
-  const [maxProducts, setMaxProducts] = useState(10);
+  const [maxProducts] = useState(10);
   const [language, setLanguage] = useState<'fr' | 'en'>('fr');
   const [skipVideo, setSkipVideo] = useState(false);
-  const [brief, setBrief] = useState('');
-  const [marketsInput, setMarketsInput] = useState('FR');
-  const [template, setTemplate] = useState('auto');
   const [running, setRunning] = useState(false);
   const [logs, setLogs] = useState<LogLine[]>([]);
   const [progress, setProgress] = useState(0);
@@ -105,14 +100,7 @@ function NewStoreForm() {
     maxProducts?: number;
     language?: 'fr' | 'en';
     skipVideo?: boolean;
-    brief?: string;
-    markets?: string[];
-    template?: string;
   }) => {
-    const parsedMarkets = (overrides?.markets ?? marketsInput.split(/[,\s]+/))
-      .map((m) => m.trim().toUpperCase())
-      .filter((m) => /^[A-Z]{2,3}$/.test(m))
-      .slice(0, 5);
     const eff = {
       niche: overrides?.niche ?? niche,
       storeName: overrides?.storeName ?? storeName,
@@ -120,9 +108,6 @@ function NewStoreForm() {
       maxProducts: overrides?.maxProducts ?? maxProducts,
       language: overrides?.language ?? language,
       skipVideo: overrides?.skipVideo ?? skipVideo,
-      brief: (overrides?.brief ?? brief).trim() || undefined,
-      markets: parsedMarkets.length ? parsedMarkets : undefined,
-      template: overrides?.template ?? template,
     };
     if (!eff.niche.trim() || !eff.storeName.trim()) return;
     setRunning(true);
@@ -288,72 +273,6 @@ function NewStoreForm() {
                   </Field>
                 </div>
 
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                  {mode === 'collection' && (
-                    <Field>
-                      <Label>Nombre de produits</Label>
-                      <Select
-                        name="maxProducts"
-                        value={String(maxProducts)}
-                        onChange={(e) => setMaxProducts(Number(e.target.value))}
-                      >
-                        <option value="6">6 produits</option>
-                        <option value="8">8 produits</option>
-                        <option value="10">10 produits</option>
-                        <option value="12">12 produits</option>
-                        <option value="18">18 produits</option>
-                        <option value="24">24 produits</option>
-                      </Select>
-                    </Field>
-                  )}
-
-                  <Field>
-                    <Label>Marchés cibles</Label>
-                    <Description>Codes pays ISO séparés par des virgules (ex. FR, AE).</Description>
-                    <Input
-                      name="markets"
-                      value={marketsInput}
-                      onChange={(e) => setMarketsInput(e.target.value)}
-                      placeholder="FR, AE"
-                    />
-                  </Field>
-                </div>
-
-                <Field>
-                  <Label>Template storefront</Label>
-                  <Description>
-                    Auto laisse l&rsquo;agent choisir le template le plus adapté à la niche.
-                  </Description>
-                  <Select
-                    name="template"
-                    value={template}
-                    onChange={(e) => setTemplate(e.target.value)}
-                  >
-                    <option value="auto">Auto (choix agent)</option>
-                    {TEMPLATE_CATALOG.filter((t) => t.id !== 'auto').map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.label}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-
-                <Field>
-                  <Label>Brief agent (optionnel)</Label>
-                  <Description>
-                    Contraintes produits, marges, expédition, conformité. L&rsquo;agent le respecte
-                    pour la sélection, le pricing et le plan Google Ads.
-                  </Description>
-                  <Textarea
-                    name="brief"
-                    value={brief}
-                    onChange={(e) => setBrief(e.target.value)}
-                    rows={5}
-                    maxLength={4000}
-                    placeholder="ex. produits à forte marge, expédition fiable FR + UAE, éviter les produits médicaux réglementés et les claims santé excessifs, minimum 6 produits, proposition Google Ads de lancement"
-                  />
-                </Field>
-
                 <CheckboxField>
                   <Checkbox
                     name="skipVideo"
@@ -418,12 +337,12 @@ function CreationScreen({
   if (result) {
     return (
       <div className="mx-auto w-full max-w-2xl rounded-lg p-8 text-center ring-1 ring-zinc-950/10 dark:ring-white/10">
-        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-white/5 ring-1 ring-white/10">
-          <CheckCircleIcon className="size-7 text-zinc-400 dark:text-zinc-500" aria-hidden="true" />
+        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-indigo-500/10 ring-1 ring-indigo-500/20">
+          <CheckCircleIcon className="size-7 text-indigo-500 dark:text-indigo-400" aria-hidden="true" />
         </div>
         <Heading className="mt-4">{result.storeName}</Heading>
         <div className="mt-2 flex items-center justify-center gap-2">
-          <Badge color="indigo">Prêt à vendre</Badge>
+          <AdminBadge status="prêt à vendre">Prêt à vendre</AdminBadge>
           <Text>
             {result.productCount} produit{result.productCount > 1 ? 's' : ''} importé
             {result.productCount > 1 ? 's' : ''}
@@ -451,7 +370,9 @@ function CreationScreen({
         {/* Header */}
         <div className="flex items-center justify-between gap-4 border-b border-zinc-950/10 px-5 py-3 dark:border-white/10">
           <div className="flex min-w-0 items-center gap-3">
-            <Badge color={running ? 'indigo' : 'zinc'}>{running ? 'En cours' : 'Erreur'}</Badge>
+            <AdminBadge status={running ? 'en cours' : 'error'}>
+              {running ? 'En cours' : 'Erreur'}
+            </AdminBadge>
             <Subheading className="truncate">
               {running ? `Construction de « ${storeName} »` : `Erreur — « ${storeName} »`}
             </Subheading>
@@ -492,12 +413,12 @@ function CreationScreen({
 
         {/* Error banner */}
         {error && (
-          <div className="border-b border-white/10 bg-white/5 px-5 py-3">
-            <Text className="flex items-center gap-1.5 font-medium text-zinc-700! dark:text-zinc-300!">
+          <div className="border-b border-zinc-950/10 bg-zinc-950/[0.02] px-5 py-3 dark:border-white/10 dark:bg-white/[0.02]">
+            <Text className="flex items-center gap-1.5 font-medium">
               <ExclamationTriangleIcon className="size-4" aria-hidden="true" />
               Erreur de création
             </Text>
-            <Text className="mt-1 whitespace-pre-wrap text-zinc-600/80! dark:text-zinc-400/80!">{error}</Text>
+            <Text className="mt-1 whitespace-pre-wrap text-zinc-600 dark:text-zinc-400">{error}</Text>
           </div>
         )}
 
@@ -509,7 +430,7 @@ function CreationScreen({
               <span
                 className={
                   l.type === 'error'
-                    ? 'text-zinc-600 dark:text-zinc-400'
+                    ? 'text-zinc-950 dark:text-white'
                     : l.type === 'success'
                       ? 'text-indigo-600 dark:text-indigo-400'
                       : l.type === 'step'

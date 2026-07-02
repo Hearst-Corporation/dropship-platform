@@ -4,6 +4,7 @@ import { getDbRead } from '@/lib/db';
 import { resolveStoreId } from '@/lib/resolve-store';
 import { Heading, Subheading } from '@/components/catalyst/heading';
 import { Text } from '@/components/catalyst/text';
+import { AdminBadge } from '@/components/admin/AdminBadge';
 import { Badge } from '@/components/catalyst/badge';
 import { Button } from '@/components/catalyst/button';
 import { AdminBadge } from '@/components/admin/AdminBadge';

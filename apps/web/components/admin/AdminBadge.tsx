@@ -36,6 +36,14 @@ const POSITIVE = new Set([
   'connecté',
   'paid',
   'payé',
+  'payée',
+  'payee',
+  'captured',
+  'authorized',
+  'prêt à vendre',
+  'envoyée',
+  'sent',
+  'en cours',
 ])
 
 /**

@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { getDbRead } from '@/lib/db';
 import { StoreLogo } from '@/components/ui';
 import { AdminBadge } from '@/components/admin/AdminBadge';
+import { Heading } from '@/components/catalyst/heading';
 import { StoreTabsBar } from './_components/StoreTabsBar';
 import { BreadcrumbBackLink } from './_components/BreadcrumbBackLink';
 
@@ -46,8 +47,10 @@ export default async function StoreLayout({
         </span>
         <span className="min-w-0 truncate text-base/6 font-semibold text-zinc-950 dark:text-white">
           {store.name}
-        </span>
-        {store.status !== 'active' && <AdminBadge status={store.status} />}
+        </Heading>
+        {store.status !== 'active' && (
+          <AdminBadge status={store.status}>{store.status}</AdminBadge>
+        )}
       </nav>
 
       <StoreTabsBar storeId={store.id} />

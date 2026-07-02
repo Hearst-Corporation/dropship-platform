@@ -35,7 +35,7 @@ export function AdminActionMenu({ actions, ariaLabel = 'Actions', anchor = 'bott
   return (
     <Dropdown>
       <DropdownButton plain aria-label={ariaLabel}>
-        <EllipsisHorizontalIcon data-slot="icon" />
+        <EllipsisHorizontalIcon className="size-5 text-zinc-500 dark:text-zinc-400" />
       </DropdownButton>
       <DropdownMenu anchor={anchor}>
         {actions.map((action, index) => {

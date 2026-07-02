@@ -1,3 +1,5 @@
+import { DS } from '@/lib/design/css-vars';
+import { resolveMonoLandingCopy } from '@/lib/design/landing-copy';
 import type { StoreConfig } from '@/lib/store-config';
 import { formatMoney, type listProducts } from '@/lib/medusa-store';
 import { StoreLogo } from '@/components/ui';
@@ -13,8 +15,8 @@ type Products = Awaited<ReturnType<typeof listProducts>>['products'];
  * lib/agent/landing-writer.ts). Every section has a French fallback so a
  * legacy store with no landing_content still renders a complete page.
  *
- * Colors come EXCLUSIVELY from the locked design system:
- * store.palette (+ primaryColor/accentColor as legacy fallback).
+ * Colors and typography come from the locked design system (`--ds-*` vars
+ * injected by shop layout). luxury_copy and beach_moment are merged when present.
  */
 
 const FALLBACK_TRUST: Array<{ title: string; body: string }> = [
@@ -54,16 +56,7 @@ export function MonoProductLanding({
   store: StoreConfig;
   products: Products;
 }) {
-  // ── locked palette ──────────────────────────────────────────────────────
-  const primary = store.palette?.primary ?? store.primaryColor;
-  const accent = store.palette?.accent ?? store.accentColor;
-  const bg = store.palette?.bg ?? '#ffffff';
-  const surface = store.palette?.surface ?? '#ffffff';
-  const text = store.palette?.text ?? '#18181b';
-  const textMuted = store.palette?.textMuted ?? '#71717a';
-  const border = store.palette?.border ?? '#e4e4e7';
-
-  const lc = store.landingContent;
+  const copy = resolveMonoLandingCopy(store);
 
   // ── hero product ────────────────────────────────────────────────────────
   const featured = products[0] ?? null;
@@ -79,31 +72,31 @@ export function MonoProductLanding({
     : `/shop/${store.slug}`;
   const productThumbnail = featured?.thumbnail || featured?.images?.[0]?.url || null;
 
-  // ── structured copy with FR fallbacks ───────────────────────────────────
-  const heroKicker = lc?.hero?.kicker;
-  const heroHeadline = lc?.hero?.headline_html;
-  const heroLede = lc?.hero?.lede || store.tagline || store.description || null;
+  const heroKicker = copy.heroKicker;
+  const heroHeadline = copy.heroHeadline;
+  const heroLede = copy.heroLede;
 
-  const trustItems = (lc?.trust_promises?.length ? lc.trust_promises : FALLBACK_TRUST).slice(0, 3);
-  const sellingPoints = (lc?.selling_points?.length ? lc.selling_points : FALLBACK_SELLING_POINTS).slice(0, 3);
-  const specs = lc?.specs ?? [];
-  const includedItems = lc?.included_items ?? [];
+  const trustItems = (copy.trustPromises?.length ? copy.trustPromises : FALLBACK_TRUST).slice(0, 3);
+  const sellingPoints = (copy.sellingPoints?.length ? copy.sellingPoints : FALLBACK_SELLING_POINTS).slice(0, 3);
+  const specs = copy.specs ?? [];
+  const includedItems = copy.includedItems ?? [];
   const lifestyleImages = store.lifestyleImages.slice(0, 3);
   const showcaseImage = store.cutoutImageUrl || productThumbnail;
 
-  const finalKicker = lc?.final_cta?.kicker || 'Prêt ?';
-  const finalHeadline = lc?.final_cta?.headline_html;
+  const finalKicker = copy.finalCta?.kicker || 'Prêt ?';
+  const finalHeadline = copy.finalCta?.headline_html;
   const finalLede =
-    lc?.final_cta?.lede ||
+    copy.finalNote ||
+    copy.finalCta?.lede ||
     'Livraison suivie et essai de 30 jours chez vous, retour gratuit si besoin.';
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: bg, color: text }}>
+    <div className="min-h-screen" style={{ backgroundColor: DS.bg, color: DS.text, fontFamily: DS.fontBody }}>
       {/* 1 ── Nav sticky fine */}
       <nav
         aria-label="Navigation principale"
         className="sticky top-0 z-30 border-b backdrop-blur-md"
-        style={{ borderColor: border, backgroundColor: `${bg}e6` }}
+        style={{ borderColor: DS.border, backgroundColor: 'color-mix(in srgb, var(--ds-bg) 90%, transparent)' }}
       >
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link href={`/shop/${store.slug}`} className="flex items-center gap-2">
@@ -113,7 +106,7 @@ export function MonoProductLanding({
           <Link
             href="/cart"
             className="flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm transition-opacity hover:opacity-70"
-            style={{ borderColor: border, color: text }}
+            style={{ borderColor: DS.border, color: DS.text }}
             aria-label="Panier"
           >
             <svg
@@ -156,7 +149,7 @@ export function MonoProductLanding({
               aria-hidden="true"
               className="absolute inset-0"
               style={{
-                background: `linear-gradient(140deg, ${primary} 0%, ${accent} 100%)`,
+                background: `linear-gradient(140deg, ${DS.primary} 0%, ${DS.accent} 100%)`,
               }}
             />
           )}
@@ -194,7 +187,7 @@ export function MonoProductLanding({
                 <Link
                   href={productHref}
                   className="inline-block w-full rounded-full px-8 py-3.5 text-base font-semibold text-white transition-opacity hover:opacity-90 sm:w-auto"
-                  style={{ backgroundColor: store.heroImageUrl ? primary : 'rgba(0, 0, 0, 0.35)' }}
+                  style={{ backgroundColor: store.heroImageUrl ? DS.primary : 'rgba(0, 0, 0, 0.35)' }}
                 >
                   Acheter
                 </Link>
@@ -207,7 +200,7 @@ export function MonoProductLanding({
         <section
           aria-labelledby="trust-heading"
           className="border-b py-10"
-          style={{ borderColor: border, backgroundColor: surface }}
+          style={{ borderColor: DS.border, backgroundColor: DS.surface }}
         >
           <h2 id="trust-heading" className="sr-only">
             Nos engagements
@@ -215,15 +208,50 @@ export function MonoProductLanding({
           <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 sm:grid-cols-3 sm:px-6 lg:px-8">
             {trustItems.map((item, i) => (
               <div key={i} className="flex flex-col gap-1.5">
-                <div className="mb-1 h-0.5 w-8" style={{ backgroundColor: accent }} />
+                <div className="mb-1 h-0.5 w-8" style={{ backgroundColor: DS.accent }} />
                 <h3 className="text-sm font-semibold uppercase tracking-wider">{item.title}</h3>
-                <p className="text-sm" style={{ color: textMuted }}>
+                <p className="text-sm" style={{ color: DS.textMuted }}>
                   {item.body}
                 </p>
               </div>
             ))}
           </div>
         </section>
+
+        {copy.beachMoment && (copy.beachMoment.headline_html || copy.beachMoment.kicker) && (
+          <section aria-labelledby="beach-heading" className="py-16 sm:py-20">
+            <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
+              {copy.beachMoment.kicker && (
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.25em]" style={{ color: DS.accent }}>
+                  {copy.beachMoment.kicker}
+                </p>
+              )}
+              {copy.beachMoment.headline_html && (
+                <h2
+                  id="beach-heading"
+                  className="text-3xl font-bold tracking-tight sm:text-4xl"
+                  style={{ fontFamily: DS.fontDisplay }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeRichText(copy.beachMoment.headline_html) }}
+                />
+              )}
+            </div>
+          </section>
+        )}
+
+        {copy.storyHeadline && (
+          <section aria-labelledby="story-heading" className="border-y py-16 sm:py-20" style={{ borderColor: DS.border, backgroundColor: DS.surface }}>
+            <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+              <h2 id="story-heading" className="text-3xl font-bold tracking-tight sm:text-4xl" style={{ fontFamily: DS.fontDisplay }}>
+                {copy.storyHeadline}
+              </h2>
+              {copy.storyBody?.map((para, i) => (
+                <p key={i} className="mt-4 text-lg leading-relaxed" style={{ color: DS.textMuted }}>
+                  {para}
+                </p>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* 4 ── SHOWCASE produit + specs */}
         <section
@@ -232,7 +260,7 @@ export function MonoProductLanding({
           className="scroll-mt-14 py-16 sm:py-24"
         >
           <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8">
-            <div className="overflow-hidden rounded-2xl" style={{ backgroundColor: surface }}>
+            <div className="overflow-hidden rounded-2xl" style={{ backgroundColor: DS.surface }}>
               {showcaseImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -253,42 +281,43 @@ export function MonoProductLanding({
             </div>
 
             <div>
-              {lc?.showcase?.kicker && (
+              {copy.showcase?.kicker && (
                 <p
                   className="mb-3 text-xs font-semibold uppercase tracking-[0.25em]"
-                  style={{ color: accent }}
+                  style={{ color: DS.accent }}
                 >
-                  {lc.showcase.kicker}
+                  {copy.showcase.kicker}
                 </p>
               )}
-              {lc?.showcase?.headline_html ? (
+              {copy.showcase?.headline_html ? (
                 <h2
                   id="showcase-heading"
                   className="text-3xl font-bold tracking-tight sm:text-4xl"
-                  dangerouslySetInnerHTML={{ __html: sanitizeRichText(lc.showcase.headline_html) }}
+                  style={{ fontFamily: DS.fontDisplay, letterSpacing: DS.headingTracking }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeRichText(copy.showcase.headline_html) }}
                 />
               ) : (
-                <h2 id="showcase-heading" className="text-3xl font-bold tracking-tight sm:text-4xl">
+                <h2 id="showcase-heading" className="text-3xl font-bold tracking-tight sm:text-4xl" style={{ fontFamily: DS.fontDisplay }}>
                   {featured?.title || store.name}
                 </h2>
               )}
-              {lc?.showcase?.lede && (
-                <p className="mt-4 text-lg" style={{ color: textMuted }}>
-                  {lc.showcase.lede}
+              {copy.showcase?.lede && (
+                <p className="mt-4 text-lg" style={{ color: DS.textMuted }}>
+                  {copy.showcase.lede}
                 </p>
               )}
 
               {specs.length > 0 && (
-                <dl className="mt-8 divide-y" style={{ borderColor: border }}>
+                <dl className="mt-8 divide-y" style={{ borderColor: DS.border }}>
                   {specs.map((spec, i) => (
                     <div
                       key={i}
                       className="flex items-baseline justify-between gap-4 border-t py-3 first:border-t-0"
-                      style={{ borderColor: border }}
+                      style={{ borderColor: DS.border }}
                     >
                       <dt
                         className="text-sm font-medium uppercase tracking-wide"
-                        style={{ color: textMuted }}
+                        style={{ color: DS.textMuted }}
                       >
                         {spec.key}
                       </dt>
@@ -302,7 +331,7 @@ export function MonoProductLanding({
                 <Link
                   href={productHref}
                   className="mt-8 inline-block rounded-full px-8 py-3 text-base font-semibold text-white transition-opacity hover:opacity-90"
-                  style={{ backgroundColor: primary }}
+                  style={{ backgroundColor: DS.primary }}
                 >
                   Voir la fiche produit
                 </Link>
@@ -315,7 +344,7 @@ export function MonoProductLanding({
         <section
           aria-labelledby="selling-points-heading"
           className="border-y py-16 sm:py-24"
-          style={{ borderColor: border, backgroundColor: surface }}
+          style={{ borderColor: DS.border, backgroundColor: DS.surface }}
         >
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <h2 id="selling-points-heading" className="sr-only">
@@ -326,16 +355,16 @@ export function MonoProductLanding({
                 <div
                   key={i}
                   className="rounded-2xl border p-6 sm:p-8"
-                  style={{ borderColor: border, backgroundColor: bg }}
+                  style={{ borderColor: DS.border, backgroundColor: DS.bg }}
                 >
                   <p
                     className="mb-4 text-xs font-semibold uppercase tracking-[0.25em]"
-                    style={{ color: accent }}
+                    style={{ color: DS.accent }}
                   >
                     {String(i + 1).padStart(2, '0')}
                   </p>
                   <h3 className="text-lg font-semibold tracking-tight">{point.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed" style={{ color: textMuted }}>
+                  <p className="mt-2 text-sm leading-relaxed" style={{ color: DS.textMuted }}>
                     {point.body}
                   </p>
                 </div>
@@ -396,7 +425,7 @@ export function MonoProductLanding({
           <section
             aria-labelledby="included-heading"
             className="border-y py-16 sm:py-20"
-            style={{ borderColor: border, backgroundColor: surface }}
+            style={{ borderColor: DS.border, backgroundColor: DS.surface }}
           >
             <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
               <h2
@@ -405,16 +434,16 @@ export function MonoProductLanding({
               >
                 Dans la boîte
               </h2>
-              <ul className="mt-8 divide-y" style={{ borderColor: border }}>
+              <ul className="mt-8 divide-y" style={{ borderColor: DS.border }}>
                 {includedItems.map((item, i) => (
                   <li
                     key={i}
                     className="flex items-baseline gap-4 border-t py-3.5 first:border-t-0"
-                    style={{ borderColor: border }}
+                    style={{ borderColor: DS.border }}
                   >
                     <span
                       className="w-8 shrink-0 text-sm font-semibold tabular-nums"
-                      style={{ color: accent }}
+                      style={{ color: DS.accent }}
                     >
                       {item.qty}
                     </span>
@@ -426,12 +455,34 @@ export function MonoProductLanding({
           </section>
         )}
 
+        {(copy.priceRationale || (copy.packagingHeadline && copy.packagingBody)) && (
+          <section className="border-y py-16 sm:py-20" style={{ borderColor: DS.border, backgroundColor: DS.surface }}>
+            <div className="mx-auto max-w-3xl space-y-8 px-4 sm:px-6 lg:px-8">
+              {copy.priceRationale && (
+                <p className="text-center text-lg leading-relaxed" style={{ color: DS.textMuted }}>
+                  {copy.priceRationale}
+                </p>
+              )}
+              {copy.packagingHeadline && copy.packagingBody && (
+                <div className="text-center">
+                  <h2 className="text-2xl font-semibold" style={{ fontFamily: DS.fontDisplay }}>
+                    {copy.packagingHeadline}
+                  </h2>
+                  <p className="mt-3 text-base" style={{ color: DS.textMuted }}>
+                    {copy.packagingBody}
+                  </p>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
         {/* 8 ── FINAL CTA */}
         <section aria-labelledby="final-cta-heading" className="py-20 sm:py-28">
           <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
             <p
               className="mb-4 text-xs font-semibold uppercase tracking-[0.25em]"
-              style={{ color: accent }}
+              style={{ color: DS.accent }}
             >
               {finalKicker}
             </p>
@@ -447,7 +498,7 @@ export function MonoProductLanding({
               </h2>
             )}
             {finalLede && (
-              <p className="mt-5 text-lg" style={{ color: textMuted }}>
+              <p className="mt-5 text-lg" style={{ color: DS.textMuted }}>
                 {finalLede}
               </p>
             )}
@@ -455,11 +506,11 @@ export function MonoProductLanding({
               <Link
                 href={productHref}
                 className="inline-block w-full rounded-full px-12 py-4 text-lg font-semibold text-white transition-opacity hover:opacity-90 sm:w-auto"
-                style={{ backgroundColor: primary }}
+                style={{ backgroundColor: DS.primary }}
               >
                 {price ? `Acheter · ${price}` : 'Acheter'}
               </Link>
-              <p className="text-sm" style={{ color: textMuted }}>
+              <p className="text-sm" style={{ color: DS.textMuted }}>
                 Paiement sécurisé, livraison suivie
               </p>
             </div>

@@ -75,8 +75,8 @@ export function StoreCustomDomainForm({
             {pending ? 'Enregistrement…' : 'Enregistrer'}
           </Button>
           {dirty && !pending && (
-            <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-zinc-400" />
+            <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500">
+              <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 dark:bg-zinc-500" />
               Non sauvegardé
             </span>
           )}

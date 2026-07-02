@@ -7,6 +7,7 @@ import {
 } from '@heroicons/react/16/solid';
 import { getDbRead } from '@/lib/db';
 import { Text } from '@/components/catalyst/text';
+import { AdminBadge } from '@/components/admin/AdminBadge';
 import { Button } from '@/components/catalyst/button';
 import {
   Pagination,
@@ -48,6 +49,12 @@ function pickStoreCover(s: StoreRow): string | null {
   if (lifestyles[0]) return lifestyles[0];
   if (s.cutout_image_url) return s.cutout_image_url;
   return null;
+}
+
+function statusOf(s: StoreRow): { status: string; label: string } {
+  if (s.status === 'active') return { status: 'active', label: 'En ligne' };
+  if (s.status === 'creating') return { status: 'creating', label: 'Création en cours' };
+  return { status: 'error', label: 'Erreur' };
 }
 
 export default async function StoresPage({
@@ -138,7 +145,78 @@ export default async function StoresPage({
           }
         />
       ) : (
-        <StoresTable rows={tableRows} paginated={totalPages > 1} />
+        <Table dense className="min-w-0">
+          <TableHead>
+            <TableRow>
+              <TableHeader>Store</TableHeader>
+              <TableHeader>Niche</TableHeader>
+              <TableHeader>Statut</TableHeader>
+              <TableHeader className="text-right">Produits</TableHeader>
+              <TableHeader className="text-right">Actions</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+              {rows.map((store) => {
+                const s = statusOf(store);
+                const cover = pickStoreCover(store);
+                return (
+                  <TableRow key={store.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="relative size-9 shrink-0 overflow-hidden rounded-lg bg-zinc-100 ring-1 ring-zinc-950/10 dark:bg-white/5 dark:ring-white/10">
+                          {cover ? (
+                            <Image src={cover} alt={store.name} fill sizes="36px" className="object-cover" />
+                          ) : (
+                            <StoreAvatar
+                              slug={store.slug}
+                              name={store.name}
+                              size={36}
+                              className="size-full rounded-none"
+                            />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="truncate font-medium text-zinc-950 dark:text-white">
+                            {store.name}
+                          </div>
+                          <div className="truncate text-xs tabular-nums text-zinc-500">
+                            /shop/{store.slug}
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-zinc-500">{store.niche}</TableCell>
+                    <TableCell>
+                      <AdminBadge status={s.status}>{s.label}</AdminBadge>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-zinc-500">
+                      {store.product_count}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button plain href={`/admin/stores/${store.id}`}>
+                          Gérer
+                        </Button>
+                        {store.status === 'active' && (
+                          <Button
+                            plain
+                            href={`/shop/${store.slug}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label="Ouvrir la boutique"
+                            title="Ouvrir la boutique"
+                          >
+                            <ArrowTopRightOnSquareIcon aria-hidden />
+                          </Button>
+                        )}
+                        <StoreActions storeId={store.id} storeName={store.name} compact />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+        </Table>
       )}
 
       {totalPages > 1 && (

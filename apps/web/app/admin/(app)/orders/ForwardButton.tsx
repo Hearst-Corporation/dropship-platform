@@ -163,13 +163,28 @@ export function ForwardButton({ orderId, alreadySent }: Props) {
         {alreadySent ? 'Envoyée' : 'Envoyer'}
       </Button>
 
-      {/* Inline feedback only on a TOTAL failure (no leg sent, so no refresh
-          happened and the row still looks actionable). Successful sends are
-          already reflected by router.refresh() — no need to duplicate them. */}
-      {sentResult && !modalOpen && !sentAny && (
-        <span className="max-w-52 text-right text-xs text-zinc-500 dark:text-zinc-400">
-          {sentResult.error ?? sentLegs.find((l) => l.status === 'error')?.error ?? 'Erreur inconnue'}
-        </span>
+      {sentResult && !modalOpen && (
+        <div
+          className={
+            sentResult.ok || sentAny
+              ? 'max-w-xs rounded-md px-2.5 py-1.5 text-xs bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20'
+              : 'max-w-xs rounded-md px-2.5 py-1.5 text-xs bg-gray-800/50 text-gray-400 ring-1 ring-inset ring-white/10'
+          }
+        >
+          {sentLegs.length > 0 ? (
+            <div className="flex flex-col gap-0.5">
+              {sentLegs.map((leg, i) => (
+                <span key={i} className={leg.status === 'error' ? 'text-gray-400' : undefined}>
+                  {leg.status === 'sent'
+                    ? `Envoyée — ${legRef(leg)}`
+                    : `Échec — ${legName(leg.supplier)}${leg.error ? ` : ${leg.error}` : ''}`}
+                </span>
+              ))}
+            </div>
+          ) : (
+            sentResult.error ?? 'Erreur inconnue'
+          )}
+        </div>
       )}
 
       <ReviewModal
@@ -233,7 +248,9 @@ function ReviewModal({
           >
             <p
               className={
-                sentAnyModal ? 'text-sm font-medium text-indigo-400' : 'text-sm font-medium text-white'
+                sentAnyModal
+                  ? 'rounded-lg bg-indigo-500/10 px-4 py-3 ring-1 ring-inset ring-indigo-500/20'
+                  : 'rounded-lg bg-gray-800/50 px-4 py-3 ring-1 ring-inset ring-white/10'
               }
             >
               {erroredAnyModal
@@ -281,6 +298,44 @@ function ReviewModal({
                   <p className="text-xs font-semibold uppercase tracking-wider text-indigo-400">
                     Leg {legIdx + 1} · {legName(leg.supplier)}
                   </p>
+                ) : (
+                  <p key={i} className="mt-1 text-xs text-gray-400">
+                    {legName(leg.supplier)} : {leg.error ?? 'erreur inconnue'}
+                  </p>
+                ),
+              )}
+            </div>
+          ) : sentResult?.status === 'error' ? (
+            <div className="rounded-lg bg-gray-800/50 px-4 py-3 ring-1 ring-inset ring-white/10">
+              <p className="text-sm font-medium text-white">Erreur lors de l&apos;envoi</p>
+              <p className="mt-1 text-xs text-gray-400">{sentResult.error}</p>
+            </div>
+          ) : dryRunning ? (
+            <div className="flex items-center justify-center gap-2 py-8 text-sm text-gray-400">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-indigo-400" />
+              Préparation du payload fournisseur…
+            </div>
+          ) : dryRunResult?.status === 'error' || !dryRunResult?.ok ? (
+            <div className="rounded-lg bg-gray-800/50 px-4 py-3 ring-1 ring-inset ring-white/10">
+              <p className="text-sm font-medium text-white">Impossible de préparer la commande</p>
+              <p className="mt-1 text-xs text-gray-400">
+                {dryRunResult?.error ?? 'Erreur inconnue'}
+              </p>
+            </div>
+          ) : (
+            <>
+              {forwards.map((leg, legIdx) => {
+                const addr = leg.payload.address;
+                const items = leg.payload.items;
+                const legLabel =
+                  leg.supplier === 'aliexpress'
+                    ? 'AliExpress'
+                    : leg.supplier.charAt(0).toUpperCase() + leg.supplier.slice(1);
+                return (
+                  <div key={legIdx} className="space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-indigo-400">
+                      Leg {legIdx + 1} — {legLabel}
+                    </p>
 
                   <Section title="Adresse de livraison">
                     <div className="text-sm leading-relaxed text-zinc-400">
@@ -345,11 +400,22 @@ function ReviewModal({
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+  tone?: 'default' | 'warn';
+}) {
   return (
     <section>
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">{title}</h3>
-      <div className="rounded-lg bg-zinc-950/40 px-4 py-3 ring-1 ring-inset ring-white/10">{children}</div>
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+        {title}
+      </h3>
+      <div className="rounded-lg bg-gray-900/50 px-4 py-3 ring-1 ring-inset ring-white/10">
+        {children}
+      </div>
     </section>
   );
 }

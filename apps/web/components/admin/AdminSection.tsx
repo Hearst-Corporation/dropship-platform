@@ -1,6 +1,5 @@
 import clsx from 'clsx'
 import type React from 'react'
-import { Subheading } from '@/components/catalyst/heading'
 
 /**
  * A titled card surface for the admin (dark-mode aware). Wraps content in a
@@ -30,7 +29,7 @@ export function AdminSection({ title, description, actions, children, className,
       {hasHeader ? (
         <div className="flex flex-col gap-2 border-b border-zinc-950/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 dark:border-white/10">
           <div className="min-w-0">
-            {title ? <Subheading level={2}>{title}</Subheading> : null}
+            {title ? <h2 className="text-sm/6 font-semibold text-zinc-950 dark:text-white">{title}</h2> : null}
             {description ? <p className="mt-0.5 text-xs/5 text-zinc-500 dark:text-zinc-400">{description}</p> : null}
           </div>
           {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}

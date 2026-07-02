@@ -143,7 +143,7 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
       <section className="border-t border-zinc-950/10 pt-8 dark:border-white/10">
         <div className="flex items-start justify-between gap-4">
           <Subheading>Informations</Subheading>
-          <AdminBadge status={store.status}>
+          <AdminBadge status={statusActive ? 'active' : store.status}>
             {statusActive ? 'En ligne' : store.status}
           </AdminBadge>
         </div>
