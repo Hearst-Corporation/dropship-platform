@@ -32,6 +32,7 @@ import {
   executeDevTool,
   DEV_TOOLS,
 } from './dev-copilot';
+import { createStore, type StoreCreationInput } from './store-creator';
 import {
   regenerateAsset,
   ASSET_KINDS,
@@ -379,6 +380,24 @@ const SUPER_TOOLS: Anthropic.Messages.Tool[] = [
         commit_message: { type: 'string', description: 'Message de commit (1-2 phrases).' },
       },
       required: ['commit_message'],
+    },
+  },
+  {
+    name: 'create_store',
+    description:
+      'Crée un store dropshipping COMPLET de bout en bout : sourcing fournisseurs (AliExpress/CJ), sélection et enrichissement produits, filtre qualité image, import Medusa, génération d\'assets visuels (mode mono), rédaction de la landing, ET un plan de campagne Google Ads généré et staged en draft automatiquement. C\'est le SEUL outil à utiliser pour créer un store — ne jamais faire un run_sql INSERT INTO dropship_stores directement, ça crée un store vide sans produits ni plan Ads. Peut prendre 1-4 minutes (sourcing + génération d\'assets).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        niche: { type: 'string', description: 'Niche/thématique du store (ex: "gadgets tech", "accessoires yoga").' },
+        store_name: { type: 'string', description: 'Nom du store.' },
+        mode: { type: 'string', enum: ['mono', 'collection'], description: 'mono = 1 produit hero + assets générés (photo/vidéo). collection = 3-25 produits, pas de génération d\'assets. Défaut: collection.' },
+        max_products: { type: 'number', description: 'Nombre max de produits en mode collection (1-25, défaut 12). Ignoré en mode mono.' },
+        language: { type: 'string', enum: ['fr', 'en'], description: 'Langue de la boutique. Défaut: fr.' },
+        brief: { type: 'string', description: 'Consignes libres (marge cible, contraintes shipping, produits exclus...) qui orientent la sélection produit et le plan Ads.' },
+        markets: { type: 'array', items: { type: 'string' }, description: 'Marchés cibles en codes ISO (ex: ["FR","AE"]). Défaut: ["FR"].' },
+      },
+      required: ['niche', 'store_name'],
     },
   },
   {
@@ -927,6 +946,52 @@ async function execDeployVercel(
   };
 }
 
+async function execCreateStore(input: unknown): Promise<ExecResult> {
+  const schema = z.object({
+    niche: z.string().min(2).max(100),
+    store_name: z.string().min(2).max(80),
+    mode: z.enum(['mono', 'collection']).optional().default('collection'),
+    max_products: z.number().int().min(1).max(25).optional().default(12),
+    language: z.enum(['fr', 'en']).optional().default('fr'),
+    brief: z.string().max(4000).optional(),
+    markets: z.array(z.string().regex(/^[A-Za-z]{2,3}$/)).max(5).optional(),
+  });
+  const args = schema.parse(input);
+
+  const creationInput: StoreCreationInput = {
+    niche: args.niche,
+    storeName: args.store_name,
+    mode: args.mode,
+    maxProducts: args.max_products,
+    language: args.language,
+    brief: args.brief,
+    markets: args.markets,
+  };
+
+  let finalEvent: { type: string; message: string; data?: Record<string, unknown> } | null = null;
+  const progressLog: string[] = [];
+  for await (const event of createStore(creationInput)) {
+    if (event.type === 'step' || event.type === 'progress') {
+      progressLog.push(event.message);
+    }
+    if (event.type === 'success' || event.type === 'error') {
+      finalEvent = event;
+    }
+  }
+
+  if (!finalEvent || finalEvent.type === 'error') {
+    return {
+      output: { error: finalEvent?.message ?? 'create_store a échoué sans message.', log: progressLog.slice(-10) },
+      summary: `create_store — échec${finalEvent ? `: ${finalEvent.message}` : ''}`,
+    };
+  }
+
+  return {
+    output: { ...finalEvent.data, log: progressLog.slice(-10) },
+    summary: finalEvent.message,
+  };
+}
+
 async function execGoogleAdsPush(
   input: unknown,
   confirmations: Record<string, boolean>,
@@ -1047,6 +1112,7 @@ async function executeSuperTool(
     case 'medusa_admin': return execMedusaAdmin(input, ctx.confirmations);
     case 'trigger_workflow': return execTriggerWorkflow(input, ctx.confirmations);
     case 'deploy_vercel': return execDeployVercel(input, ctx.confirmations);
+    case 'create_store': return execCreateStore(input);
     case 'google_ads_push': return execGoogleAdsPush(input, ctx.confirmations);
     case 'ads_performance': return execAdsPerformance(input);
   }
@@ -1063,6 +1129,12 @@ function buildSuperSystemPrompt(page: string, storeId?: string): string {
     'Tu peux aussi PROGRAMMER de la publicité : google_ads_push crée et publie une campagne Google Ads (AdWords) pour un produit ; ads_performance lit les perfs (dépense, ROAS, conversions) des campagnes d\'un store.',
     '',
     `Contexte actuel: page="${page}", store_id="${storeId || 'aucun'}"`,
+    '',
+    'Création de store:',
+    '- Pour créer un store, utilise TOUJOURS l\'outil `create_store`. Ne fais JAMAIS un run_sql INSERT INTO dropship_stores : ça crée un store vide sans produits, sans assets, sans plan Ads.',
+    '- `create_store` fait tout le pipeline (sourcing, produits, assets si mode=mono, landing) ET génère + staged automatiquement un plan de campagne Google Ads en draft (dropship_ad_campaigns, status=draft). Prend 1-4 minutes, prévenir l\'utilisateur avant de lancer.',
+    '- Dès que `create_store` réussit, regarde `adsPlan` dans le résultat (source, dailyBudgetEur, countries) et PROPOSE PROACTIVEMENT la campagne à l\'utilisateur dans ta réponse : explique en 3-4 lignes le budget quotidien proposé, les pays ciblés, et demande s\'il veut que tu la lances (google_ads_push) ou qu\'il préfère l\'ajuster d\'abord sur /admin/stores/{storeId}/campaign. Ne pousse JAMAIS la campagne sans confirmation explicite — c\'est une dépense réelle.',
+    '- Si `readiness.canPublish` est false, mentionne-le aussi et propose de corriger avant de parler pub.',
     '',
     'Outils sensibles et confirmations:',
     '- run_sql mode=write : confirmation utilisateur obligatoire (clé `sql:<début_query>`).',
