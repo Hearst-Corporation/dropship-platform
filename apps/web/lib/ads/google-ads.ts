@@ -178,8 +178,8 @@ export async function pushGoogleAdsCampaign(args: GoogleAdsPushArgs): Promise<Go
       `INSERT INTO dropship_ad_campaigns
          (store_id, variant_id, channel, external_id, status,
           daily_budget_eur, push_payload, error_message, pushed_at)
-       VALUES ($1, $2, 'google', $3, $4, $5, $6, $7,
-               CASE WHEN $3 IS NOT NULL THEN now() ELSE NULL END)
+       VALUES ($1, $2, 'google', $3::text, $4, $5, $6, $7,
+               CASE WHEN $3::text IS NOT NULL THEN now() ELSE NULL END)
        RETURNING id`,
       [
         args.storeId,
@@ -250,6 +250,9 @@ export async function pushGoogleAdsCampaign(args: GoogleAdsPushArgs): Promise<Go
             manualCpc: { enhancedCpcEnabled: false },
             campaignBudget: budgetResource,
             startDate: fmt(now),
+            // Required since Google Ads API v19 (EU political-ads regulation).
+            // Dropshipping stores never run political ads.
+            containsEuPoliticalAdvertising: 'DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING',
             endDate: fmt(end),
             networkSettings: {
               targetGoogleSearch: true,
