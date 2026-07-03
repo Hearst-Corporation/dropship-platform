@@ -14,10 +14,21 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 // ── Mock heavy dependencies so the module can be imported ─────────────────
 
 // getDb / pg pool — we don't want a real Postgres connection in unit tests.
+// mode=write goes through db.query() directly; mode=read now goes through
+// db.connect() → client.query('BEGIN TRANSACTION READ ONLY') → ... → COMMIT,
+// so the mock pool needs both surfaces. mockClientQuery is a separate spy
+// from mockQuery so tests can assert on the transaction-wrapped path
+// specifically (BEGIN/COMMIT/ROLLBACK calls plus the actual query).
 const mockQuery = vi.fn();
+const mockClientQuery = vi.fn();
+const mockRelease = vi.fn();
+const mockConnect = vi.fn(() => ({
+  query: mockClientQuery,
+  release: mockRelease,
+}));
 vi.mock('@/lib/db', () => ({
-  getDb: () => ({ query: mockQuery }),
-  getDbRead: () => ({ query: mockQuery }),
+  getDb: () => ({ query: mockQuery, connect: mockConnect }),
+  getDbRead: () => ({ query: mockQuery, connect: mockConnect }),
 }));
 
 // OpenAI agent client — not under test here.
@@ -179,6 +190,43 @@ describe('assertReadOnlySql — rejected queries', () => {
     );
     expect(result).not.toBeNull();
   });
+
+  // Stopgap blocklist additions (defense in depth alongside the DB-level
+  // READ ONLY transaction boundary — see execRunSql).
+  it('rejects COPY', () => {
+    const result = assertReadOnlySql("COPY (SELECT 1) TO '/tmp/x.csv'");
+    expect(result).not.toBeNull();
+  });
+
+  it('rejects a query containing COPY as a later keyword', () => {
+    const result = assertReadOnlySql("SELECT 1; COPY foo TO '/tmp/x.csv'");
+    expect(result).not.toBeNull();
+  });
+
+  it('rejects CALL', () => {
+    const result = assertReadOnlySql('CALL some_write_procedure()');
+    expect(result).not.toBeNull();
+  });
+
+  it('rejects DO', () => {
+    const result = assertReadOnlySql("DO $$ BEGIN PERFORM 1; END $$");
+    expect(result).not.toBeNull();
+  });
+
+  it('rejects SET', () => {
+    const result = assertReadOnlySql("SET session_replication_role = 'replica'");
+    expect(result).not.toBeNull();
+  });
+
+  it('rejects LOCK', () => {
+    const result = assertReadOnlySql('LOCK TABLE dropship_stores');
+    expect(result).not.toBeNull();
+  });
+
+  it('rejects NOTIFY', () => {
+    const result = assertReadOnlySql("NOTIFY channel, 'payload'");
+    expect(result).not.toBeNull();
+  });
 });
 
 // ── execRunSql integration — real function calls with mocked DB pool ──────
@@ -190,24 +238,83 @@ describe('assertReadOnlySql — rejected queries', () => {
 describe('execRunSql integration — mocked DB pool', () => {
   beforeEach(() => {
     mockQuery.mockReset();
+    mockClientQuery.mockReset();
+    mockRelease.mockReset();
+    mockConnect.mockClear();
   });
 
-  it('(a) throws and does NOT call db.query for DELETE in mode=read', async () => {
-    // db should never be reached — the guard throws before getDb() is called.
+  it('(a) throws and does NOT call db.query/db.connect for DELETE in mode=read', async () => {
+    // The regex guard throws before getDb()/connect() is ever reached.
     await expect(
       execRunSql({ query: 'DELETE FROM dropship_stores', mode: 'read' }, {}),
     ).rejects.toThrow(/DELETE/i);
 
     expect(mockQuery).not.toHaveBeenCalled();
+    expect(mockConnect).not.toHaveBeenCalled();
   });
 
-  it('(b) calls db.query and returns rows for SELECT 1 in mode=read', async () => {
+  it('(b) calls db.connect and returns rows for SELECT 1 in mode=read, wrapped in a READ ONLY transaction', async () => {
     const fakeRows = [{ '?column?': 1 }];
-    mockQuery.mockResolvedValueOnce({ rows: fakeRows });
+    // BEGIN TRANSACTION READ ONLY -> {}, actual query -> rows, COMMIT -> {}
+    mockClientQuery
+      .mockResolvedValueOnce({}) // BEGIN TRANSACTION READ ONLY
+      .mockResolvedValueOnce({ rows: fakeRows }) // SELECT 1
+      .mockResolvedValueOnce({}); // COMMIT
 
     const result = await execRunSql({ query: 'SELECT 1', mode: 'read' }, {});
 
-    expect(mockQuery).toHaveBeenCalledOnce();
+    expect(mockConnect).toHaveBeenCalledOnce();
+    expect(mockClientQuery).toHaveBeenNthCalledWith(1, 'BEGIN TRANSACTION READ ONLY');
+    expect(mockClientQuery).toHaveBeenNthCalledWith(2, 'SELECT 1', []);
+    expect(mockClientQuery).toHaveBeenNthCalledWith(3, 'COMMIT');
+    expect(mockRelease).toHaveBeenCalledOnce();
     expect(result.output).toEqual({ rows: fakeRows, count: 1, truncated: false, returned: 1 });
+  });
+
+  // AC4(a): a disguised-write query using one of the newly-blocklisted
+  // keywords (COPY) is now rejected by the regex layer immediately — the
+  // fast-fail UX path. The real boundary (the READ ONLY transaction) is
+  // exercised separately below by simulating what Postgres itself would do
+  // for a write that somehow reached the transaction (e.g. a write-capable
+  // function call the regex cannot see, like `SELECT some_write_fn()`).
+  it('(a2) rejects a disguised write using the newly-blocklisted COPY keyword before touching the DB', async () => {
+    await expect(
+      execRunSql({ query: "COPY (SELECT 1) TO '/tmp/pwn.csv'", mode: 'read' }, {}),
+    ).rejects.toThrow(/COPY/i);
+
+    expect(mockConnect).not.toHaveBeenCalled();
+  });
+
+  it('(c) a write-capable function call that slips past the regex is rejected at the DB layer (READ ONLY transaction) and the client is rolled back + released', async () => {
+    // `SELECT some_write_function()` passes assertReadOnlySql (first word is
+    // SELECT, no blacklisted keyword appears) but Postgres itself rejects it
+    // inside a READ ONLY transaction. Simulate that DB-level rejection here.
+    const readOnlyViolation = new Error('cannot execute INSERT in a read-only transaction');
+    mockClientQuery
+      .mockResolvedValueOnce({}) // BEGIN TRANSACTION READ ONLY
+      .mockRejectedValueOnce(readOnlyViolation) // the disguised write itself
+      .mockResolvedValueOnce({}); // ROLLBACK
+
+    await expect(
+      execRunSql({ query: 'SELECT some_write_function()', mode: 'read' }, {}),
+    ).rejects.toThrow(/read-only transaction/i);
+
+    expect(mockClientQuery).toHaveBeenNthCalledWith(1, 'BEGIN TRANSACTION READ ONLY');
+    expect(mockClientQuery).toHaveBeenNthCalledWith(2, 'SELECT some_write_function()', []);
+    expect(mockClientQuery).toHaveBeenNthCalledWith(3, 'ROLLBACK');
+    expect(mockRelease).toHaveBeenCalledOnce();
+  });
+
+  it('(d) mode=write is unaffected: still goes through db.query directly, no connect/transaction wrapping', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 1 }] });
+
+    const result = await execRunSql(
+      { query: "UPDATE dropship_stores SET name = 'x' WHERE id = $1", mode: 'write', params: ['abc'] },
+      { '*': true },
+    );
+
+    expect(mockQuery).toHaveBeenCalledOnce();
+    expect(mockConnect).not.toHaveBeenCalled();
+    expect(result.output).toEqual({ rows: [{ id: 1 }], count: 1, truncated: false, returned: 1 });
   });
 });

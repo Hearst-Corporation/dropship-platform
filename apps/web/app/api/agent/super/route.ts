@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { runSuperAgentTurn, createSuperAgentSession } from '@/lib/agent/super-agent';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import { requireAdmin } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -20,6 +21,15 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  // Defense in depth: this route can execute arbitrary SQL (read/write) and,
+  // in local dev, shell commands / file writes / git push. Middleware already
+  // gates /api/agent/* behind Basic auth, but re-check here so a matcher
+  // regression, config mistake, or the middleware's own dev bypass can never
+  // leave this specific surface unauthenticated. Must run before any body
+  // parsing or rate limiting — fail closed, return immediately.
+  const unauthorized = requireAdmin(req);
+  if (unauthorized) return unauthorized;
+
   const limited = await enforceRateLimit(req, 'super-agent', { max: 60, windowSec: 60 });
   if (limited) return limited;
 

@@ -443,17 +443,31 @@ interface ExecResult {
   confirm_key?: string;
 }
 
-// SQL keywords that indicate a data-modifying statement. REPLACE/DO/COPY/CALL
-// are intentionally omitted: the first-keyword gate (SELECT/WITH only) already
-// blocks them as statement starters, and inside a SELECT they produce
-// false-positives (e.g. replace() is a valid Postgres read function).
+// SQL keywords that indicate a data-modifying statement. This blacklist is
+// NOT the security boundary (see execRunSql: mode=read runs inside a real
+// Postgres `BEGIN TRANSACTION READ ONLY` — that is what actually blocks
+// writes). It is a cheap, fast-fail first line of defense that rejects the
+// common case immediately with a clear error message before ever opening a
+// connection. COPY/CALL/DO/SET/LOCK/NOTIFY are included as defense-in-depth
+// even though the DB-level transaction is what really stops them (COPY can
+// read/write server-side files; DO/CALL can invoke write-capable functions;
+// SET/LOCK/NOTIFY can affect session/cluster state).
 const WRITE_KEYWORDS = [
   'INSERT', 'UPDATE', 'DELETE', 'DROP', 'ALTER', 'TRUNCATE', 'CREATE',
   'GRANT', 'REVOKE', 'MERGE', 'VACUUM', 'REINDEX',
+  'COPY', 'CALL', 'DO', 'SET', 'LOCK', 'NOTIFY',
 ] as const;
 
 /**
- * Validates that a SQL query is strictly read-only (SELECT or WITH…SELECT).
+ * Fast-fail regex screen for obviously-write SQL. NOT the security boundary —
+ * see execRunSql, which additionally runs mode=read queries inside a real
+ * Postgres `BEGIN TRANSACTION READ ONLY`. That transaction is what actually
+ * blocks every write, including ones this regex cannot see (e.g.
+ * `SELECT ... INTO new_table`, `SELECT pg_read_file(...)`, a bare
+ * `SELECT some_write_function()`, or any other statement/function that
+ * doesn't contain one of the blacklisted keywords as a literal token). This
+ * function exists purely to reject the common case immediately, with a clear
+ * error message, before ever opening a connection.
  *
  * Returns null when the query is allowed, or an error message string when it
  * must be rejected. Designed as a pure function so it is easily unit-testable.
@@ -537,7 +551,33 @@ export async function execRunSql(
   }
 
   const db = getDb();
-  const { rows } = await db.query(query, params ?? []);
+
+  // The real security boundary for mode=read lives here, not in the regex
+  // above. A dedicated client runs the query inside an actual Postgres
+  // `READ ONLY` transaction, so ANY write attempt — no matter how it is
+  // disguised (SELECT ... INTO, a write-capable function call, COPY, etc.) —
+  // is rejected by Postgres itself with a "cannot execute ... in a read-only
+  // transaction" error. The regex screen above is only a cheap, fast-fail UX
+  // improvement; this transaction is what cannot be bypassed.
+  let rows: unknown[];
+  if (mode === 'read') {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN TRANSACTION READ ONLY');
+      const result = await client.query(query, params ?? []);
+      rows = result.rows;
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw e;
+    } finally {
+      client.release();
+    }
+  } else {
+    const result = await db.query(query, params ?? []);
+    rows = result.rows;
+  }
+
   // Cap the payload returned to the agent so a broad SELECT can't blow up the
   // token budget. The full row count is still reported; only the returned rows
   // are truncated to the first 500.
