@@ -36,6 +36,7 @@ import {
 } from "@/lib/format";
 import { GoogleAdsLogo, InstagramLogo, TikTokLogo } from "./PlatformLogos";
 import { ValidateButton } from "./ValidateButton";
+import { PushCampaignButton } from "./PushCampaignButton";
 
 export const dynamic = "force-dynamic";
 
@@ -618,6 +619,22 @@ export default async function StoreCampaignPage({
             </div>
           </div>
         </div>
+        {campaign && campaign.channel === "google" && campaign.status === "draft" ? (
+          <div className="mt-4 flex flex-col rounded-xl border border-admin-border bg-admin-surface-inset p-5">
+            <Subheading level={3}>Lancement Google Ads</Subheading>
+            <Text className="mt-2 text-sm/6 text-zinc-400">
+              Pousse la campagne draft vers Google Ads. Elle est créée en PAUSE
+              (aucune dépense automatique) — active-la ensuite dans Google Ads
+              après vérification.
+            </Text>
+            <div className="mt-4">
+              <PushCampaignButton
+                storeId={storeId as string}
+                campaignId={campaign.id}
+              />
+            </div>
+          </div>
+        ) : null}
       </AdminSection>
 
       {/* Suivi projeté vs réel */}

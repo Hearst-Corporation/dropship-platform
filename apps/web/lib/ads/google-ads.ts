@@ -20,9 +20,18 @@ import { getDb } from '@/lib/db';
  * never throws.
  */
 
-const API_VERSION = 'v18';
+const API_VERSION = 'v21';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const TIMEOUT_MS = 20_000;
+
+/**
+ * Read an env var defensively. Vercel-injected credentials can carry stray
+ * whitespace/newlines that break OAuth + `developer-token` headers, so every
+ * GOOGLE_ADS_* read goes through this single trimming helper.
+ */
+export function env(name: string): string {
+  return (process.env[name] ?? '').trim();
+}
 
 export interface GoogleAdsPushArgs {
   storeId: string;
@@ -47,11 +56,11 @@ export interface GoogleAdsPushResult {
 
 export function isGoogleAdsConfigured(): boolean {
   return Boolean(
-    process.env.GOOGLE_ADS_DEVELOPER_TOKEN &&
-      process.env.GOOGLE_ADS_CLIENT_ID &&
-      process.env.GOOGLE_ADS_CLIENT_SECRET &&
-      process.env.GOOGLE_ADS_REFRESH_TOKEN &&
-      process.env.GOOGLE_ADS_CUSTOMER_ID,
+    env('GOOGLE_ADS_DEVELOPER_TOKEN') &&
+      env('GOOGLE_ADS_CLIENT_ID') &&
+      env('GOOGLE_ADS_CLIENT_SECRET') &&
+      env('GOOGLE_ADS_REFRESH_TOKEN') &&
+      env('GOOGLE_ADS_CUSTOMER_ID'),
   );
 }
 
@@ -66,9 +75,9 @@ async function getAccessToken(signal: AbortSignal): Promise<string> {
   if (_cachedToken && _cachedToken.expiresAt > now + 30_000) return _cachedToken.accessToken;
 
   const body = new URLSearchParams({
-    client_id: process.env.GOOGLE_ADS_CLIENT_ID!,
-    client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET!,
-    refresh_token: process.env.GOOGLE_ADS_REFRESH_TOKEN!,
+    client_id: env('GOOGLE_ADS_CLIENT_ID'),
+    client_secret: env('GOOGLE_ADS_CLIENT_SECRET'),
+    refresh_token: env('GOOGLE_ADS_REFRESH_TOKEN'),
     grant_type: 'refresh_token',
   });
   const res = await fetch(TOKEN_URL, {
@@ -85,11 +94,11 @@ async function getAccessToken(signal: AbortSignal): Promise<string> {
 
 /** Strip non-digits from the customer ID. Google Ads accepts "123-456-7890" or "1234567890". */
 function customerIdOnly(): string {
-  return (process.env.GOOGLE_ADS_CUSTOMER_ID ?? '').replace(/\D/g, '');
+  return env('GOOGLE_ADS_CUSTOMER_ID').replace(/\D/g, '');
 }
 
 function loginCustomerId(): string | null {
-  const id = (process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID ?? '').replace(/\D/g, '');
+  const id = env('GOOGLE_ADS_LOGIN_CUSTOMER_ID').replace(/\D/g, '');
   return id || null;
 }
 
@@ -113,7 +122,7 @@ function clip(s: string, max: number): string {
 }
 
 /**
- * Run a Google Ads v18 mutate request. Returns the raw `results` array
+ * Run a Google Ads mutate request. Returns the raw `results` array
  * or throws with the API error message.
  */
 async function mutate(
@@ -126,7 +135,7 @@ async function mutate(
   const url = `https://googleads.googleapis.com/${API_VERSION}/customers/${customerId}/${resource}:mutate`;
   const headers: Record<string, string> = {
     Authorization: `Bearer ${accessToken}`,
-    'developer-token': process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
+    'developer-token': env('GOOGLE_ADS_DEVELOPER_TOKEN'),
     'Content-Type': 'application/json',
   };
   const mcc = loginCustomerId();
