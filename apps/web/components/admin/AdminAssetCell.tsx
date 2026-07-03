@@ -56,7 +56,7 @@ export function AdminAssetCell({
           </div>
         ) : null}
         {handle ? (
-          <div className="mt-0.5 truncate font-mono text-[0.6875rem] text-zinc-400 text-zinc-500">
+          <div className="mt-0.5 truncate font-mono text-kicker text-zinc-400 text-zinc-500">
             {handle}
           </div>
         ) : null}

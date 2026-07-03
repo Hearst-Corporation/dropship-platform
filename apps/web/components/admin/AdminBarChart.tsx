@@ -10,12 +10,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-
-/** Palette par défaut, lisible sur une surface zinc-900 sombre. */
-const DEFAULT_COLORS = ["#6366f1", "#10b981", "#f59e0b", "#38bdf8"];
-
-const AXIS_TICK = { fill: "#a1a1aa", fontSize: 12 };
-const GRID_STROKE = "rgba(255,255,255,0.08)";
+import {
+  AXIS_TICK,
+  DEFAULT_COLORS,
+  GRID_STROKE,
+} from "@/lib/design/chart-tokens";
 
 export interface AdminBarSeries {
   key: string;

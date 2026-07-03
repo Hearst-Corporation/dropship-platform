@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import type React from "react";
+import { SPARKLINE_STOP_COLORS } from "@/lib/design/chart-tokens";
 
 export interface AdminSparklineProps {
   data: number[];
@@ -17,13 +18,7 @@ const strokeColorMap = {
   white: "stroke-white/70",
 };
 
-const stopColorMap = {
-  indigo: "#6366f1",
-  emerald: "#10b981",
-  rose: "#f43f5e",
-  amber: "#f59e0b",
-  zinc: "#71717a",
-};
+const stopColorMap = SPARKLINE_STOP_COLORS;
 
 export function AdminSparkline({
   data,

@@ -58,7 +58,7 @@ export function AdminSection({
             {title ? (
               <h2
                 className={clsx(
-                  "flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.15em]",
+                  "flex items-center gap-3 text-admin-kicker font-bold uppercase tracking-[0.15em]",
                   adminText,
                 )}
               >

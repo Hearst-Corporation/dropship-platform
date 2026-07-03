@@ -267,6 +267,60 @@ describe('dev-copilot — shell safety', () => {
     expect((res.output as { exit_code: number }).exit_code).toBe(0);
     expect(captured.some((c) => c.cmd === 'npm test')).toBe(true);
   });
+
+  it('run_bash rejects command substitution via $(...)', async () => {
+    const { executeDevTool } = await getExecutor();
+    await expect(
+      executeDevTool('run_bash', { command: 'echo $(cat .env.local)' }, CTX_NO_PUSH),
+    ).rejects.toThrow(/refusée/);
+    expect(captured.length).toBe(0);
+  });
+
+  it('run_bash rejects command substitution via backticks', async () => {
+    const { executeDevTool } = await getExecutor();
+    await expect(
+      executeDevTool('run_bash', { command: 'echo `cat .env.local`' }, CTX_NO_PUSH),
+    ).rejects.toThrow(/refusée/);
+    expect(captured.length).toBe(0);
+  });
+
+  it('run_bash rejects find -exec', async () => {
+    const { executeDevTool } = await getExecutor();
+    await expect(
+      executeDevTool('run_bash', { command: 'find . -exec cat .env \\;' }, CTX_NO_PUSH),
+    ).rejects.toThrow(/refusée/);
+    expect(captured.length).toBe(0);
+  });
+
+  it('run_bash rejects node -e / --eval', async () => {
+    const { executeDevTool } = await getExecutor();
+    await expect(
+      executeDevTool('run_bash', { command: 'node -e "console.log(1)"' }, CTX_NO_PUSH),
+    ).rejects.toThrow(/refusée/);
+    await expect(
+      executeDevTool('run_bash', { command: 'node --eval "console.log(1)"' }, CTX_NO_PUSH),
+    ).rejects.toThrow(/refusée/);
+    expect(captured.length).toBe(0);
+  });
+
+  it('run_bash rejects awk system(...) calls', async () => {
+    const { executeDevTool } = await getExecutor();
+    await expect(
+      executeDevTool('run_bash', { command: 'awk \'BEGIN{system("whoami")}\'' }, CTX_NO_PUSH),
+    ).rejects.toThrow(/refusée/);
+    expect(captured.length).toBe(0);
+  });
+
+  it('run_bash still allows legitimate simple whitelisted commands', async () => {
+    setExec(/git status/, { stdout: 'clean\n' });
+    const { executeDevTool } = await getExecutor();
+    const res1 = await executeDevTool('run_bash', { command: 'git status' }, CTX_NO_PUSH);
+    expect((res1.output as { exit_code: number }).exit_code).toBe(0);
+
+    setExec(/^ls$/, { stdout: 'file.txt\n' });
+    const res2 = await executeDevTool('run_bash', { command: 'ls' }, CTX_NO_PUSH);
+    expect((res2.output as { exit_code: number }).exit_code).toBe(0);
+  });
 });
 
 describe('dev-copilot — git push gate', () => {

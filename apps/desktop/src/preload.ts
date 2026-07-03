@@ -11,6 +11,15 @@
  */
 import { contextBridge, ipcRenderer } from 'electron';
 
+// NOTE: the Basic Auth header used to be read here via a synchronous IPC
+// call (`config:get-auth`) and exposed on `window.__electronAuth` so the
+// renderer's `apiFetch()` could attach it manually. That put the raw
+// credential header directly in page JS scope — readable by any XSS or
+// malicious sub-resource loaded by the admin UI. The header is now injected
+// transparently by the main process via `session.webRequest.onBeforeSendHeaders`
+// (see apps/desktop/src/main.ts `installAuthHeader()`), scoped to the app's
+// own origin only. Nothing needs to be exposed to the renderer anymore.
+
 export interface ElectronApi {
   /** Open a named window. Returns once the IPC has been dispatched. */
   openWindow(opts: { kind: string; storeId?: string }): Promise<void>;
@@ -29,12 +38,6 @@ export interface ElectronApi {
   /** Always true when running inside Electron — handy for feature-detection. */
   readonly isElectron: true;
 }
-
-// Expose Basic Auth header so the renderer can attach it to fetch() calls.
-// We pass the pre-encoded header (never the raw password) to keep
-// the plaintext out of the renderer world.
-const authHeader = ipcRenderer.sendSync('config:get-auth') as string | null;
-contextBridge.exposeInMainWorld('__electronAuth', authHeader);
 
 const api: ElectronApi = {
   openWindow: async (opts) => {

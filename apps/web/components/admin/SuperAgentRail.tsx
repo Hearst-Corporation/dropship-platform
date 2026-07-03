@@ -167,10 +167,10 @@ function ChatBody({
         <div className="flex items-center gap-3">
           <span className="flex size-3 shrink-0 items-center justify-center bg-indigo-600"></span>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white">
+            <p className="text-admin-kicker font-bold uppercase tracking-[0.15em] text-white">
               Super Agent
             </p>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+            <p className="text-admin-kicker font-bold uppercase tracking-widest text-zinc-500">
               Assistant admin · OpenAI
             </p>
           </div>
@@ -192,7 +192,7 @@ function ChatBody({
       >
         {messages.length === 0 && !running ? (
           <div className="flex h-full flex-col items-start justify-center">
-            <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-500">
+            <p className="mt-3 text-admin-kicker font-bold uppercase tracking-[0.15em] text-zinc-500">
               Demande à l&apos;agent
             </p>
             <p className="mt-2 text-sm text-zinc-400">
@@ -225,7 +225,7 @@ function ChatBody({
             }}
             rows={1}
             placeholder="MESSAGE À L'AGENT…"
-            className="max-h-32 min-h-6 flex-1 resize-none bg-transparent px-2 text-[10px] font-bold uppercase tracking-widest text-white placeholder:text-zinc-400 focus:outline-hidden"
+            className="max-h-32 min-h-6 flex-1 resize-none bg-transparent px-2 text-admin-kicker font-bold uppercase tracking-widest text-white placeholder:text-zinc-400 focus:outline-hidden"
           />
           <button
             type="submit"

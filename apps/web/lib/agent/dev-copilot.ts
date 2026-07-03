@@ -21,10 +21,12 @@
  *      whose first token is in {npm, npx, node, git, ls, cat, grep, find,
  *      mkdir, echo, pwd, which, head, tail, wc, sort, uniq, awk, sed}. Any
  *      occurrence of a banned regex (`rm -rf`, `sudo`, `ssh`, `dd`, `chmod
- *      -R 777`, output to /dev/*, mkfs, shutdown, reboot, etc.) refuses the
- *      command. This is a defence-in-depth check on top of the whitelist
- *      because chained commands (`git status; rm -rf .`) would otherwise
- *      slip past.
+ *      -R 777`, output to /dev/*, mkfs, shutdown, reboot, command
+ *      substitution via `$(...)`/backticks, `find -exec`, `node -e`/
+ *      `--eval`, `awk ... system(...)`, etc.) refuses the command. This is a
+ *      defence-in-depth check on top of the whitelist because chained
+ *      commands (`git status; rm -rf .`) or dangerous arguments on an
+ *      otherwise-whitelisted root would otherwise slip past.
  *
  *   4. `git_push` requires `autoPushConfirmed === true` on the run context.
  *      Without it the tool returns a `confirm_required` error and the UI
@@ -72,6 +74,14 @@ const BANNED_PATTERNS: RegExp[] = [
   /\bchmod\s+-R\s+777\b/, /\bcurl\b[^|;]*--data[^|;]*PASSWORD/i,
   /\b>\s*\/dev\//, /\bmkfs\b/, /\bshutdown\b/, /\breboot\b/,
   /\beval\b/, /\b:\(\)\s*\{/, // fork bomb
+  // Command substitution — `echo $(cat .env)` or backtick equivalents pass
+  // the first-token whitelist check but execute an arbitrary subcommand.
+  // No legitimate use case in this tool's allowed command set.
+  /\$\(/, /`/,
+  // Dangerous arguments on otherwise-whitelisted roots: `find -exec` runs an
+  // arbitrary command per match, `node -e`/`--eval` runs arbitrary JS,
+  // `awk ... system(...)` shells out from inside the awk program.
+  /\bfind\b[^|;&]*-exec\b/, /\bnode\b[^|;&]*(-e\b|--eval\b)/, /\bawk\b[^|;&]*system\s*\(/,
 ];
 
 // Paths we never let the agent write to, even if they resolve inside the
@@ -307,7 +317,7 @@ export const DEV_TOOLS: Anthropic.Messages.Tool[] = [
   {
     name: 'run_bash',
     description:
-      'Run a whitelisted shell command at the repo root. Allowed roots: npm, npx, node, git, ls, cat, grep, find, mkdir, echo, pwd, which, head, tail, wc, sort, uniq, awk, sed, tsc, eslint, prettier, vitest. Forbidden anywhere in the command: rm -rf, sudo, ssh, scp, dd, chmod -R 777, > /dev/*, mkfs, shutdown, reboot.',
+      'Run a whitelisted shell command at the repo root. Allowed roots: npm, npx, node, git, ls, cat, grep, find, mkdir, echo, pwd, which, head, tail, wc, sort, uniq, awk, sed, tsc, eslint, prettier, vitest. Forbidden anywhere in the command: rm -rf, sudo, ssh, scp, dd, chmod -R 777, > /dev/*, mkfs, shutdown, reboot, $(...) or backtick command substitution, find -exec, node -e/--eval, awk system(...).',
     input_schema: {
       type: 'object',
       properties: {

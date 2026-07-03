@@ -10,6 +10,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import { TEMPLATE_IDS, TEMPLATE_CATALOG } from '@/lib/template-catalog';
 import { SupplierIdSchema, SUPPLIER_IDS } from '@/lib/suppliers/registry';
+import { zEnumFromReadonly } from '@/lib/zod-utils';
 
 // ── Zod schemas for tool inputs ────────────────────────────────────────
 
@@ -134,9 +135,7 @@ export const ShortlistNicheInput = z.object({
   // Catalog & layout decisions Claude makes so the operator doesn't have
   // to re-pick after the shortlist. Pre-fills the form below.
   suggested_mode: z.enum(['mono', 'collection']).optional(),
-  suggested_template: z
-    .enum(TEMPLATE_IDS as unknown as [string, ...string[]])
-    .optional(),
+  suggested_template: zEnumFromReadonly(TEMPLATE_IDS).optional(),
   // Full media plan — channel mix, geo, audience, dayparting, outcomes.
   // Required — operator validates this before clicking "Lancer".
   media_plan: MediaPlanInput,

@@ -13,7 +13,7 @@ export interface AdminFunnelChartProps {
 function EmptyState({ height }: { height: number }) {
   return (
     <div
-      className="flex items-center justify-center bg-admin-surface-inset text-[10px] font-bold uppercase tracking-widest text-zinc-500"
+      className="flex items-center justify-center bg-admin-surface-inset text-admin-kicker font-bold uppercase tracking-widest text-zinc-500"
       style={{ height }}
     >
       Pas encore de données
@@ -47,8 +47,11 @@ export default function AdminFunnelChart({
             {/* Connecting line & conversion badge */}
             {i > 0 && (
               <div className="relative flex h-10 w-full items-center">
-                <div className="absolute left-24 sm:left-[8.5rem] top-0 h-full w-px bg-admin-surface-inset" />
-                <div className="absolute left-24 sm:left-[8.5rem] top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-admin-border bg-admin-surface-panel px-2 py-0.5 text-[10px] font-semibold text-zinc-400">
+                {/* Must land exactly where the bar column starts: label width + row gap
+                    (w-24/w-28 + gap-4/gap-6 = 7rem / 8.5rem). The old left-24 (6rem) base
+                    value dropped the gap-4 and sat 1rem short of the bar; left-28 fixes it. */}
+                <div className="absolute left-28 sm:left-[8.5rem] top-0 h-full w-px bg-admin-surface-inset" />
+                <div className="absolute left-28 sm:left-[8.5rem] top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-admin-border bg-admin-surface-panel px-2 py-0.5 text-admin-kicker font-semibold text-zinc-400">
                   {convFromPrev ?? "0.0"}%
                 </div>
               </div>
@@ -57,7 +60,7 @@ export default function AdminFunnelChart({
             {/* Bar row */}
             <div className="relative z-10 flex items-center gap-4 sm:gap-6">
               <div className="flex w-24 sm:w-28 shrink-0 flex-col text-right">
-                <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-zinc-500">
+                <span className="text-admin-kicker font-bold uppercase tracking-[0.1em] text-zinc-500">
                   {step.label}
                 </span>
                 <span className="text-sm font-semibold tabular-nums text-white">

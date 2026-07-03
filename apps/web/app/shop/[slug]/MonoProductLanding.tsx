@@ -4,6 +4,7 @@ import type { StoreConfig } from '@/lib/store-config';
 import { formatMoney, type listProducts } from '@/lib/medusa-store';
 import { StoreLogo } from '@/components/ui';
 import { sanitizeRichText } from '@/lib/sanitize-html';
+import Image from 'next/image';
 import Link from 'next/link';
 
 type Products = Awaited<ReturnType<typeof listProducts>>['products'];
@@ -391,12 +392,13 @@ export function MonoProductLanding({
                   }`}
                 >
                   {lifestyleImages.map((url, i) => (
-                    <div key={i} className="overflow-hidden rounded-2xl">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
+                    <div key={i} className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl">
+                      <Image
                         src={url}
                         alt={`${featured?.title || store.name}, vue ${i + 1}`}
-                        className="aspect-[4/5] w-full object-cover"
+                        fill
+                        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                        className="object-cover"
                       />
                     </div>
                   ))}

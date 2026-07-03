@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import type { StoreConfig } from '@/lib/store-config';
 import type { StoreProduct } from '@/lib/medusa-store';
@@ -28,8 +29,14 @@ export function SmartHero({ store, product, ctaHref, ctaLabel }: SmartHeroProps)
       {store.heroImageUrl ? (
         <>
           <div className="absolute inset-0">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={store.heroImageUrl} alt={store.name} className="size-full object-cover" />
+            <Image
+              src={store.heroImageUrl}
+              alt={store.name}
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover"
+            />
           </div>
           <div aria-hidden="true" className="absolute inset-0 bg-black/45" />
         </>

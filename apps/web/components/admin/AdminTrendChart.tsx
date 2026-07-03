@@ -10,12 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-
-/** Palette par défaut, lisible sur une surface zinc-900 sombre. */
-const DEFAULT_COLORS = ["#6366f1", "#10b981", "#f59e0b", "#38bdf8"];
-
-const AXIS_TICK = { fill: "#a1a1aa", fontSize: 12 };
-const GRID_STROKE = "rgba(255,255,255,0.08)";
+import { AXIS_TICK, DEFAULT_COLORS } from "@/lib/design/chart-tokens";
 
 export interface AdminTrendSeries {
   key: string;
@@ -65,7 +60,7 @@ function DarkTooltip({
 function EmptyState({ height }: { height: number }) {
   return (
     <div
-      className="flex items-center justify-center bg-admin-surface-inset text-[10px] font-bold uppercase tracking-widest text-zinc-500"
+      className="flex items-center justify-center bg-admin-surface-inset text-admin-kicker font-bold uppercase tracking-widest text-zinc-500"
       style={{ height }}
     >
       Pas encore de données

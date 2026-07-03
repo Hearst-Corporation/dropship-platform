@@ -48,7 +48,7 @@ export function AdminPageHeader({
           {meta ? (
             <div
               className={clsx(
-                "mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] font-bold uppercase tracking-widest",
+                "mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-admin-kicker font-bold uppercase tracking-widest",
                 adminTextMuted,
               )}
             >

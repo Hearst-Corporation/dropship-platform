@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createStore } from '@/lib/agent/store-creator';
 import { checkRateLimit, clientIp } from '@/lib/rate-limit';
 import { TEMPLATE_IDS } from '@/lib/template-catalog';
+import { zEnumFromReadonly } from '@/lib/zod-utils';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -38,7 +39,7 @@ const schema = z.object({
   // one via `shortlist_niche.suggested_template`; the operator can override
   // it in the form before clicking "Lancer". When the template's register
   // is 'luxury', the asset generator + landing writer switch to maison voice.
-  template: z.enum(TEMPLATE_IDS as unknown as [string, ...string[]]).optional(),
+  template: zEnumFromReadonly(TEMPLATE_IDS).optional(),
   // Free-form operator brief: constraints on margins, shipping, compliance,
   // excluded product families. Steers selection, enrichment and the ads plan.
   brief: z.string().max(4000).optional(),

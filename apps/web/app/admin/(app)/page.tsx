@@ -34,8 +34,8 @@ import {
   ExclamationTriangleIcon,
   CheckCircleIcon,
 } from "@heroicons/react/24/outline";
-import { DashboardTrend, DashboardFunnel } from "./DashboardCharts";
 import { formatEurFromCents as eur, formatPercent } from "@/lib/format";
+import { DashboardTrend, DashboardFunnel } from "./DashboardChartsLazy";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -95,15 +95,26 @@ interface TrendRow {
   orders: number;
 }
 
-async function safeQuery<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
+interface SafeQueryResult<T> {
+  data: T;
+  failed: boolean;
+}
+
+// Fails soft (returns the fallback so one slow/broken metric never blocks the
+// whole dashboard) but keeps a `failed` flag alongside the data so the UI can
+// still surface which metrics are showing a fallback vs. a genuine value.
+async function safeQuery<T>(
+  fn: () => Promise<T>,
+  fallback: T,
+): Promise<SafeQueryResult<T>> {
   try {
-    return await fn();
+    return { data: await fn(), failed: false };
   } catch (e) {
     console.error(
       "[dashboard] query failed:",
       e instanceof Error ? e.message : e,
     );
-    return fallback;
+    return { data: fallback, failed: true };
   }
 }
 
@@ -140,7 +151,14 @@ function formatDelta(current: number, previous: number) {
 export default async function PortfolioDashboard() {
   const db = getDbRead();
 
-  const [stores, revenue, funnel, topStores, cost, trend] = await Promise.all([
+  const [
+    storesResult,
+    revenueResult,
+    funnelResult,
+    topStoresResult,
+    costResult,
+    trendResult,
+  ] = await Promise.all([
     safeQuery<StoresRow>(
       async () => {
         const { rows } = await db.query<StoresRow>(
@@ -266,6 +284,22 @@ export default async function PortfolioDashboard() {
     }, []),
   ]);
 
+  const stores = storesResult.data;
+  const revenue = revenueResult.data;
+  const funnel = funnelResult.data;
+  const topStores = topStoresResult.data;
+  const cost = costResult.data;
+  const trend = trendResult.data;
+
+  const failedMetrics = [
+    storesResult.failed && "Stores",
+    revenueResult.failed && "Revenus",
+    funnelResult.failed && "Funnel",
+    topStoresResult.failed && "Top stores",
+    costResult.failed && "Coût agent",
+    trendResult.failed && "Tendance",
+  ].filter((v): v is string => Boolean(v));
+
   const revenue30dCents = Number(revenue.revenue_30d_cents);
   const revenue7dCents = Number(revenue.revenue_7d_cents);
   const aov30dCents = Number(revenue.aov_30d_cents);
@@ -321,10 +355,23 @@ export default async function PortfolioDashboard() {
         }
       />
 
+      {failedMetrics.length > 0 && (
+        <div className="flex items-start gap-3 border border-amber-500/30 bg-amber-500/10 p-4">
+          <ExclamationTriangleIcon className="size-5 shrink-0 text-amber-400" />
+          <p className="text-sm text-amber-200">
+            <span className="font-bold">
+              Certaines données n&apos;ont pas pu être chargées
+            </span>{" "}
+            ({failedMetrics.join(", ")}) — les valeurs affichées pour ces
+            métriques sont provisoires. Voir les logs serveur pour le détail.
+          </p>
+        </div>
+      )}
+
       <AdminSection flush>
         <div className="grid grid-cols-1 lg:grid-cols-3">
           <div className="flex flex-col justify-center border-b border-admin-border bg-admin-surface-panel p-6 lg:border-b-0 lg:border-r lg:p-8">
-            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-400">
+            <p className="text-admin-kicker font-bold uppercase tracking-[0.15em] text-zinc-400">
               Performance
             </p>
             <h2 className="mt-2 text-sm font-medium text-white">
@@ -353,7 +400,7 @@ export default async function PortfolioDashboard() {
           </div>
           <div className="p-6 bg-admin-surface-panel lg:col-span-2 lg:p-8">
             <div className="mb-8 flex items-center justify-between gap-3">
-              <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-400">
+              <h3 className="text-admin-kicker font-bold uppercase tracking-[0.15em] text-zinc-400">
                 Tendance
               </h3>
               <AdminTimeframeSelector />
@@ -471,7 +518,7 @@ export default async function PortfolioDashboard() {
                               <div className="truncate font-bold text-white">
                                 {s.name}
                               </div>
-                              <div className="truncate text-[10px] tracking-widest uppercase tabular-nums text-zinc-500 text-zinc-400">
+                              <div className="truncate text-admin-kicker tracking-widest uppercase tabular-nums text-zinc-500 text-zinc-400">
                                 /shop/{s.slug}
                               </div>
                             </div>
@@ -555,7 +602,7 @@ export default async function PortfolioDashboard() {
                 </p>
                 <TextLink
                   href="/admin/observability"
-                  className="mt-2 inline-block text-[10px] font-bold uppercase tracking-widest text-indigo-400"
+                  className="mt-2 inline-block text-admin-kicker font-bold uppercase tracking-widest text-indigo-400"
                 >
                   Voir l&apos;observabilité
                 </TextLink>

@@ -33,7 +33,7 @@ export function AdminEmptyState({
       ) : null}
       <h3
         className={clsx(
-          "text-[10px] font-bold uppercase tracking-[0.15em]",
+          "text-admin-kicker font-bold uppercase tracking-[0.15em]",
           adminText,
         )}
       >

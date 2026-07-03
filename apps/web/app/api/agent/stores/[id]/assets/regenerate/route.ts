@@ -14,13 +14,14 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { resolveStoreId } from '@/lib/resolve-store';
-import { ASSET_KINDS, regenerateAsset, type AssetKind } from '@/lib/agent/asset-regenerator';
+import { ASSET_KINDS, regenerateAsset } from '@/lib/agent/asset-regenerator';
+import { zEnumFromReadonly } from '@/lib/zod-utils';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
 const bodySchema = z.object({
-  kind: z.enum(ASSET_KINDS as unknown as [AssetKind, ...AssetKind[]]),
+  kind: zEnumFromReadonly(ASSET_KINDS),
   customPrompt: z.string().trim().max(2000).optional(),
   productImageUrl: z.string().url().optional(),
 });

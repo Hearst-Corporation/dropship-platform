@@ -34,7 +34,7 @@ export function AdminTimeframeSelector() {
                     />
                   </span>
                 </span>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-white">
+                <span className="text-admin-kicker font-bold uppercase tracking-widest text-white">
                   {step.name}
                 </span>
               </a>
@@ -49,7 +49,7 @@ export function AdminTimeframeSelector() {
                     <span className="size-1.5 rounded-full bg-indigo-500" />
                   </span>
                 </span>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-400">
+                <span className="text-admin-kicker font-bold uppercase tracking-widest text-indigo-400">
                   {step.name}
                 </span>
               </a>
@@ -63,7 +63,7 @@ export function AdminTimeframeSelector() {
                     <span className="size-1.5 rounded-full bg-transparent group-hover:bg-admin-surface-muted" />
                   </span>
                 </span>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                <span className="text-admin-kicker font-bold uppercase tracking-widest text-zinc-500">
                   {step.name}
                 </span>
               </a>

@@ -186,9 +186,12 @@ function registerShortcuts(): void {
 }
 
 function wireIpc(): void {
-  ipcMain.on('config:get-auth', (event) => {
-    event.returnValue = getConfig().basicAuthHeader ?? null;
-  });
+  // NOTE: there used to be a `config:get-auth` handler here that returned
+  // the raw Basic Auth header to the renderer (exposed via preload as
+  // `window.__electronAuth`). That leaked the admin credential into page JS
+  // scope. The header is now injected server-side by `installAuthHeader()`
+  // via `session.webRequest.onBeforeSendHeaders`, so the renderer never
+  // needs to see it.
 
   ipcMain.handle(
     'window:open',

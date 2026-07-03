@@ -56,7 +56,7 @@ export function AdminStatCard({
         <div className="flex items-start justify-between gap-3">
           <p
             className={clsx(
-              "truncate text-[10px] font-bold uppercase tracking-[0.15em]",
+              "truncate text-admin-kicker font-bold uppercase tracking-[0.15em]",
               adminTextOnKpiMuted,
             )}
           >

@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import type { StoreConfig } from '@/lib/store-config';
 import type { StoreProduct } from '@/lib/medusa-store';
@@ -33,8 +34,13 @@ export function SmartCartUpsell({ store, currentProduct, products }: SmartCartUp
               style={{ borderColor: DS.border }}
             >
               {imageUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={imageUrl} alt={product.title} className="size-16 rounded-md object-cover" />
+                <Image
+                  src={imageUrl}
+                  alt={product.title}
+                  width={64}
+                  height={64}
+                  className="size-16 rounded-md object-cover"
+                />
               )}
               <div>
                 <p className="text-sm font-medium" style={{ color: 'var(--ds-text)' }}>{product.title}</p>

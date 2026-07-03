@@ -27,16 +27,21 @@ import { AdminStatCard } from "@/components/admin/AdminStatCard";
 import { AdminDataTable } from "@/components/admin/AdminDataTable";
 import { AdminBadge } from "@/components/admin/AdminBadge";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
-import { PlatformSplitDonut, KpiComparisonChart } from "./CampaignCharts";
 import {
   formatEur as eur,
   formatNumberFr as fr,
   formatLongDate as frDate,
   formatLongDateTime as frDateTime,
 } from "@/lib/format";
-import { GoogleAdsLogo, InstagramLogo, TikTokLogo } from "./PlatformLogos";
+import {
+  GoogleAdsLogo,
+  InstagramLogo,
+  PLATFORM_BRAND_COLORS,
+  TikTokLogo,
+} from "./PlatformLogos";
 import { ValidateButton } from "./ValidateButton";
 import { PushCampaignButton } from "./PushCampaignButton";
+import { PlatformSplitDonut, KpiComparisonChart } from "./CampaignChartsLazy";
 
 export const dynamic = "force-dynamic";
 
@@ -52,11 +57,7 @@ const CVR = 0.025;
  * (exception opérateur à la règle single-accent). L'admin est rendu en dark
  * forcé, donc TikTok (#010101) est affiché en blanc dans le graphe.
  */
-const PLATFORM_CHART_COLORS = {
-  google: "#4285F4",
-  instagram: "#E4405F",
-  tiktok: "#ffffff",
-} as const;
+const PLATFORM_CHART_COLORS = PLATFORM_BRAND_COLORS;
 
 const CAMPAIGN_STATUS_LABEL: Record<string, string> = {
   draft: "Draft non envoyé",

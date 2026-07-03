@@ -72,6 +72,12 @@
   --tracking-kicker: 0.2em;
   --tracking-label: 0.16em;
   --shadow-cta: 0 12px 24px -8px rgb(0 0 0 / 0.18), 0 6px 10px -6px rgb(0 0 0 / 0.12);
+
+  /* Admin dense-UI eyebrow/kicker size — deliberately smaller than the storefront
+     --text-kicker (11px) above. Used for admin table headers, stat labels and
+     nav eyebrows where the tighter 10px size is the intended density. */
+  --text-admin-kicker: 0.625rem;
+  --text-admin-kicker--line-height: 0.875rem;
 }
 
 /*

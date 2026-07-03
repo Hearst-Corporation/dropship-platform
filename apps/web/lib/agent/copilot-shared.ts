@@ -1,14 +1,19 @@
 /**
- * Shared copilot utilities — message rebuild, tool-use helpers, and common
- * types used by all five copilot modes (research, curation, ads, medias, dev).
+ * Shared copilot utilities — message rebuild, tool-use helpers, DB access,
+ * and common types used by all five copilot modes (research, curation, ads,
+ * medias, dev).
  *
- * Extracted from the four individual copilot files to eliminate copy-paste
- * drift. Every mode stores history in its own table (research uses
- * dropship_research_messages, the per-store hub uses dropship_copilot_messages),
- * but the Anthropic message reconstruction logic is identical.
+ * Extracted from the individual copilot files to eliminate copy-paste drift.
+ * Every mode stores history in its own table (research uses
+ * dropship_research_messages, the per-store hub — curation/ads/medias/dev —
+ * uses dropship_copilot_messages), but the Anthropic message reconstruction
+ * logic is identical, and the dropship_copilot_messages read/write helpers
+ * are byte-for-byte identical across the per-store modes, so they live here
+ * too (`loadCopilotHistory` / `insertCopilotMessage`).
  */
 
 import type Anthropic from '@anthropic-ai/sdk';
+import { getDb } from '@/lib/db';
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -139,4 +144,80 @@ export function isToolError(output: unknown): boolean {
       'error' in (output as Record<string, unknown>) &&
       (output as { error?: unknown }).error,
   );
+}
+
+// ── DB access (dropship_copilot_messages / dropship_copilot_sessions) ────
+//
+// Shared by every per-store copilot mode (curation, ads, medias). These
+// were previously copy-pasted near-verbatim into each `*-copilot.ts` file.
+
+/**
+ * Load the full turn history for a copilot session from the unified
+ * dropship_copilot_messages table. All per-store copilot modes (curation,
+ * ads, medias) share this one table, keyed by session_id.
+ */
+export async function loadCopilotHistory(sessionId: string): Promise<StoredMessage[]> {
+  const db = getDb();
+  const { rows } = await db.query<StoredMessage>(
+    `SELECT id, role, content, tool_name, tool_input, tool_output, created_at
+       FROM dropship_copilot_messages
+       WHERE session_id = $1
+       ORDER BY created_at ASC, id ASC`,
+    [sessionId],
+  );
+  return rows;
+}
+
+/**
+ * Insert a message into the unified dropship_copilot_messages table and
+ * touch the parent session's `updated_at`. Shared by every per-store
+ * copilot mode.
+ */
+export async function insertCopilotMessage(
+  sessionId: string,
+  msg: {
+    role: 'user' | 'assistant' | 'tool';
+    content: string;
+    toolName?: string | null;
+    toolInput?: unknown;
+    toolOutput?: unknown;
+  },
+): Promise<void> {
+  const db = getDb();
+  await db.query(
+    `INSERT INTO dropship_copilot_messages
+       (session_id, role, content, tool_name, tool_input, tool_output)
+     VALUES ($1,$2,$3,$4,$5,$6)`,
+    [
+      sessionId,
+      msg.role,
+      msg.content,
+      msg.toolName ?? null,
+      msg.toolInput == null ? null : JSON.stringify(msg.toolInput),
+      msg.toolOutput == null ? null : JSON.stringify(msg.toolOutput),
+    ],
+  );
+  await db.query(
+    `UPDATE dropship_copilot_sessions SET updated_at = now() WHERE id = $1`,
+    [sessionId],
+  );
+}
+
+/**
+ * Generic `SELECT <columns> FROM dropship_stores WHERE id = $1` helper.
+ * Each copilot mode needs a different column subset from `dropship_stores`
+ * (curation needs mode/product_count, ads needs slug, etc.) so callers pass
+ * their own column list and row shape; this just centralizes the
+ * query-building + "not found → null" boilerplate.
+ */
+export async function loadStoreRow<T extends Record<string, unknown>>(
+  storeId: string,
+  columns: readonly string[],
+): Promise<T | null> {
+  const db = getDb();
+  const { rows } = await db.query<T>(
+    `SELECT ${columns.join(', ')} FROM dropship_stores WHERE id = $1 LIMIT 1`,
+    [storeId],
+  );
+  return rows[0] ?? null;
 }

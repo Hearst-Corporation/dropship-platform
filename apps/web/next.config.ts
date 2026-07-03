@@ -110,6 +110,10 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: '**.r2.dev' },
       { protocol: 'https', hostname: '**.public.blob.vercel-storage.com' },
       { protocol: 'https', hostname: '**.supabase.co' },
+      // Deterministic placeholder images for AI-generated synthetic catalogs
+      // (both AliExpress + CJ supplier search failed) — see
+      // fetchProductImage() in lib/agent/store-creator.ts.
+      { protocol: 'https', hostname: 'picsum.photos' },
     ],
   },
 };

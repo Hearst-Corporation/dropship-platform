@@ -31,7 +31,7 @@ import { z } from 'zod';
 import { getDb } from '@/lib/db';
 import { trackedMessage } from './anthropic';
 import { runContext } from './run-context';
-import { rebuildMessages, stringifyToolOutput } from './copilot-shared';
+import { rebuildMessages, stringifyToolOutput, loadStoreRow, loadCopilotHistory, insertCopilotMessage } from './copilot-shared';
 import { __internals as curationInternals } from './curation-copilot';
 import { __internals as adsInternals } from './ads-copilot';
 import { __internals as researchInternals, buildTemporalContext, RESEARCH_MODEL } from './research-copilot';
@@ -95,9 +95,10 @@ interface StoreCtx {
 
 // ── DB helpers (unified table) ──────────────────────────────────────────
 
+const STORE_CTX_COLUMNS = ['id', 'slug', 'name', 'niche', 'mode', 'medusa_sales_channel_id', 'product_count'] as const;
+
 async function loadStoreCtx(storeId: string): Promise<StoreCtx | null> {
-  const db = getDb();
-  const { rows } = await db.query<{
+  const r = await loadStoreRow<{
     id: string;
     slug: string;
     name: string;
@@ -105,12 +106,7 @@ async function loadStoreCtx(storeId: string): Promise<StoreCtx | null> {
     mode: string | null;
     medusa_sales_channel_id: string | null;
     product_count: number | null;
-  }>(
-    `SELECT id, slug, name, niche, mode, medusa_sales_channel_id, product_count
-       FROM dropship_stores WHERE id = $1 LIMIT 1`,
-    [storeId],
-  );
-  const r = rows[0];
+  }>(storeId, STORE_CTX_COLUMNS);
   if (!r) return null;
   return {
     id: r.id,
@@ -138,49 +134,9 @@ export async function createCopilotSession(
   return rows[0]!.id;
 }
 
-async function loadHistory(sessionId: string) {
-  const db = getDb();
-  const { rows } = await db.query<
-    import('./copilot-shared').StoredMessage
-  >(
-    `SELECT id, role, content, tool_name, tool_input, tool_output, created_at
-       FROM dropship_copilot_messages
-       WHERE session_id = $1
-       ORDER BY created_at ASC, id ASC`,
-    [sessionId],
-  );
-  return rows;
-}
+const loadHistory = loadCopilotHistory;
 
-async function insertMessage(
-  sessionId: string,
-  msg: {
-    role: 'user' | 'assistant' | 'tool';
-    content: string;
-    toolName?: string | null;
-    toolInput?: unknown;
-    toolOutput?: unknown;
-  },
-): Promise<void> {
-  const db = getDb();
-  await db.query(
-    `INSERT INTO dropship_copilot_messages
-       (session_id, role, content, tool_name, tool_input, tool_output)
-     VALUES ($1,$2,$3,$4,$5,$6)`,
-    [
-      sessionId,
-      msg.role,
-      msg.content,
-      msg.toolName ?? null,
-      msg.toolInput == null ? null : JSON.stringify(msg.toolInput),
-      msg.toolOutput == null ? null : JSON.stringify(msg.toolOutput),
-    ],
-  );
-  await db.query(
-    `UPDATE dropship_copilot_sessions SET updated_at = now() WHERE id = $1`,
-    [sessionId],
-  );
-}
+const insertMessage = insertCopilotMessage;
 
 async function maybeBackfillTitle(sessionId: string, firstUserMessage: string): Promise<void> {
   const db = getDb();

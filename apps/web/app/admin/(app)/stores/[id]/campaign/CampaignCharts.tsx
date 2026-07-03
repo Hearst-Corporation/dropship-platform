@@ -19,6 +19,7 @@ import {
   adminChartSurfaceFill,
   adminPopover,
 } from "@/components/admin/admin-surface";
+import { AXIS_TICK, DEFAULT_COLORS } from "@/lib/design/chart-tokens";
 import { formatEur } from "@/lib/format";
 
 /**
@@ -33,10 +34,9 @@ import { formatEur } from "@/lib/format";
  *   palette (indigo + sky), same dark style as AdminBarChart.
  */
 
-const AXIS_TICK = { fill: "#a1a1aa", fontSize: 12 };
 const GRID_STROKE = adminChartGridStroke;
-const ACCENT = "#6366f1";
-const SECONDARY = "#38bdf8";
+const ACCENT = DEFAULT_COLORS[0];
+const SECONDARY = DEFAULT_COLORS[3];
 const SURFACE = adminChartSurfaceFill;
 
 function DarkTooltip({

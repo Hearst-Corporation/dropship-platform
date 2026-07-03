@@ -354,18 +354,26 @@ async function placeOrderCJ(input: PlaceOrderInput): Promise<PlaceOrderResult> {
     const headers = await authHeaders();
     const { address, items, outOrderId } = input;
 
-    // Step 1 — resolve vid for each item.
+    // Step 1 — resolve vid for each item, in parallel (each resolution is an
+    // independent HTTP round-trip keyed only by pid — no shared/sequential
+    // state between items). Preserves the original fail-fast semantics: a
+    // thrown error propagates to the outer try/catch below exactly as the
+    // sequential loop did, and the first unresolved vid still short-circuits
+    // placeOrderCJ with the same descriptive error.
+    const vids = await Promise.all(
+      items.map((item) => resolveVariantVid(item.externalId)),
+    );
     const resolvedItems: { vid: string; quantity: number }[] = [];
-    for (const item of items) {
-      const vid = await resolveVariantVid(item.externalId);
+    for (let i = 0; i < items.length; i++) {
+      const vid = vids[i];
       if (!vid) {
         return {
           success: false,
           raw: null,
-          error: `cj variant unresolved for pid=${item.externalId}`,
+          error: `cj variant unresolved for pid=${items[i].externalId}`,
         };
       }
-      resolvedItems.push({ vid, quantity: item.quantity });
+      resolvedItems.push({ vid, quantity: items[i].quantity });
     }
 
     // Step 2 — create order.

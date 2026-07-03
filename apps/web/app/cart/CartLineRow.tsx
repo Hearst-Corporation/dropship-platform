@@ -11,17 +11,32 @@ export function CartLineRow({ item, currency }: { item: StoreLineItem; currency:
   const [qty, setQty] = useState(item.quantity);
   const [pending, startTransition] = useTransition();
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   function update(newQty: number) {
+    const previousQty = qty;
     setQty(newQty);
+    setError(null);
     startTransition(async () => {
-      await apiFetch('/api/cart/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lineItemId: item.id, quantity: newQty }),
-      });
-      router.refresh();
+      try {
+        const res = await apiFetch('/api/cart/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lineItemId: item.id, quantity: newQty }),
+        });
+        if (!res.ok) {
+          // Server rejected the update: revert the optimistic quantity so
+          // the UI never shows a value that was never actually persisted.
+          setQty(previousQty);
+          setError('Erreur réseau, quantité non mise à jour.');
+          return;
+        }
+        router.refresh();
+      } catch {
+        setQty(previousQty);
+        setError('Erreur réseau, quantité non mise à jour.');
+      }
     });
   }
 
@@ -92,6 +107,14 @@ export function CartLineRow({ item, currency }: { item: StoreLineItem; currency:
             +
           </button>
         </div>
+        {error && (
+          <p
+            className="mt-2 text-xs"
+            style={{ color: 'var(--ct-danger, #f87171)' }}
+          >
+            {error}
+          </p>
+        )}
       </td>
       <td
         className="p-6 text-right text-base font-medium"

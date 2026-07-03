@@ -13,6 +13,7 @@ import { apiFetch } from '@/lib/client-fetch';
 export function CookieBanner() {
   const [visible, setVisible] = useState(false);
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     // Show only if cookie is not set.
@@ -23,17 +24,22 @@ export function CookieBanner() {
 
   async function choose(choice: 'granted' | 'denied') {
     setPending(true);
+    setError(null);
     try {
-      await apiFetch('/api/consent', {
+      const res = await apiFetch('/api/consent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ choice }),
       });
+      if (!res.ok) throw new Error('Erreur réseau');
       // Hard reload so the layout re-runs SSR and emits / omits tags
       // accordingly. Without this, tags only kick in on next navigation.
       window.location.reload();
     } catch {
+      // Keep the banner open (and pending cleared) so the user can retry —
+      // a silent reset here would look identical to a successful choice.
       setPending(false);
+      setError('Erreur réseau, réessaie.');
     }
   }
 
@@ -63,6 +69,14 @@ export function CookieBanner() {
           utilisé et améliorer l&apos;expérience. Aucune donnée personnelle n&apos;est revendue. Tu
           peux refuser sans impact sur ta navigation.
         </p>
+        {error && (
+          <p
+            className="text-xs mb-3"
+            style={{ color: 'var(--ct-danger, #f87171)' }}
+          >
+            {error}
+          </p>
+        )}
         <div className="flex gap-3">
           <button
             type="button"

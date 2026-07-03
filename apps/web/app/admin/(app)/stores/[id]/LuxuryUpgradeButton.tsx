@@ -78,7 +78,6 @@ export function LuxuryUpgradeButton({
             color="indigo"
             onClick={() => setConfirming(true)}
             disabled={pending}
-            className="inline-flex items-center gap-2 rounded-full bg-indigo-500 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-indigo-400/20 text-xs text-indigo-200">
               →
@@ -87,13 +86,7 @@ export function LuxuryUpgradeButton({
           </Button>
         ) : (
           <div className="flex flex-wrap items-center gap-3 pt-1">
-            <Button
-              type="button"
-              color="indigo"
-              onClick={run}
-              disabled={pending}
-              className="rounded-full bg-indigo-500 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40"
-            >
+            <Button type="button" color="indigo" onClick={run} disabled={pending}>
               {pending
                 ? "Pipeline en cours… (60-120s)"
                 : "Confirmer le lancement"}

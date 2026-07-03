@@ -16,7 +16,7 @@ import { uploadToR2, isR2Configured } from '@/lib/storage/r2';
 import { pushMetaCampaign, isMetaAdsConfigured } from '@/lib/ads/meta-ads';
 import { pushTiktokCampaign, isTiktokAdsConfigured } from '@/lib/ads/tiktok-ads';
 import { pushGoogleAdsCampaign, isGoogleAdsConfigured } from '@/lib/ads/google-ads';
-import { rebuildMessages } from './copilot-shared';
+import { rebuildMessages, loadStoreRow, loadCopilotHistory, insertCopilotMessage } from './copilot-shared';
 
 const ADS_MODEL = 'gpt-4o';
 
@@ -185,19 +185,15 @@ interface StoreContext {
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
+const STORE_COLUMNS = ['id', 'slug', 'name', 'niche'] as const;
+
 async function loadStore(storeId: string): Promise<StoreContext | null> {
-  const db = getDb();
-  const { rows } = await db.query<{
+  const r = await loadStoreRow<{
     id: string;
     slug: string;
     name: string;
     niche: string;
-  }>(
-    `SELECT id, slug, name, niche
-       FROM dropship_stores WHERE id = $1 LIMIT 1`,
-    [storeId],
-  );
-  const r = rows[0];
+  }>(storeId, STORE_COLUMNS);
   if (!r) return null;
   return { id: r.id, slug: r.slug, name: r.name, niche: r.niche };
 }
@@ -205,52 +201,12 @@ async function loadStore(storeId: string): Promise<StoreContext | null> {
 /**
  * Load history from the unified copilot_messages table.
  */
-async function loadHistory(sessionId: string) {
-  const db = getDb();
-  const { rows } = await db.query<
-    import('./copilot-shared').StoredMessage
-  >(
-    `SELECT id, role, content, tool_name, tool_input, tool_output, created_at
-       FROM dropship_copilot_messages
-       WHERE session_id = $1
-       ORDER BY created_at ASC, id ASC`,
-    [sessionId],
-  );
-  return rows;
-}
+const loadHistory = loadCopilotHistory;
 
 /**
  * Insert a message into the unified copilot_messages table.
  */
-async function insertMessage(
-  sessionId: string,
-  msg: {
-    role: 'user' | 'assistant' | 'tool';
-    content: string;
-    toolName?: string | null;
-    toolInput?: unknown;
-    toolOutput?: unknown;
-  },
-): Promise<void> {
-  const db = getDb();
-  await db.query(
-    `INSERT INTO dropship_copilot_messages
-       (session_id, role, content, tool_name, tool_input, tool_output)
-     VALUES ($1,$2,$3,$4,$5,$6)`,
-    [
-      sessionId,
-      msg.role,
-      msg.content,
-      msg.toolName ?? null,
-      msg.toolInput == null ? null : JSON.stringify(msg.toolInput),
-      msg.toolOutput == null ? null : JSON.stringify(msg.toolOutput),
-    ],
-  );
-  await db.query(
-    `UPDATE dropship_copilot_sessions SET updated_at = now() WHERE id = $1`,
-    [sessionId],
-  );
-}
+const insertMessage = insertCopilotMessage;
 
 function buildSystemPrompt(store: StoreContext): string {
   return [

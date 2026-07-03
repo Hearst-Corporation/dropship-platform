@@ -8,6 +8,7 @@ import {
 import { getDbRead } from "@/lib/db";
 import { Text } from "@/components/catalyst/text";
 import { Button } from "@/components/catalyst/button";
+import { Badge } from "@/components/catalyst/badge";
 import {
   Pagination,
   PaginationPrevious,
@@ -117,9 +118,7 @@ export default async function StoresPage({
         subtitle="L'agent recherche les produits, enrichit les fiches puis publie le store Medusa complet."
         meta={
           <>
-            <span className="inline-flex items-center gap-1.5 rounded-md bg-indigo-500/10 px-2 py-0.5 font-medium uppercase tracking-wide text-indigo-400 ring-1 ring-inset ring-indigo-500/20 text-indigo-400 ring-indigo-400/25">
-              Production · Agent IA
-            </span>
+            <Badge color="indigo">Production · Agent IA</Badge>
           </>
         }
         actions={

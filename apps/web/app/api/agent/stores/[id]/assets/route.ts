@@ -14,8 +14,8 @@ import {
   ASSET_KINDS,
   listRunsForStore,
   setRunAsCurrent,
-  type AssetKind,
 } from '@/lib/agent/asset-regenerator';
+import { zEnumFromReadonly } from '@/lib/zod-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +39,7 @@ export async function GET(
 
 const setCurrentSchema = z.object({
   runId: z.string().uuid(),
-  kind: z.enum(ASSET_KINDS as unknown as [AssetKind, ...AssetKind[]]),
+  kind: zEnumFromReadonly(ASSET_KINDS),
 });
 
 export async function POST(

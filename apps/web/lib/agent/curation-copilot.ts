@@ -20,7 +20,7 @@ import { trackedMessage } from './anthropic';
 import { rankAndKeepTop } from './product-scorer';
 import { buildMedusaHandle } from './handle';
 import { extractJson } from './json';
-import { rebuildMessages } from './copilot-shared';
+import { rebuildMessages, loadStoreRow, loadCopilotHistory, insertCopilotMessage } from './copilot-shared';
 
 // GPT-4o does reliable tool use for the curation loop. A cheaper mini model
 // occasionally invents tool names in our tests, so we keep the full model for
@@ -160,21 +160,17 @@ interface StoreContext {
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
+const STORE_COLUMNS = ['id', 'name', 'niche', 'mode', 'medusa_sales_channel_id', 'product_count'] as const;
+
 async function loadStore(storeId: string): Promise<StoreContext | null> {
-  const db = getDb();
-  const { rows } = await db.query<{
+  const r = await loadStoreRow<{
     id: string;
     name: string;
     niche: string;
     mode: string | null;
     medusa_sales_channel_id: string | null;
     product_count: number | null;
-  }>(
-    `SELECT id, name, niche, mode, medusa_sales_channel_id, product_count
-       FROM dropship_stores WHERE id = $1 LIMIT 1`,
-    [storeId],
-  );
-  const r = rows[0];
+  }>(storeId, STORE_COLUMNS);
   if (!r) return null;
   return {
     id: r.id,
@@ -191,52 +187,12 @@ async function loadStore(storeId: string): Promise<StoreContext | null> {
  * The curation-copilot is now part of the unified hub; all per-store
  * sessions live in dropship_copilot_sessions / dropship_copilot_messages.
  */
-async function loadHistory(sessionId: string) {
-  const db = getDb();
-  const { rows } = await db.query<
-    import('./copilot-shared').StoredMessage
-  >(
-    `SELECT id, role, content, tool_name, tool_input, tool_output, created_at
-       FROM dropship_copilot_messages
-       WHERE session_id = $1
-       ORDER BY created_at ASC, id ASC`,
-    [sessionId],
-  );
-  return rows;
-}
+const loadHistory = loadCopilotHistory;
 
 /**
  * Insert a message into the unified copilot_messages table.
  */
-async function insertMessage(
-  sessionId: string,
-  msg: {
-    role: 'user' | 'assistant' | 'tool';
-    content: string;
-    toolName?: string | null;
-    toolInput?: unknown;
-    toolOutput?: unknown;
-  },
-): Promise<void> {
-  const db = getDb();
-  await db.query(
-    `INSERT INTO dropship_copilot_messages
-       (session_id, role, content, tool_name, tool_input, tool_output)
-     VALUES ($1,$2,$3,$4,$5,$6)`,
-    [
-      sessionId,
-      msg.role,
-      msg.content,
-      msg.toolName ?? null,
-      msg.toolInput == null ? null : JSON.stringify(msg.toolInput),
-      msg.toolOutput == null ? null : JSON.stringify(msg.toolOutput),
-    ],
-  );
-  await db.query(
-    `UPDATE dropship_copilot_sessions SET updated_at = now() WHERE id = $1`,
-    [sessionId],
-  );
-}
+const insertMessage = insertCopilotMessage;
 
 function buildSystemPrompt(store: StoreContext): string {
   const mode = store.mode ?? 'collection';

@@ -12,6 +12,18 @@ export interface LogoProps {
   className?: string;
 }
 
+/**
+ * Brand colors for the platform split donut / media plan cards. Allowed HERE
+ * by explicit operator decision (exception to the single-accent admin rule,
+ * scoped to this page's chart). TikTok is drawn white since the admin is
+ * rendered dark and #010101 would be invisible.
+ */
+export const PLATFORM_BRAND_COLORS = {
+  google: "#4285F4",
+  instagram: "#E4405F",
+  tiktok: "#ffffff",
+} as const;
+
 export function GoogleAdsLogo({ className }: LogoProps) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden className={className}>
