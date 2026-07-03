@@ -102,13 +102,83 @@ async function authenticate(): Promise<string> {
   }
 
   accessToken = data.data.accessToken as string;
-  tokenExpiresAt = Date.now() + 3600 * 1000; // 1h
+  tokenExpiresAt = computeTokenExpiry(data.data);
 
   if (!accessToken) {
     throw new Error('CJ API returned empty access token');
   }
 
   return accessToken;
+}
+
+/** Refresh this many ms before the real expiry so we never send a stale token. */
+const TOKEN_REFRESH_MARGIN_MS = 5 * 60 * 1000; // 5 min
+/** Fallback TTL when CJ returns no usable expiry field. */
+const TOKEN_FALLBACK_TTL_MS = 3600 * 1000; // 1h
+
+/**
+ * Compute the absolute epoch-ms at which the cached token should be considered
+ * stale, derived from the real expiry CJ returns in the auth response (rather
+ * than a fixed 1h TTL that silently desyncs if CJ shortens the token lifetime).
+ *
+ * CJ has returned the expiry under several shapes across API revisions, so we
+ * probe defensively:
+ *   - absolute epoch: `accessTokenExpiryDate` / `expiryDate` (ms or seconds,
+ *     or an ISO-8601 / "YYYY-MM-DD HH:mm:ss" date string)
+ *   - relative duration: `expiresIn` / `accessTokenExpiryIn` (seconds)
+ *
+ * The returned instant is the real expiry minus a safety margin. If nothing
+ * usable is present we fall back to the historical 1h TTL (no regression).
+ */
+function computeTokenExpiry(authData: Record<string, unknown>): number {
+  const now = Date.now();
+
+  // 1) Absolute expiry timestamp (epoch ms, epoch seconds, or date string).
+  const absoluteRaw =
+    authData.accessTokenExpiryDate ?? authData.expiryDate ?? authData.accessTokenExpiry;
+  const absoluteMs = parseAbsoluteExpiry(absoluteRaw);
+  if (absoluteMs !== null && absoluteMs > now) {
+    return Math.max(now, absoluteMs - TOKEN_REFRESH_MARGIN_MS);
+  }
+
+  // 2) Relative duration in seconds.
+  const relativeRaw =
+    authData.expiresIn ?? authData.accessTokenExpiryIn ?? authData.expireIn;
+  const relativeSec =
+    typeof relativeRaw === 'number'
+      ? relativeRaw
+      : typeof relativeRaw === 'string' && relativeRaw.trim() !== ''
+        ? Number(relativeRaw)
+        : NaN;
+  if (Number.isFinite(relativeSec) && relativeSec > 0) {
+    return Math.max(now, now + relativeSec * 1000 - TOKEN_REFRESH_MARGIN_MS);
+  }
+
+  // 3) Fallback: historical fixed 1h TTL.
+  return now + TOKEN_FALLBACK_TTL_MS;
+}
+
+/**
+ * Interpret an absolute-expiry field as epoch ms.
+ * Accepts epoch ms, epoch seconds (heuristically upscaled), or a parseable
+ * date string. Returns null when the value is absent/unusable.
+ */
+function parseAbsoluteExpiry(raw: unknown): number | null {
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) {
+    // < 1e12 ≈ before year 2001 in ms → it's almost certainly seconds.
+    return raw < 1e12 ? raw * 1000 : raw;
+  }
+  if (typeof raw === 'string' && raw.trim() !== '') {
+    const asNum = Number(raw);
+    if (Number.isFinite(asNum) && asNum > 0) {
+      return asNum < 1e12 ? asNum * 1000 : asNum;
+    }
+    // CJ sometimes returns "YYYY-MM-DD HH:mm:ss" (space, no timezone).
+    const isoish = raw.includes('T') ? raw : raw.replace(' ', 'T');
+    const parsed = Date.parse(isoish);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
 }
 
 /** Auth headers for every authenticated CJ request. */

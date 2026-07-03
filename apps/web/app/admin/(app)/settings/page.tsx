@@ -21,6 +21,7 @@ import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminSection } from "@/components/admin/AdminSection";
 import { AdminDataTable } from "@/components/admin/AdminDataTable";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
+import { formatDateTime as fmtDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -40,16 +41,6 @@ async function getSettings() {
   return Object.fromEntries(
     rows.map((r) => [r.key, { value: r.value, updatedAt: r.updated_at }]),
   );
-}
-
-function fmtDate(d: Date | number): string {
-  return new Date(d).toLocaleString("fr-FR", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 export default async function SettingsPage() {

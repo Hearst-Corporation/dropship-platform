@@ -36,6 +36,11 @@ import {
   getChannelConnections,
   type AdChannel,
 } from "@/lib/ads/all-campaigns";
+import {
+  formatEurCurrency as eur,
+  formatEurCurrencyCents as eurCost,
+  formatEurCurrencyPrecise as eurPerRun,
+} from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -68,30 +73,6 @@ function ChannelLabel({
   );
 }
 
-function eur(n: number): string {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency: "EUR",
-    maximumFractionDigits: 0,
-  }).format(n);
-}
-function eurCost(n: number): string {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n);
-}
-/** Per-run AI costs are often sub-cent: keep up to 4 decimals. */
-function eurPerRun(n: number): string {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
-  }).format(n);
-}
 function roas(revenue: number, spent: number): string {
   return spent > 0 ? `×${(revenue / spent).toFixed(2)}` : "—";
 }

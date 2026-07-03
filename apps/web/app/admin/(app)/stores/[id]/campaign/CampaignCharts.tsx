@@ -19,6 +19,7 @@ import {
   adminChartSurfaceFill,
   adminPopover,
 } from "@/components/admin/admin-surface";
+import { formatEur } from "@/lib/format";
 
 /**
  * Client charts for the store campaign page.
@@ -37,10 +38,6 @@ const GRID_STROKE = adminChartGridStroke;
 const ACCENT = "#6366f1";
 const SECONDARY = "#38bdf8";
 const SURFACE = adminChartSurfaceFill;
-
-function formatEur(n: number): string {
-  return `${n.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €`;
-}
 
 function DarkTooltip({
   active,

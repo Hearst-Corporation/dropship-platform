@@ -8,7 +8,7 @@
  * afterEach in setup-msw.ts calls server.resetHandlers(), so each test
  * starts clean.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/setup-msw';
 import { cjClient, parseCjNumber, __resetCjAuthCache } from './cj';
@@ -494,6 +494,119 @@ describe('cjClient — auth failure short-circuits', () => {
 
     expect(result.success).toBe(false);
     expect(result.products).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Auth token cache TTL — derived from CJ's real expiry, not a fixed 1h
+// ---------------------------------------------------------------------------
+//
+// We prove the effective expiry instant by counting authenticate() calls while
+// advancing the clock with fake timers: the cached token is reused until the
+// computed expiry passes, then a fresh auth POST is made. This exercises the
+// real expiry math (expiry - 5min margin) vs the 1h fallback.
+
+describe('cjClient — auth token cache TTL', () => {
+  const MARGIN_MS = 5 * 60 * 1000; // must match TOKEN_REFRESH_MARGIN_MS in cj.ts
+  const HOUR_MS = 3600 * 1000;
+
+  /**
+   * Serve a valid product/list once and count how many auth POSTs happened.
+   * The auth handler can inject arbitrary expiry fields into data.data.
+   */
+  function wireAuthCounter(authExtra: Record<string, unknown>) {
+    let authCalls = 0;
+    server.use(
+      http.post(
+        'https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken',
+        () => {
+          authCalls += 1;
+          return HttpResponse.json({
+            code: 200,
+            result: true,
+            data: { accessToken: 'test-cj-token', ...authExtra },
+          });
+        },
+      ),
+      http.get(
+        'https://developers.cjdropshipping.com/api2.0/v1/product/list',
+        () =>
+          HttpResponse.json({
+            code: 200,
+            result: true,
+            data: { total: 0, pageNum: 1, pageSize: 20, list: [] },
+          }),
+      ),
+    );
+    return () => authCalls;
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-03T00:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('uses CJ explicit expiry (absolute epoch ms) minus the safety margin', async () => {
+    // CJ says the token expires 30 min from now → cache must refresh at
+    // 30min - 5min margin = 25min, NOT at the 1h fallback.
+    const expiryMs = Date.now() + 30 * 60 * 1000;
+    const getAuthCalls = wireAuthCounter({ accessTokenExpiryDate: expiryMs });
+
+    await cjClient.searchProducts({ keywords: 'a' });
+    expect(getAuthCalls()).toBe(1);
+
+    // Just before the derived expiry (25min - 1s): token still cached.
+    vi.setSystemTime(new Date(expiryMs - MARGIN_MS - 1000));
+    await cjClient.searchProducts({ keywords: 'a' });
+    expect(getAuthCalls()).toBe(1);
+
+    // Just after the derived expiry: re-authenticate.
+    vi.setSystemTime(new Date(expiryMs - MARGIN_MS + 1000));
+    await cjClient.searchProducts({ keywords: 'a' });
+    expect(getAuthCalls()).toBe(2);
+
+    // And this proves it is NOT the 1h fallback: at 40min (< 1h) we already
+    // re-authed, whereas the fallback would still be valid.
+    expect(expiryMs - MARGIN_MS).toBeLessThan(Date.now() /* now past 25min */);
+  });
+
+  it('honors a relative expiresIn (seconds) minus the margin', async () => {
+    // expiresIn = 600s (10 min) → refresh at 10min - 5min = 5min.
+    const getAuthCalls = wireAuthCounter({ expiresIn: 600 });
+    const start = Date.now();
+
+    await cjClient.searchProducts({ keywords: 'a' });
+    expect(getAuthCalls()).toBe(1);
+
+    vi.setSystemTime(new Date(start + 5 * 60 * 1000 - 1000)); // 4m59s
+    await cjClient.searchProducts({ keywords: 'a' });
+    expect(getAuthCalls()).toBe(1);
+
+    vi.setSystemTime(new Date(start + 5 * 60 * 1000 + 1000)); // 5m01s
+    await cjClient.searchProducts({ keywords: 'a' });
+    expect(getAuthCalls()).toBe(2);
+  });
+
+  it('falls back to the 1h TTL when CJ returns no usable expiry field', async () => {
+    const getAuthCalls = wireAuthCounter({}); // no expiry fields at all
+    const start = Date.now();
+
+    await cjClient.searchProducts({ keywords: 'a' });
+    expect(getAuthCalls()).toBe(1);
+
+    // At 59 min: still within the 1h fallback → cached.
+    vi.setSystemTime(new Date(start + HOUR_MS - 60 * 1000));
+    await cjClient.searchProducts({ keywords: 'a' });
+    expect(getAuthCalls()).toBe(1);
+
+    // At 1h + 1s: fallback expired → re-authenticate.
+    vi.setSystemTime(new Date(start + HOUR_MS + 1000));
+    await cjClient.searchProducts({ keywords: 'a' });
+    expect(getAuthCalls()).toBe(2);
   });
 });
 

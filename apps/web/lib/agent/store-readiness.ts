@@ -42,7 +42,24 @@ interface ProductRow {
 
 const MIN_SCORE = 0;
 
-export async function evaluateStoreReadiness(storeId: string): Promise<ReadinessResult> {
+export interface ReadinessOptions {
+  /**
+   * True when this evaluation runs at the CLOSE of a creation run — the run
+   * itself has just set the store to a transitory 'generating'/'validating'
+   * status purely to compute readiness. In that context the transitory status
+   * must NOT count as a blocker (it would always deduct 10 and force
+   * needs_repair on an otherwise healthy store — a self-inflicted race). The
+   * verdict is based on the REAL state (products, images, medusa, landing…).
+   * Left false for admin-panel evaluations, where a store still 'generating'
+   * legitimately surfaces "Génération encore en cours".
+   */
+  endOfRun?: boolean;
+}
+
+export async function evaluateStoreReadiness(
+  storeId: string,
+  options: ReadinessOptions = {},
+): Promise<ReadinessResult> {
   const db = getDbRead();
   const storeRes = await db.query<StoreRow>(
     `SELECT id, name, niche, slug, mode, template, hero_image_url, cutout_image_url,
@@ -191,7 +208,12 @@ export async function evaluateStoreReadiness(storeId: string): Promise<Readiness
     deduct(10);
     nextActions.push('Consulter le diagnostic et relancer le run');
   }
-  if (store.status === 'generating' || store.status === 'validating') {
+  // The transitory generating/validating status is only a real blocker for
+  // out-of-run evaluations (e.g. the admin panel inspecting a store mid-run).
+  // At the CLOSE of a creation run the run has just set this status itself to
+  // compute readiness, so counting it here would always force needs_repair on
+  // a healthy store (self-inflicted race). Skip it in the end-of-run context.
+  if (!options.endOfRun && (store.status === 'generating' || store.status === 'validating')) {
     blockers.push('Génération encore en cours');
     deduct(10);
   }

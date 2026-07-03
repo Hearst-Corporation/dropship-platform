@@ -788,6 +788,15 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
           rawProducts.length = 0;
           rawProducts.push(...kept.map(({ _quality: _q, ...p }) => p));
         } else {
+          // Everything was rejected. Keep going, but actually honour the
+          // message: re-sort rawProducts by the vision score (desc) so the
+          // "meilleures" really do come first instead of the raw supplier
+          // order. `rejected` carries the same items with their _quality score.
+          const rankedRejected = [...rejected].sort(
+            (a, b) => b._quality.score - a._quality.score,
+          );
+          rawProducts.length = 0;
+          rawProducts.push(...rankedRejected.map(({ _quality: _q, ...p }) => p));
           emit({
             type: 'progress',
             message: '⚠ Aucune image n’a passé le filtre — on continue avec les meilleures malgré tout',
@@ -799,10 +808,34 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
       let branding: BrandingResult;
 
       if (rawProducts.length === 0) {
-        // Fallback: let Claude generate the whole catalog
+        // Fallback: let Claude generate the whole catalog. This can THROW when
+        // the model returns truncated/invalid/empty JSON — in that case degrade
+        // gracefully: emit an explicit failure event and fail the run with a
+        // clear, actionable structured error (via the existing
+        // persistStructuredError mechanism) instead of letting a raw crash
+        // bubble up as a bare 'failed' status with no diagnostic.
         emit({ type: 'progress', message: 'APIs fournisseurs non disponibles — passage en mode génération IA pure.' });
 
-        const aiResult = await generateProductsWithClaude(input.niche, input.storeName, maxProducts, language, emit, brief, markets);
+        let aiResult: Awaited<ReturnType<typeof generateProductsWithClaude>>;
+        try {
+          aiResult = await generateProductsWithClaude(input.niche, input.storeName, maxProducts, language, emit, brief, markets);
+        } catch (genErr) {
+          const reason = genErr instanceof Error ? genErr.message : 'erreur inconnue';
+          const details = (genErr instanceof Error && 'details' in genErr)
+            ? (genErr as Error & { details?: JsonExtractionError }).details
+            : null;
+          const fallbackMsg = `Génération IA des produits impossible: ${reason}. Aucun fournisseur n'a répondu et le modèle n'a pas produit de catalogue exploitable — relancez le run ou réduisez le nombre de produits.`;
+          emit({ type: 'progress', message: `⚠ Fallback génération IA échoué: ${reason}` });
+          // Reuse the existing structured-error mechanism (error_phase/message…).
+          const structuredFallback: JsonExtractionError = {
+            ...(details ?? {}),
+            phase: details?.phase ?? 'generate-products',
+            message: fallbackMsg,
+          } as JsonExtractionError;
+          const abortErr = new Error(fallbackMsg) as Error & { details?: JsonExtractionError };
+          abortErr.details = structuredFallback;
+          throw abortErr;
+        }
 
         emit({ type: 'step', message: 'Attribution des visuels produits...' });
         for (const p of aiResult.products) {
@@ -1242,7 +1275,9 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
         [storeId],
       );
 
-      const readiness = await evaluateStoreReadiness(storeId);
+      // endOfRun: the transitory 'validating' status we just set must not count
+      // as a blocker against ourselves — evaluate the REAL state of the store.
+      const readiness = await evaluateStoreReadiness(storeId, { endOfRun: true });
       const finalStatus = readiness.canPublish ? 'ready' : 'needs_repair';
 
       await db.query(

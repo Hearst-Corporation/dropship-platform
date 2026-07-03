@@ -10,7 +10,7 @@
  *  1. Create or reuse a React layout in app/shop/[slug]/
  *  2. Append the entry below (id + metadata)
  *  3. Wire the render branch in lib/storefront-routing.tsx if needed
- *  4. Add the id to infra/postgres/028_template_catalog_full.sql CHECK
+ *  4. Add the id to infra/postgres/029_template_catalog_full.sql CHECK
  */
 
 export type TemplateNiche =

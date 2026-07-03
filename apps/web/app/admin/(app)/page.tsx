@@ -35,6 +35,7 @@ import {
   CheckCircleIcon,
 } from "@heroicons/react/24/outline";
 import { DashboardTrend, DashboardFunnel } from "./DashboardCharts";
+import { formatEurFromCents as eur, formatPercent } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -106,10 +107,6 @@ async function safeQuery<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
   }
 }
 
-function eur(cents: number): string {
-  return `${(cents / 100).toLocaleString("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} €`;
-}
-
 // Gap-fill the 14-day window: the SQL GROUP BY only returns days with at
 // least one event, so missing days are re-injected at zero to keep the X
 // axis regular. Matched on a UTC 'YYYY-MM-DD' key (see the SQL's `AT TIME
@@ -136,7 +133,7 @@ function formatDelta(current: number, previous: number) {
   if (previous === 0) return undefined;
   const pct = ((current - previous) / previous) * 100;
   const positive = pct >= 0;
-  const value = `${positive ? "+" : ""}${pct.toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
+  const value = formatPercent(pct, { signed: true });
   return { value, positive };
 }
 
@@ -397,7 +394,7 @@ export default async function PortfolioDashboard() {
         />
         <AdminStatCard
           label="Conversion globale 30j"
-          value={`${globalConv.toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`}
+          value={formatPercent(globalConv)}
           delta={formatDelta(globalConv, prevGlobalConv)}
           hint={`${funnel.purchase.toLocaleString("fr-FR")} achats`}
           icon={FunnelIcon}
@@ -416,13 +413,7 @@ export default async function PortfolioDashboard() {
           title="Funnel 30j"
           description="Volume par étape du parcours d'achat."
           actions={
-            <Badge color="indigo">
-              {globalConv.toLocaleString("fr-FR", {
-                minimumFractionDigits: 1,
-                maximumFractionDigits: 1,
-              })}{" "}
-              % conv.
-            </Badge>
+            <Badge color="indigo">{formatPercent(globalConv)} conv.</Badge>
           }
         >
           <DashboardFunnel steps={funnelSteps} />
@@ -538,21 +529,9 @@ export default async function PortfolioDashboard() {
             <DescriptionTerm>Taux d&apos;erreur</DescriptionTerm>
             <DescriptionDetails className="text-right tabular-nums">
               {errorRate > 5 ? (
-                <Badge color="zinc">
-                  {errorRate.toLocaleString("fr-FR", {
-                    minimumFractionDigits: 1,
-                    maximumFractionDigits: 1,
-                  })}{" "}
-                  % · élevé
-                </Badge>
+                <Badge color="zinc">{formatPercent(errorRate)} · élevé</Badge>
               ) : (
-                <span>
-                  {errorRate.toLocaleString("fr-FR", {
-                    minimumFractionDigits: 1,
-                    maximumFractionDigits: 1,
-                  })}{" "}
-                  %
-                </span>
+                <span>{formatPercent(errorRate)}</span>
               )}
             </DescriptionDetails>
           </DescriptionList>
@@ -572,11 +551,7 @@ export default async function PortfolioDashboard() {
                 <p className="mt-1 text-xs/5 text-zinc-400">
                   {cost.errors.toLocaleString("fr-FR")} erreurs sur{" "}
                   {cost.runs.toLocaleString("fr-FR")} runs (
-                  {errorRate.toLocaleString("fr-FR", {
-                    minimumFractionDigits: 1,
-                    maximumFractionDigits: 1,
-                  })}{" "}
-                  %) sur les 30 derniers jours.
+                  {formatPercent(errorRate)}) sur les 30 derniers jours.
                 </p>
                 <TextLink
                   href="/admin/observability"

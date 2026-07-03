@@ -126,6 +126,52 @@ describe('evaluateStoreReadiness', () => {
     expect(result.score).toBeGreaterThan(80);
   });
 
+  it('flags a store still generating as a blocker for admin (out-of-run) evaluation', async () => {
+    // A healthy store that is still 'generating' must surface the blocker when
+    // evaluated OUTSIDE a creation run (e.g. the admin panel inspecting it).
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [mockStore({ hero_image_url: 'https://example.com/hero.jpg', status: 'generating' })],
+        rowCount: 1,
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          mockProduct(),
+          mockProduct({ id: 'p2', external_id: 'ae-2' }),
+          mockProduct({ id: 'p3', external_id: 'ae-3' }),
+          mockProduct({ id: 'p4', external_id: 'ae-4' }),
+        ],
+        rowCount: 4,
+      });
+    const result = await evaluateStoreReadiness('store-1');
+    expect(result.blockers).toContain('Génération encore en cours');
+    expect(result.canPublish).toBe(false);
+  });
+
+  it('does NOT self-penalise on the transitory validating status at end of run (FIX A)', async () => {
+    // Reproduces the race: at run close the store is transiently 'validating'.
+    // With endOfRun=true the transitory status must NOT be a blocker, so a
+    // healthy store resolves to ready (canPublish=true), not needs_repair.
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [mockStore({ hero_image_url: 'https://example.com/hero.jpg', status: 'validating' })],
+        rowCount: 1,
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          mockProduct(),
+          mockProduct({ id: 'p2', external_id: 'ae-2' }),
+          mockProduct({ id: 'p3', external_id: 'ae-3' }),
+          mockProduct({ id: 'p4', external_id: 'ae-4' }),
+        ],
+        rowCount: 4,
+      });
+    const result = await evaluateStoreReadiness('store-1', { endOfRun: true });
+    expect(result.blockers).not.toContain('Génération encore en cours');
+    expect(result.blockers).toHaveLength(0);
+    expect(result.canPublish).toBe(true);
+  });
+
   it('warns when landing content is missing smart components', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [mockStore({ landing_content: { hero: { kicker: 'x' } } })], rowCount: 1 })

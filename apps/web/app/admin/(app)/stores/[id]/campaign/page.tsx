@@ -28,6 +28,12 @@ import { AdminDataTable } from "@/components/admin/AdminDataTable";
 import { AdminBadge } from "@/components/admin/AdminBadge";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 import { PlatformSplitDonut, KpiComparisonChart } from "./CampaignCharts";
+import {
+  formatEur as eur,
+  formatNumberFr as fr,
+  formatLongDate as frDate,
+  formatLongDateTime as frDateTime,
+} from "@/lib/format";
 import { GoogleAdsLogo, InstagramLogo, TikTokLogo } from "./PlatformLogos";
 import { ValidateButton } from "./ValidateButton";
 
@@ -123,35 +129,9 @@ interface FunnelRealsRow {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function eur(n: number): string {
-  return `${n.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €`;
-}
-
-function fr(n: number): string {
-  return n.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
-}
-
 /** ROAS en multiplicateur, ex. "x2,4". */
 function roasFmt(n: number): string {
   return `x${fr(n)}`;
-}
-
-function frDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("fr-FR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
-
-function frDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("fr-FR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────

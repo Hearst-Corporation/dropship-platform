@@ -1,6 +1,7 @@
 "use client";
 
 import { apiFetch } from "@/lib/client-fetch";
+import { formatShortDateTime as formatRunDate } from "@/lib/format";
 
 /**
  * Client component rendering one asset section (current preview, regen panel,
@@ -71,20 +72,6 @@ export const ASSET_KIND_LABELS: Record<AssetKind, { title: string; hint: string 
     hint: "5 secondes 9:16, image-to-video à partir du cutout.",
   },
 };
-
-function formatRunDate(iso: string): string {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString("fr-FR", {
-      day: "2-digit",
-      month: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
 
 export function AssetRegenerator({
   storeId,

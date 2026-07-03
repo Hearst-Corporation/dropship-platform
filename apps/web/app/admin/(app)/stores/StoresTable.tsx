@@ -21,6 +21,7 @@ import { AdminTruncatedText } from "@/components/admin/AdminTruncatedText";
 import { AdminToolbar } from "@/components/admin/AdminToolbar";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 import { StoreActions } from "./StoreActions";
+import { formatShortDate } from "@/lib/format";
 
 export interface StoresTableRow {
   id: string;
@@ -65,18 +66,6 @@ function statusLabel(status: string): string {
   if (status === "needs_repair") return "À réparer";
   if (status === "draft") return "Brouillon";
   return "Erreur";
-}
-
-const dateFmt = new Intl.DateTimeFormat("fr-FR", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-});
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return dateFmt.format(d);
 }
 
 export function StoresTable({ rows, paginated = false }: StoresTableProps) {
@@ -225,7 +214,7 @@ export function StoresTable({ rows, paginated = false }: StoresTableProps) {
                       {store.product_count}
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-zinc-500 hidden md:table-cell">
-                      {formatDate(store.created_at)}
+                      {formatShortDate(store.created_at) ?? "—"}
                     </TableCell>
                     <TableCell className="align-top">
                       <div className="flex items-center justify-end gap-1 sm:gap-2">

@@ -83,7 +83,7 @@ NNN_short_name.sql          # idempotent forward migration
 NNN_short_name.down.sql     # rollback
 ```
 
-Forward migrations must be re-runnable (use `IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, etc.) because they're applied manually against the Railway instance and there's no migration runner tracking state. Match the existing numbering (`028_template_catalog_full.sql` is the latest at time of writing).
+Forward migrations must be re-runnable (use `IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, etc.) because they're applied manually against the Railway instance and there's no migration runner tracking state. Match the existing numbering (`035_store_status_lifecycle.sql` is the latest at time of writing).
 
 ## Conventions worth knowing
 

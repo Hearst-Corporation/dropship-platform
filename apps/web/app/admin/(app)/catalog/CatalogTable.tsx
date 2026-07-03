@@ -7,6 +7,7 @@ import {
 } from "@heroicons/react/16/solid";
 import { CubeIcon } from "@heroicons/react/24/outline";
 import type { MedusaProduct } from "@/lib/medusa";
+import { formatMoney, formatShortDate } from "@/lib/format";
 import {
   Table,
   TableHead,
@@ -70,31 +71,6 @@ function minPrice(
   return { ...best, multiple: max > best.amount };
 }
 
-function formatMoney(amount: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat("fr-FR", {
-      style: "currency",
-      currency: currency.toUpperCase(),
-      minimumFractionDigits: 2,
-    }).format(amount / 100);
-  } catch {
-    return `${(amount / 100).toFixed(2)} ${currency.toUpperCase()}`;
-  }
-}
-
-const dateFmt = new Intl.DateTimeFormat("fr-FR", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-});
-
-function formatDate(iso?: string): string | null {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  return dateFmt.format(d);
-}
-
 /**
  * Compact secondary line folded into the product cell: variant count, the
  * supplier reference when present, and the last-sync date. Secondary/placeholder
@@ -105,7 +81,7 @@ function buildDetails(p: MedusaProduct): string {
   const variantCount = p.variants?.length ?? 0;
   parts.push(`${variantCount} variante${variantCount > 1 ? "s" : ""}`);
   if (p.external_id) parts.push(`réf. ${p.external_id}`);
-  const synced = formatDate(p.updated_at);
+  const synced = formatShortDate(p.updated_at);
   if (synced) parts.push(`sync ${synced}`);
   return parts.join(" · ");
 }
@@ -214,7 +190,7 @@ export function CatalogTable({ products }: { products: MedusaProduct[] }) {
                               dès{" "}
                             </span>
                           ) : null}
-                          {formatMoney(price.amount, price.currency)}
+                          {formatMoney(price.amount / 100, price.currency)}
                         </>
                       ) : (
                         <span className="text-zinc-400 text-zinc-500">
