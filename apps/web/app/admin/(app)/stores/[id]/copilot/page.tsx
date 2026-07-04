@@ -1,6 +1,7 @@
-import { Heading, Subheading } from "@/components/catalyst/heading";
-import { Text } from "@/components/catalyst/text";
-import { Button } from "@/components/catalyst/button";
+import { notFound } from "next/navigation";
+import { getDbRead } from "@/lib/db";
+import { resolveStoreId } from "@/lib/resolve-store";
+import { CopilotHub, type ProductSummary } from "./CopilotHub";
 
 export default async function StoreCopilot({
   params,
@@ -8,25 +9,32 @@ export default async function StoreCopilot({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const storeId = await resolveStoreId(id);
+  if (!storeId) notFound();
+
+  const db = getDbRead();
+
+  const storeRes = await db.query<{ id: string; slug: string; name: string }>(
+    `SELECT id, slug, name FROM dropship_stores WHERE id = $1 LIMIT 1`,
+    [storeId],
+  );
+  const store = storeRes.rows[0];
+  if (!store) notFound();
+
+  const productsRes = await db.query<ProductSummary>(
+    `SELECT id, enriched_title, price_cents, image_url
+       FROM dropship_store_products
+      WHERE store_id = $1
+      ORDER BY created_at ASC`,
+    [storeId],
+  );
+
   return (
-    <div className="space-y-8">
-      <div>
-        <Heading>Copilot</Heading>
-        <Text>Assistant produit du store.</Text>
-      </div>
-      <div>
-        <Subheading>Gérer le catalogue</Subheading>
-        <Text className="mt-2 max-w-md">
-          Le copilot conversationnel sera reconnecté ultérieurement. En
-          attendant, ajoute et gère les produits directement depuis le catalogue
-          du store.
-        </Text>
-        <div className="mt-4">
-          <Button color="indigo" href={`/admin/stores/${id}/catalog`}>
-            Ouvrir le catalogue
-          </Button>
-        </div>
-      </div>
-    </div>
+    <CopilotHub
+      storeId={store.id}
+      storeSlug={store.slug}
+      storeName={store.name}
+      initialProducts={productsRes.rows}
+    />
   );
 }
