@@ -38,18 +38,18 @@ CI (`.github/workflows/ci.yml`) runs `npm run lint && npm test` from `apps/web` 
 
 The frontend talks to **both** Postgres directly **and** Medusa — they hold different things:
 
-- **Postgres** (`lib/db.ts`, `getDb()` for writes, `getDbRead()` for read-replica-friendly dashboards) owns everything platform-specific: stores config, AI run ledger, ad variants, order forwards, copilot sessions, analytics events, encrypted per-store tokens. All 27 migrations live in `infra/postgres/`.
+- **Postgres** (`lib/db.ts`, `getDb()` for writes, `getDbRead()` for read-replica-friendly dashboards) owns everything platform-specific: stores config, AI run ledger, ad variants, order forwards, copilot sessions, analytics events, encrypted per-store tokens. All 39 migrations live in `infra/postgres/`.
 - **Medusa** (`lib/medusa.ts`, `lib/medusa-store.ts`) owns the e-commerce catalog: products, variants, prices, sales channels, cart/checkout. Each store is a Medusa sales channel with its own publishable key (stored in `dropship_stores`).
 
 When adding a feature, the rule of thumb: catalog → Medusa; everything else (config, AI, ads, attribution, sessions) → Postgres.
 
 ### The agent layer (`lib/agent/`)
 
-Five Anthropic copilots share one tool_use loop topology; `copilot-router.ts` is the unified dispatcher. Each mode (`research`, `curation`, `ads`, `medias`, `dev`) defines a tool set + executors and persists messages into `dropship_copilot_messages` (legacy mode-specific tables remain for the old per-page routes).
+Five copilots share one tool_use loop topology; `copilot-router.ts` is the unified dispatcher. Each mode (`research`, `curation`, `ads`, `medias`, `dev`) defines a tool set + executors and persists messages into `dropship_copilot_messages` (legacy mode-specific tables remain for the old per-page routes). The **Research copilot** is the pre-creation chat at `/admin/stores/new` (`NicheResearchCopilot`, full-page conversational UI — the old form is gone); its tools live in `lib/agent/research/`.
 
-**Every Anthropic SDK call MUST go through `trackedMessage()` in `lib/agent/anthropic.ts`** — it wraps `messages.create()` and logs tokens/latency/cost-in-EUR to `dropship_ai_runs`. Use `getAnthropicClient()` only as an escape hatch. Pricing per model is hardcoded in that file; add new model IDs to the `PRICING` map.
+**Provider: OpenAI, not Anthropic** (migration June 2026). `trackedMessage()` in `lib/agent/anthropic.ts` keeps the Anthropic SDK request/response SHAPE so the ~14 call sites are unchanged, but the actual call POSTs to OpenAI `/chat/completions`. **Every LLM call MUST go through `trackedMessage()`** — it logs model/tokens/latency/cost-in-EUR to `dropship_ai_runs`. Default model `gpt-4o` (`OPENAI_MODEL`, override via `OPENAI_CHAT_MODEL`); short tasks pass `gpt-4o-mini`; the Research copilot passes `gpt-5.4` (`RESEARCH_MODEL` in `research/orchestrator.ts`). A call's `model` param IS honored when it's a key in the `PRICING` map, else it falls back to `OPENAI_MODEL` — add new model IDs (with pricing) to `PRICING`. Note: `gpt-5.x`/o-series models need `max_completion_tokens`, not `max_tokens` (handled in `toOpenAIBody`).
 
-`store-creator.ts` is the pipeline that turns a niche keyword into a live store: supplier search (parallel AE + CJ via `Promise.allSettled`, fallback to Claude generation if both fail) → product scoring → image quality filter (`image-quality.ts`, claude-haiku-4-5 vision, $~0.001/img) → Medusa import → optional asset generation (`asset-generator.ts`, ComfyUI/fal.ai) → landing content (`landing-writer.ts`).
+`store-creator.ts` is the pipeline that turns a niche keyword into a live store: supplier search (parallel AE + CJ + Zendrop via the `lib/suppliers/registry.ts` fan-out, fallback to Claude generation if all fail) → product scoring → image quality filter (`image-quality.ts`, `gpt-4o-mini` vision, ~$0.001/img) → Medusa import → optional asset generation (`asset-generator.ts`, ComfyUI/fal.ai) → landing content (`landing-writer.ts`).
 
 **Dev copilot safety** (`dev-copilot.ts`): whitelist of allowed commands, blocks `rm -rf` / `sudo` / `.env*` / `.git/` writes, modal confirmation before `git_push` when Auto-push is OFF. Do not weaken these guards.
 
@@ -62,7 +62,9 @@ One middleware, three responsibilities (order matters):
 
 ### Storefront templates (`apps/web/app/shop/[slug]/`)
 
-27 template IDs in `lib/template-catalog.ts` map to **5 React layouts** via `lib/storefront-routing.tsx` (`pickStorefrontComponent`): `MonoProductLanding`, `StorefrontMinimal`, `StorefrontEditorial`, `StorefrontBold`, `StorefrontShowcase`. Mode `mono` wins over register `luxury` (so `luxury-mono` renders the long-form mono landing). `'auto'` skips bespoke routing and uses the generic hero + grid in `page.tsx`. `[slug]/page.tsx` is `force-dynamic`. Global footer lives in `layout.tsx` only.
+41 template IDs in `lib/template-catalog.ts`. Most map to **5 shared React layouts** via `lib/storefront-routing.tsx` (`pickStorefrontComponent`): `MonoProductLanding`, `StorefrontMinimal`, `StorefrontEditorial`, `StorefrontBold`, `StorefrontShowcase`. Three newer niche templates get **bespoke layouts** routed by id ahead of the shared fallback chain: `StorefrontStreetDrop` (`street-drop`), `StorefrontAutoGarage` (`auto-garage`), `StorefrontGiftCurated` (`gift-curated`). Mode `mono` wins over register `luxury` (so `luxury-mono` renders the long-form mono landing). `'auto'` skips bespoke routing and uses the generic hero + grid in `page.tsx`. `[slug]/page.tsx` is `force-dynamic`. Global footer lives in `layout.tsx` only.
+
+The Research copilot picks `suggested_template` from the catalog: its tool schema (`research/tools.ts`) lists all 41 templates with `register/mode/niches/hint` generated from `TEMPLATE_CATALOG` — so adding a template to the catalog makes it available to the agent automatically, no prompt edit needed. The admin template preview (`/admin/templates/[id]/preview`) renders each real Storefront component wrapped in the same `resolveDesign()` design-system div as the storefront layout, with niche-matched mock content per template (`_mock.ts`).
 
 Storefront copy comes from `dropship_stores.landing_content` (JSON written by `landing-writer.ts` at store creation). Storefront colors/fonts come from the locked design system in `dropship_stores.design_preset` + `palette` — templates should read `var(--ds-*)` from `design/runtime.ts`, not invent new values.
 
@@ -72,7 +74,11 @@ Server-side purchase event fans out **in parallel** to 4 platforms: Meta CAPI, T
 
 ### Suppliers (`lib/suppliers/`)
 
-Two clients with the same shape: `aliexpress.ts` (DS API, OAuth token cached in `platform_settings`, auto-refreshed by `ae-token-refresh.yml`) and `cj.ts` (access token cache 1h). Both expose product search. `store-creator.ts` runs them in parallel and the first one that returns ≥1 product wins; if both fail, Claude generates synthetic products as a last resort.
+All suppliers implement one `SupplierClient` shape and are registered in `lib/suppliers/registry.ts` (the single source of truth — adding a supplier = one line there). Active sourcing clients: `aliexpress.ts` (DS API, OAuth token in `platform_settings`, auto-refreshed by `ae-token-refresh.yml`), `cj.ts` (access token cache 1h), and Zendrop via `zendrop-connector.ts` (simple bearer token `ZENDROP_API_TOKEN`, MCP transport). `store-creator.ts` fans out to them in parallel via `searchAllSuppliers`; if all return nothing, Claude generates synthetic products as a last resort.
+
+Two Zendrop clients exist — use the right one: `zendrop-connector.ts` exports `zendropClient` (token-auth, **verified live, wired into the registry**, status `search_only` since fulfillment isn't connected yet). `zendrop.ts` also exports a `zendropClient` but it's the OAuth2+PKCE variant, still `// CONFIRM`-stage and NOT wired into the registry — don't route the pipeline through it.
+
+Caveat: **CJ's keyword match is fuzzy** — `/product/list` often ignores the query and returns generic catalog, so CJ results can be off-niche. The research prompt tells the agent to prefer AliExpress/Zendrop when CJ drifts. The research copilot exposes `aliexpress_search`, `cj_search`, and `zendrop_search` — all backed by the same generic `execSupplierSearch(id)` factory in `research/executors.ts`.
 
 ## Migration discipline
 
@@ -83,7 +89,7 @@ NNN_short_name.sql          # idempotent forward migration
 NNN_short_name.down.sql     # rollback
 ```
 
-Forward migrations must be re-runnable (use `IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, etc.) because they're applied manually against the Railway instance and there's no migration runner tracking state. Match the existing numbering (`035_store_status_lifecycle.sql` is the latest at time of writing).
+Forward migrations must be re-runnable (use `IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, etc.) because they're applied manually against the Railway instance and there's no migration runner tracking state. Match the existing numbering (`038_template_catalog_10_niches.sql` is the latest at time of writing).
 
 ## Conventions worth knowing
 
@@ -97,7 +103,7 @@ Forward migrations must be re-runnable (use `IF NOT EXISTS`, `ADD COLUMN IF NOT 
 
 ## Variables d'environnement
 
-Source of truth is [`apps/web/env.example`](apps/web/env.example). The README has a categorized list. The minimal set for `npm run dev` to boot: `DATABASE_URL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ANTHROPIC_API_KEY`, `MEDUSA_URL` + Medusa admin creds.
+Source of truth is [`apps/web/env.example`](apps/web/env.example). The README has a categorized list. The minimal set for `npm run dev` to boot: `DATABASE_URL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `OPENAI_API_KEY` (the LLM provider — `ANTHROPIC_API_KEY` is legacy/unused since the June 2026 migration), `MEDUSA_URL` + Medusa admin creds. Optional supplier tokens: `ZENDROP_API_TOKEN`, `CJ_DROPSHIPPING_*`, `ALIEXPRESS_APP_*`.
 
 ## Suppliers setup
 

@@ -1,6 +1,8 @@
 # Configuration fournisseurs
 
-Les deux fournisseurs sont consommés par l'agent dans `apps/web/lib/agent/store-creator.ts` via les clients `apps/web/lib/suppliers/{aliexpress,cj}.ts`. Les deux APIs tournent en parallèle (`Promise.allSettled`) ; si l'une renvoie 0 produit, l'autre prend le relais. Si les deux échouent, l'agent passe en génération pure Claude.
+Les fournisseurs sont enregistrés dans `apps/web/lib/suppliers/registry.ts` (source unique — ajouter un fournisseur = une ligne). `apps/web/lib/agent/store-creator.ts` interroge les clients actifs en parallèle via `searchAllSuppliers` (`Promise.allSettled`) ; le premier qui renvoie ≥1 produit alimente le pipeline. Si tous échouent, l'agent passe en génération pure (LLM). Fournisseurs sourcing actifs : **AliExpress**, **CJ**, **Zendrop**.
+
+> ⚠️ **CJ** : le match par mot-clé de l'API `/product/list` est *fuzzy* et renvoie souvent du catalogue générique hors-niche. Non bloquant (AliExpress + Zendrop suffisent), mais le prompt du copilote de recherche indique à l'agent de privilégier AliExpress/Zendrop quand CJ dérive.
 
 ## AliExpress Open Platform (DS API)
 
@@ -26,6 +28,17 @@ Diagnostic : `GET /api/aliexpress/test-search?keywords=...` (sonde 3 méthodes D
    - `CJ_DROPSHIPPING_API_KEY` (la key générée à l'étape 2)
 
 Le client `apps/web/lib/suppliers/cj.ts` gère l'access token (cache 1h) et la recherche `POST /product/list`.
+
+## Zendrop
+
+1. Créer un **Personal API token** dans le dashboard Zendrop (<https://app.zendrop.com/>), scopes minimum `catalog:read`, `stores:read` (`orders:write` pour le fulfillment futur).
+2. Le poser dans `.env.local` / Vercel :
+   - `ZENDROP_API_TOKEN` (jamais commité)
+3. Vérifier avec `node scripts/check-zendrop.mjs` ou `zendropConnector.testConnection()`.
+
+Transport : MCP JSON-RPC 2.0 (`POST https://app.zendrop.com/mcp/v1`, `Authorization: Bearer <token>`). Le client vérifié est `apps/web/lib/suppliers/zendrop-connector.ts` (outils réels confirmés : `get_stores`, `get_catalog_products`, `get_catalog_product`, `get_catalog_shipping_estimate`, `fulfill_order`, `get_tracking_events`). Il expose un adaptateur `zendropClient` (forme `SupplierClient`) branché dans `registry.ts`, statut **`search_only`** : la recherche catalogue marche, le fulfillment (`fulfill_order`) n'est pas encore câblé (aucun store Zendrop connecté).
+
+> ⚠️ Il existe aussi `apps/web/lib/suppliers/zendrop.ts` (variante OAuth2+PKCE, encore `// CONFIRM`, **non branchée**). Ne pas router le pipeline dessus — c'est `zendrop-connector.ts` qui est utilisé.
 
 ## Test
 

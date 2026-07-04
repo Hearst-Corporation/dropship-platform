@@ -30,16 +30,18 @@ Plateforme privée pilotée par agents IA pour gérer un portefeuille de boutiqu
   ├ /copilot                 Hub central (5 modes: Recherche/Curation/Ads/Médias/Dev)
   └ /settings                Template, custom domain, tokens analytics
 /admin/orders                Commandes Stripe + forward AliExpress
-/admin/observability         Coût Claude par store/par étape
+/admin/observability         Coût IA par store/par étape
 ```
 
 ## Agents IA
 
-5 copilotes Anthropic Claude (Sonnet 4.6) avec tool_use blocks, sessions persistées en DB, observabilité via `dropship_ai_runs`.
+5 copilotes avec tool_use blocks, sessions persistées en DB, observabilité via `dropship_ai_runs`.
+
+Backend LLM : **OpenAI** (migration off Anthropic/Moonshot, juin 2026). `trackedMessage()` dans `lib/agent/anthropic.ts` garde la forme SDK Anthropic côté appelants mais POSTe vers `/chat/completions`. Modèle par défaut `gpt-4o` (`gpt-4o-mini` pour les tâches courtes : scoring, vision, benchmarks) ; le **copilote Recherche tourne sur `gpt-5.4`** (constante `RESEARCH_MODEL`). Chaque appelant peut passer son propre `model` (honoré s'il est dans la table `PRICING`, sinon fallback sur le défaut).
 
 | Copilote | Outils typés | Page |
 |---|---|---|
-| **Recherche** | `web_search` (Tavily), `ask_perplexity`, `meta_ads_library`, `aliexpress_search`, `cj_search`, `shortlist_niche` | `/admin/stores/new` |
+| **Recherche** | `web_search` (Tavily), `ask_perplexity`, `meta_ads_library`, `aliexpress_search`, `cj_search`, `zendrop_search`, `search_ad_benchmarks`, `shortlist_niche` | `/admin/stores/new` (chat conversationnel pleine page — plus de formulaire) |
 | **Curation** | `search_products`, `add_product`, `remove_product`, `update_price`, `rewrite_copy` | `/admin/stores/[id]/curate` |
 | **Ads** | `list_variants`, `rewrite_hook`, `generate_visual` (fal.ai), `suggest_targeting`, `estimate_budget` | `/admin/stores/[id]/ads` |
 | **Médias** | `regenerate_asset`, `set_as_current`, `list_assets` | `/admin/stores/[id]/assets` |
@@ -57,7 +59,9 @@ Le mode **Dev** est full-agentic (lit/écrit/commit/push le repo lui-même) avec
 | Cloudflare R2 | actif | bucket `dropship-assets` |
 | fal.ai | actif | fallback automatique quand ComfyUI absent |
 | AliExpress DS API | actif | OAuth + DS API search + ds.order.create |
-| CJ Dropshipping | bloqué API key | non bloquant (AE seul suffit) |
+| CJ Dropshipping | actif (search) | recherche OK, mais keyword-match fuzzy → résultats parfois hors-niche ; l'agent privilégie AliExpress/Zendrop quand CJ dérive |
+| Zendrop | actif (search) | token simple `ZENDROP_API_TOKEN` (MCP), catalogue curé bonne pertinence. `search_only` : fulfillment pas encore câblé (pas de store Zendrop connecté) |
+| OpenAI | actif | provider LLM de tout le pipeline (`gpt-4o` / `gpt-4o-mini` / `gpt-5.4`) |
 | Stripe Checkout | actif | Live keys (single account) |
 
 Côté analytics server-side, **4 plateformes câblées en parallèle** sur chaque event purchase :
@@ -65,14 +69,14 @@ Meta CAPI · TikTok Events API · Google Ads Click Conversions (Enhanced Convers
 
 ## Schéma Postgres
 
-23 migrations idempotentes dans `infra/postgres/`, chacune avec son `.down.sql`. Tables principales :
+39 migrations idempotentes dans `infra/postgres/` (dernière : `038_template_catalog_10_niches.sql`), chacune avec son `.down.sql`. Tables principales :
 
 ```
 dropship_stores                  config store + tokens analytics chiffrés
 dropship_store_products          catalogue par store
 dropship_order_forwards          attribution + forwarding AliExpress
 dropship_funnel_events           events analytics (vue → ATC → checkout → purchase)
-dropship_ai_runs                 cost ledger Claude (tokens, latence, erreurs)
+dropship_ai_runs                 cost ledger IA (modèle, tokens, latence, coût EUR, erreurs)
 dropship_ad_variants             créas fan-out Meta/TikTok/Google
 dropship_ad_campaigns            log des pushes vers les Marketing APIs
 dropship_asset_runs              historique régénérations d'assets

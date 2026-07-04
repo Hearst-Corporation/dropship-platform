@@ -40,8 +40,8 @@ app/
 │  │  │     ├ copilot/         Hub 5 modes
 │  │  │     └ settings/        Template + domaine + tokens analytics
 │  │  ├ orders/                Commandes Stripe + forward AE
-│  │  └ observability/         Coût Claude par step
-│  └ _components/getHeaderStats  KPIs admin (data). Le chrome admin (shell/nav) a été rasé (reset Tailwind) et sera reconstruit sur blocs Tailwind Plus.
+│  │  └ observability/         Coût IA par step
+│  └ _components/getHeaderStats  KPIs admin (data). Chrome admin (shell/nav) sur le design system Catalyst (dark, zinc/indigo).
 ├ api/
 │  ├ agent/                    Routes SSE des copilotes
 │  ├ analytics/                Tracking server-side (purchase, view_content...)
