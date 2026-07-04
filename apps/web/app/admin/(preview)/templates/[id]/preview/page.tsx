@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
+import type React from "react";
 import { TEMPLATE_CATALOG } from "@/lib/template-catalog";
 import { pickStorefrontComponent } from "@/lib/storefront-routing";
-import { buildMockStore, MOCK_PRODUCTS } from "./_mock";
+import { resolveDesign } from "@/lib/design/runtime";
+import { buildMockStore, mockProductsForTemplate } from "./_mock";
 import Link from "next/link";
 import { Badge } from "@/components/catalyst/badge";
 
@@ -32,7 +34,13 @@ export default async function TemplatePreviewPage({
   if (!entry) notFound();
 
   const store = buildMockStore(id, entry.label);
-  const products = MOCK_PRODUCTS;
+  const products = mockProductsForTemplate(id);
+
+  // Resolve the same locked design system the real storefront layout applies
+  // (design/runtime.ts) so each template previews with its true palette +
+  // fonts instead of the generic default. Without this, every template
+  // rendered identically (black/violet, system fonts).
+  const design = resolveDesign(store);
 
   const storefrontJsx = pickStorefrontComponent(entry, { store, products });
 
@@ -69,8 +77,30 @@ export default async function TemplatePreviewPage({
         </span>
       </div>
 
-      {/* Full-bleed storefront render */}
-      {storefrontJsx}
+      {/* Full-bleed storefront render — wrapped in the locked design system
+          exactly like app/shop/[slug]/layout.tsx, so --ds-* vars + Google
+          Fonts resolve and each template shows its true identity. */}
+      <div
+        style={
+          {
+            "--primary": design.palette.primary,
+            "--accent": design.palette.accent,
+            fontFamily: "var(--ds-font-body)",
+            color: "var(--ds-text)",
+            backgroundColor: "var(--ds-bg)",
+          } as React.CSSProperties
+        }
+      >
+        {design.googleFontsUrl && (
+          <>
+            <link rel="preconnect" href="https://fonts.googleapis.com" />
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+            <link rel="stylesheet" href={design.googleFontsUrl} />
+          </>
+        )}
+        <style dangerouslySetInnerHTML={{ __html: design.cssVars }} />
+        {storefrontJsx}
+      </div>
     </div>
   );
 }
