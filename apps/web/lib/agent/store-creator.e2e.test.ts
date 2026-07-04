@@ -565,6 +565,38 @@ describe('createStore — brief complet, fournisseurs, plan ads, rapport', () =>
     expect(report.assets.status).toBe('placeholder');
   });
 
+  it('derives supplier-search currency/locale from the primary market (AE) instead of hardcoding FR/EUR', async () => {
+    // Spy on the real registry export (call-through) so the golden MSW-backed
+    // supplier flow still runs unchanged — we only want to observe the args
+    // store-creator.ts passes in, not fake the supplier response.
+    const registry = await import('@/lib/suppliers/registry');
+    const searchSpy = vi.spyOn(registry, 'searchAllSuppliers');
+
+    const { createStore } = await import('./store-creator');
+    const events = await collectEvents(
+      createStore({
+        niche: 'home wellness aromatherapy compact beauty devices',
+        storeName: 'Dune Wellness',
+        maxProducts: 3,
+        mode: 'collection',
+        language: 'fr',
+        markets: ['AE', 'SA'],
+      }),
+    );
+
+    expect(events.filter((e) => e.type === 'error')).toEqual([]);
+    expect(searchSpy).toHaveBeenCalled();
+    // Primary market is the FIRST entry ('AE') — 'SA' (second market) must
+    // NOT be used for sourcing in this pass (single-primary-market scope).
+    expect(searchSpy.mock.calls[0]![0]).toMatchObject({
+      currency: 'AED',
+      countryCode: 'AE',
+      locale: 'en_US',
+    });
+
+    searchSpy.mockRestore();
+  });
+
   it('survives a Medusa outage: products persisted locally, run still succeeds', async () => {
     const { setMedusaDown } = await import('@/test/handlers/medusa');
     setMedusaDown(true);

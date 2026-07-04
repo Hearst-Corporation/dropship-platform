@@ -21,6 +21,13 @@ const schema = z.object({
   language: z.enum(['fr', 'en']).optional().default('fr'),
   // Mono mode only: skip the 5s promo video (faster + saves credits).
   skipVideo: z.boolean().optional().default(false),
+  // Mono mode only: how many lifestyle images to generate. Bounded to the
+  // range the asset pipeline actually supports (see MIN/MAX_LIFESTYLE_COUNT
+  // in lib/agent/asset-generator.ts).
+  lifestyleImageCount: z.number().int().min(1).max(5).optional(),
+  // Mono mode only: skip the ambient audio narration track, independently of
+  // skipVideo (skipVideo already implies no audio — see store-creator.ts).
+  skipAudio: z.boolean().optional().default(false),
   // Design system locked at creation: which preset + the primary/accent the
   // operator confirmed in the chat. Optional — store-creator falls back to
   // editorial-serif + neutral palette if missing (legacy callers).

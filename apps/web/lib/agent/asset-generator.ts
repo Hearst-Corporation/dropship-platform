@@ -79,6 +79,21 @@ export interface AssetGenInput {
   /** Skip video generation (faster, cheaper). Default false. */
   skipVideo?: boolean;
   /**
+   * Number of lifestyle images to generate. Default 3, bounded to [1, 5] —
+   * beyond 5 the per-store GPU queue time and Claude prompt payload grow
+   * without a proportional storefront benefit. When `template` is a luxury
+   * register, the luxury prompt bank only has 3 curated slots, so this input
+   * is ignored in that path (see `buildPromptsWithClaude`).
+   */
+  lifestyleImageCount?: number;
+  /**
+   * Skip the ambient audio narration track, independently of `skipVideo`.
+   * Default false (audio still follows video when both are configured).
+   * Has no effect when `skipVideo` is true or audio isn't configured —
+   * there's nothing to narrate/no backend to narrate with either way.
+   */
+  skipAudio?: boolean;
+  /**
    * Locked design context — when provided, the prompt builder steers FLUX
    * toward imagery that matches the storefront's typography mood + palette.
    * The brand colors here are recommendations to FLUX (atmosphere, accent
@@ -116,9 +131,29 @@ export interface AssetGenOutput {
 interface PromptBundle {
   hero: string;
   cutout: string;
-  lifestyles: string[]; // 3 entries
+  lifestyles: string[]; // DEFAULT_LIFESTYLE_COUNT entries unless overridden
   promo: string; // image-to-video motion description
 }
+
+/** Default + bounds for `AssetGenInput.lifestyleImageCount`. */
+export const DEFAULT_LIFESTYLE_COUNT = 3;
+export const MIN_LIFESTYLE_COUNT = 1;
+export const MAX_LIFESTYLE_COUNT = 5;
+
+/** Clamp a requested lifestyle count into the supported range, defaulting when absent. */
+export function resolveLifestyleCount(requested: number | undefined): number {
+  if (!Number.isFinite(requested)) return DEFAULT_LIFESTYLE_COUNT;
+  return Math.min(MAX_LIFESTYLE_COUNT, Math.max(MIN_LIFESTYLE_COUNT, Math.round(requested!)));
+}
+
+// Extra fallback contexts beyond the curated first 3, used when the operator
+// requests more than DEFAULT_LIFESTYLE_COUNT lifestyle images and Claude
+// (or the JSON parse) doesn't return enough. Kept short and generic since
+// this is a last-resort path.
+const EXTRA_FALLBACK_LIFESTYLES = [
+  'Café work session on a marble tabletop, soft overcast window light, an open notebook out of focus nearby, 50mm shallow depth of field, quiet editorial mood, no text',
+  'Travel moment beside a hotel window at dusk, city lights softly blurred beyond the glass, warm interior lamp light, cinematic 35mm frame, no text',
+];
 
 export const FALLBACK_PROMPTS: PromptBundle = {
   hero: 'Cinematic editorial product photograph, full-bleed 16:9 composition, the product placed within a fully new studio set: brushed concrete floor, soft north-window light, deep negative space, 35mm shallow depth of field, premium DTC brand aesthetic, no text',
@@ -131,7 +166,25 @@ export const FALLBACK_PROMPTS: PromptBundle = {
   promo: 'Five-second continuous take, slow 30mm dolly push-in toward the product, one subtle ambient shift (light warming or steam drifting past), single light source, no cuts, no text',
 };
 
+/**
+ * Build exactly `count` lifestyle prompts out of a candidate list, reusing
+ * `FALLBACK_PROMPTS.lifestyles` + `EXTRA_FALLBACK_LIFESTYLES` to pad when the
+ * candidate list is shorter (Claude returned fewer than requested, or the
+ * default-3 fallback is used against a >3 request). Never returns fewer than
+ * `count` entries when count <= the total fallback pool size.
+ */
+function fillLifestyles(candidates: string[], count: number): string[] {
+  const pool = [...candidates, ...FALLBACK_PROMPTS.lifestyles, ...EXTRA_FALLBACK_LIFESTYLES];
+  const out = pool.slice(0, count);
+  // If somehow still short (count > pool size), cycle the fallback pool.
+  while (out.length < count) {
+    out.push(FALLBACK_PROMPTS.lifestyles[out.length % FALLBACK_PROMPTS.lifestyles.length]!);
+  }
+  return out;
+}
+
 async function buildPromptsWithClaude(input: AssetGenInput): Promise<PromptBundle> {
+  const lifestyleCount = resolveLifestyleCount(input.lifestyleImageCount);
   // Luxury short-circuit: when the operator picked a luxury-register template
   // we DO NOT let Claude invent a "premium DTC" prompt — it tends to drift
   // toward Apple/Dyson cleanliness which is wrong for a maison play. Instead
@@ -147,17 +200,22 @@ async function buildPromptsWithClaude(input: AssetGenInput): Promise<PromptBundl
       referenceImageUrl: input.product.imageUrl,
     };
     const [ls1, ls2, ls3] = luxuryLifestylePrompts(ctx);
+    // The luxury prompt bank only has 3 curated slots (Hermès/Aesop framing).
+    // When the operator requests more, pad with the generic DTC fallback
+    // pool rather than inventing untested luxury copy; when fewer, trim.
     return {
       hero: luxuryHeroPrompt(ctx),
       cutout: luxuryCutoutPrompt(ctx),
-      lifestyles: [ls1!, ls2!, ls3!],
       // Use the packaging shot for the 3rd lifestyle slot when we have it —
       // a coffret-signature image earns its place in a luxe storefront. For
       // promo video motion we still use the luxury slow-dolly description.
+      lifestyles: fillLifestyles([ls1!, ls2!, ls3!], lifestyleCount),
       promo: luxuryVideoPrompt(ctx),
     };
   }
-  if (!process.env.OPENAI_API_KEY) return FALLBACK_PROMPTS;
+  if (!process.env.OPENAI_API_KEY) {
+    return { ...FALLBACK_PROMPTS, lifestyles: fillLifestyles(FALLBACK_PROMPTS.lifestyles, lifestyleCount) };
+  }
 
   try {
     const res = await trackedMessage({ step: 'asset-prompts' }, {
@@ -210,7 +268,7 @@ Cutout specifics:
 - The cutout is the e-commerce hero, used like a PNG. The product floats on a clean dark studio gradient with a soft rim light and a single contact shadow. No other objects, no props, no people, no horizon line.
 
 Lifestyle specifics:
-- Three lifestyles, in three radically different contexts. Avoid all three being "indoors at home". Pick from: morning ritual, weekend outdoor, evening dinner moment, gym/active, hotel/travel, café/work, garden, bathroom counter — match the niche.
+- Exactly ${lifestyleCount} lifestyle${lifestyleCount === 1 ? '' : 's'}, in ${lifestyleCount === 1 ? 'a' : `${lifestyleCount} radically different`} context${lifestyleCount === 1 ? '' : 's'}. Avoid two lifestyles both being "indoors at home". Pick from: morning ritual, weekend outdoor, evening dinner moment, gym/active, hotel/travel, café/work, garden, bathroom counter — match the niche.
 
 Promo specifics:
 - Image-to-video motion. Single continuous take, 5 seconds, slow camera move (push-in, dolly, parallax), one light shift or one secondary subtle motion (steam, fabric ripple). No cuts. No text.
@@ -219,10 +277,7 @@ Return ONLY this JSON, no preamble, no commentary:
 {
   "hero": "<one full-bleed cinematic prompt, 16:9, editorial mood, product clearly featured but composed within a fully new scene>",
   "cutout": "<one prompt: product centered on dark studio gradient, no other objects, no text>",
-  "lifestyles": [
-    "<context A — concrete location + camera + light>",
-    "<context B — different location, different time of day, different camera>",
-    "<context C — different location again, different vibe>"
+  "lifestyles": [${Array.from({ length: lifestyleCount }, (_, i) => `\n    "<context ${String.fromCharCode(65 + i)} — concrete location + camera + light, distinct from the others>"`).join(',')}
   ],
   "promo": "<5-second motion description: camera move + one ambient shift + product anchor>"
 }`,
@@ -238,13 +293,13 @@ Return ONLY this JSON, no preamble, no commentary:
       hero: parsed.hero || FALLBACK_PROMPTS.hero,
       cutout: parsed.cutout || FALLBACK_PROMPTS.cutout,
       lifestyles:
-        Array.isArray(parsed.lifestyles) && parsed.lifestyles.length === 3
-          ? parsed.lifestyles
-          : FALLBACK_PROMPTS.lifestyles,
+        Array.isArray(parsed.lifestyles) && parsed.lifestyles.length >= lifestyleCount
+          ? parsed.lifestyles.slice(0, lifestyleCount)
+          : fillLifestyles(Array.isArray(parsed.lifestyles) ? parsed.lifestyles : [], lifestyleCount),
       promo: parsed.promo || FALLBACK_PROMPTS.promo,
     };
   } catch {
-    return FALLBACK_PROMPTS;
+    return { ...FALLBACK_PROMPTS, lifestyles: fillLifestyles(FALLBACK_PROMPTS.lifestyles, lifestyleCount) };
   }
 }
 
@@ -449,6 +504,8 @@ type TracedAssetKind =
   | 'lifestyle-1'
   | 'lifestyle-2'
   | 'lifestyle-3'
+  | 'lifestyle-4'
+  | 'lifestyle-5'
   | 'promo';
 
 async function tracedAssetStep(args: {
@@ -572,9 +629,14 @@ export async function generateMonoAssets(
   const lifestyleUrls: string[] = [];
   let promoVideoUrl: string | null = null;
 
+  // Total step count for the progress log, dynamic on lifestyle count +
+  // whether video runs: hero + cutout + N lifestyles + (optional) video.
+  const willRunVideo = Boolean(!input.skipVideo && process.env.COMFY_DEPLOYMENT_VIDEO);
+  const totalSteps = 2 + prompts.lifestyles.length + (willRunVideo ? 1 : 0);
+
   // Sequential to keep the GPU queue happy on a single-instance Comfy backend.
   // Concurrency could be added later behind COMFY_PARALLEL.
-  log('Génération du hero (1/6)...');
+  log(`Génération du hero (1/${totalSteps})...`);
   {
     const r = await tracedAssetStep({
       storeId: input.storeId,
@@ -592,7 +654,7 @@ export async function generateMonoAssets(
     }
   }
 
-  log('Génération du cutout (2/6)...');
+  log(`Génération du cutout (2/${totalSteps})...`);
   {
     const r = await tracedAssetStep({
       storeId: input.storeId,
@@ -611,8 +673,8 @@ export async function generateMonoAssets(
   }
 
   for (let i = 0; i < prompts.lifestyles.length; i++) {
-    log(`Génération lifestyle ${i + 1}/3 (${i + 3}/6)...`);
-    const assetKind = `lifestyle-${i + 1}` as 'lifestyle-1' | 'lifestyle-2' | 'lifestyle-3';
+    log(`Génération lifestyle ${i + 1}/${prompts.lifestyles.length} (${i + 3}/${totalSteps})...`);
+    const assetKind = `lifestyle-${i + 1}` as TracedAssetKind;
     const filename = `lifestyle-${i + 1}.png`;
     const r = await tracedAssetStep({
       storeId: input.storeId,
@@ -630,8 +692,8 @@ export async function generateMonoAssets(
     }
   }
 
-  if (!input.skipVideo && process.env.COMFY_DEPLOYMENT_VIDEO) {
-    log('Génération de la vidéo promo 5s (6/6)...');
+  if (willRunVideo) {
+    log(`Génération de la vidéo promo 5s (${totalSteps}/${totalSteps})...`);
     // Drive the video off the cutout if we got one (cleanest framing) else
     // the supplier ref. In R2 mode `cutoutUrl` is already absolute; in
     // filesystem mode we prepend the public base so ComfyUI can fetch it.
@@ -650,7 +712,7 @@ export async function generateMonoAssets(
         // and muxed with ffmpeg. Best-effort — a silent promo ships rather
         // than no promo.
         try {
-          if (isAudioConfigured()) {
+          if (isAudioConfigured() && !input.skipAudio) {
             log('Génération de la musique d’ambiance (stable-audio)...');
             const track = await generateAmbientTrack({
               prompt:

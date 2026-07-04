@@ -98,12 +98,19 @@ function monthFr(monthIndex: number): string {
   ][monthIndex] ?? 'mois';
 }
 
-export function buildSystemPrompt(): string {
+/**
+ * @param historicalPerformanceContext Optional advisory block produced by
+ *   `formatHistoricalPerformanceForPrompt()` (see lib/ads/performance-insights.ts).
+ *   Pass '' or omit when there is no historical data yet (fresh platform) —
+ *   the section is fully skipped rather than showing an empty placeholder.
+ */
+export function buildSystemPrompt(historicalPerformanceContext?: string): string {
   const tavilyOk = isTavilyConfigured();
   const perplexityOk = isPerplexityConfigured();
   return [
     buildTemporalContext(),
     '',
+    ...(historicalPerformanceContext ? [historicalPerformanceContext, ''] : []),
     'You are a senior dropshipping market analyst embedded in the admin of a French AI dropshipping platform.',
     '',
     'Your job is to help the operator find a winning niche BEFORE they create a store. You research via tools (web search, Perplexity, Meta Ads Library, AliExpress / CJ supplier search) and converge on a single recommendation.',
@@ -113,6 +120,7 @@ export function buildSystemPrompt(): string {
     '- Maximum 6 tool calls per user turn. Do not call the same tool with the same arguments twice.',
     '- When a tool returns nothing usable, say so plainly and try a different angle instead of looping.',
     '- Saturation > 70 means crowded — explicitly warn the operator. Saturation 30-70 = competitive. < 30 = open.',
+    '- If a "Signal historique plateforme" block is present above, weigh it as ONE input among many when proposing niche/template/preset — it reflects real ROAS from past stores on this platform, but samples are typically small and market conditions shift. Never let it override a strong live signal (fresh saturation/supply/pricing check) and never reject a good opportunity solely because it lacks historical data.',
     '- After every tool call, synthesize in 2-3 actionable bullets before continuing. Format: [Chiffre-clé] / [Interprétation] / [Prochaine étape]. Never reply with a single word or sentence after a tool result.',
     `- If BOTH web_search (Tavily) AND ask_perplexity (Sonar) are NOT configured, do NOT call shortlist_niche. Inform the operator that mandatory integrations are missing and stop the analysis.`,
     '',

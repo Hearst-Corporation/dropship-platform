@@ -41,6 +41,9 @@ import {
 import { isComfyConfigured, getDeploymentIds } from './comfy-client';
 import { isFalConfigured } from './fal-client';
 import { getMedusaBaseUrl, getMedusaAuthMode, medusa } from '@/lib/medusa';
+import { TEMPLATE_IDS } from '@/lib/template-catalog';
+import { DESIGN_PRESETS } from '@/lib/design/presets';
+import { zEnumFromReadonly } from '@/lib/zod-utils';
 
 // ── Public types ────────────────────────────────────────────────────────
 
@@ -219,6 +222,7 @@ const JSON_COLUMNS = new Set(['landing_content', 'palette', 'lifestyle_images'])
 
 const ASSET_KIND_TUPLE = [...ASSET_KINDS] as [AssetKind, ...AssetKind[]];
 const UPDATABLE_TUPLE = [...UPDATABLE_COLUMNS] as [string, ...string[]];
+const DESIGN_PRESET_SLUGS = DESIGN_PRESETS.map((p) => p.slug) as [string, ...string[]];
 
 const SUPER_TOOLS: Anthropic.Messages.Tool[] = [
   ...DEV_TOOLS,
@@ -385,7 +389,7 @@ const SUPER_TOOLS: Anthropic.Messages.Tool[] = [
   {
     name: 'create_store',
     description:
-      'Crée un store dropshipping COMPLET de bout en bout : sourcing fournisseurs (AliExpress/CJ), sélection et enrichissement produits, filtre qualité image, import Medusa, génération d\'assets visuels (mode mono), rédaction de la landing, ET un plan de campagne Google Ads généré et staged en draft automatiquement. C\'est le SEUL outil à utiliser pour créer un store — ne jamais faire un run_sql INSERT INTO dropship_stores directement, ça crée un store vide sans produits ni plan Ads. Peut prendre 1-4 minutes (sourcing + génération d\'assets).',
+      'Crée un store dropshipping COMPLET de bout en bout : sourcing fournisseurs (AliExpress/CJ), sélection et enrichissement produits, filtre qualité image, import Medusa, génération d\'assets visuels (mode mono), rédaction de la landing, ET un plan de campagne Google Ads généré et staged en draft automatiquement. C\'est le SEUL outil à utiliser pour créer un store — ne jamais faire un run_sql INSERT INTO dropship_stores directement, ça crée un store vide sans produits ni plan Ads. Peut prendre 1-4 minutes (sourcing + génération d\'assets). Si l\'opérateur demande explicitement une vidéo ou pas, un template précis, ou des couleurs de marque, passe-les ici (skip_video, template, design_preset, primary_color, accent_color) plutôt que de laisser les valeurs par défaut.',
     input_schema: {
       type: 'object',
       properties: {
@@ -394,6 +398,21 @@ const SUPER_TOOLS: Anthropic.Messages.Tool[] = [
         mode: { type: 'string', enum: ['mono', 'collection'], description: 'mono = 1 produit hero + assets générés (photo/vidéo). collection = 3-25 produits, pas de génération d\'assets. Défaut: collection.' },
         max_products: { type: 'number', description: 'Nombre max de produits en mode collection (1-25, défaut 12). Ignoré en mode mono.' },
         language: { type: 'string', enum: ['fr', 'en'], description: 'Langue de la boutique. Défaut: fr.' },
+        skip_video: {
+          type: 'boolean',
+          description: 'Si true, saute la génération de la vidéo promo 5s (plus rapide, économise des crédits). Ne s\'applique qu\'en mode=mono ; ignoré en mode=collection. Défaut: false.',
+        },
+        design_preset: {
+          type: 'string',
+          enum: DESIGN_PRESET_SLUGS,
+          description: 'Preset de design system à figer à la création (fonts + mood imagerie). Si absent, store-creator choisit par défaut editorial-serif.',
+        },
+        primary_color: { type: 'string', description: 'Couleur primaire de marque en hex (ex: "#1a1a1a"). Utilisée avec design_preset pour figer la palette.' },
+        accent_color: { type: 'string', description: 'Couleur accent de marque en hex (ex: "#e8734a").' },
+        template: {
+          type: 'string',
+          description: `Id de template de storefront à utiliser (catalogue de ${TEMPLATE_IDS.length} ids, ex: "mono", "collection-grid", "luxury-minimal", "gen-z-bold", "editorial-fashion"...). Ne passe cette valeur que si l'opérateur nomme un template précis ou si tu es certain de l'id exact ; sinon laisse vide pour laisser le pipeline choisir/auto-router ('auto').`,
+        },
         brief: { type: 'string', description: 'Consignes libres (marge cible, contraintes shipping, produits exclus...) qui orientent la sélection produit et le plan Ads.' },
         markets: { type: 'array', items: { type: 'string' }, description: 'Marchés cibles en codes ISO (ex: ["FR","AE"]). Défaut: ["FR"].' },
       },
@@ -986,6 +1005,8 @@ async function execDeployVercel(
   };
 }
 
+const Hex = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+
 async function execCreateStore(input: unknown): Promise<ExecResult> {
   const schema = z.object({
     niche: z.string().min(2).max(100),
@@ -993,6 +1014,11 @@ async function execCreateStore(input: unknown): Promise<ExecResult> {
     mode: z.enum(['mono', 'collection']).optional().default('collection'),
     max_products: z.number().int().min(1).max(25).optional().default(12),
     language: z.enum(['fr', 'en']).optional().default('fr'),
+    skip_video: z.boolean().optional().default(false),
+    design_preset: zEnumFromReadonly(DESIGN_PRESET_SLUGS).optional(),
+    primary_color: Hex.optional(),
+    accent_color: Hex.optional(),
+    template: zEnumFromReadonly(TEMPLATE_IDS).optional(),
     brief: z.string().max(4000).optional(),
     markets: z.array(z.string().regex(/^[A-Za-z]{2,3}$/)).max(5).optional(),
   });
@@ -1004,6 +1030,11 @@ async function execCreateStore(input: unknown): Promise<ExecResult> {
     mode: args.mode,
     maxProducts: args.max_products,
     language: args.language,
+    skipVideo: args.skip_video,
+    designPreset: args.design_preset as StoreCreationInput['designPreset'],
+    primaryColor: args.primary_color,
+    accentColor: args.accent_color,
+    template: args.template,
     brief: args.brief,
     markets: args.markets,
   };
@@ -1171,6 +1202,7 @@ function buildSuperSystemPrompt(page: string, storeId?: string): string {
     `Contexte actuel: page="${page}", store_id="${storeId || 'aucun'}"`,
     '',
     'Création de store:',
+    '- Avant d\'appeler `create_store`, évalue si la demande de l\'utilisateur est assez précise. Si elle est courte ou vague (juste une niche, parfois un nom), pose 1-2 questions de clarification ciblées sur ce qui manque parmi : (a) mode mono (1 produit hero + assets photo/vidéo générés) vs collection (plusieurs produits, pas d\'assets générés) — c\'est le choix le plus structurant car il change tout le pipeline, à clarifier en priorité si absent ; (b) marchés cibles si ça semble pertinent pour la niche (sinon FR par défaut) ; (c) budget publicitaire visé si l\'utilisateur veut orienter le plan Ads ; (d) préférence vidéo/photo en mode mono. Ne demande QUE ce qui manque réellement : si l\'utilisateur a déjà précisé un point, ne le redemande pas. Si la demande est déjà détaillée (mode, marché et contraintes donnés), n\'ajoute aucune question et lance directement `create_store`. L\'objectif est de combler un vrai flou, pas de faire de la friction systématique.',
     '- Pour créer un store, utilise TOUJOURS l\'outil `create_store`. Ne fais JAMAIS un run_sql INSERT INTO dropship_stores : ça crée un store vide sans produits, sans assets, sans plan Ads.',
     '- `create_store` fait tout le pipeline (sourcing, produits, assets si mode=mono, landing) ET génère + staged automatiquement un plan de campagne Google Ads en draft (dropship_ad_campaigns, status=draft). Prend 1-4 minutes, prévenir l\'utilisateur avant de lancer.',
     '- Dès que `create_store` réussit, regarde `adsPlan` dans le résultat (source, dailyBudgetEur, countries) et PROPOSE PROACTIVEMENT la campagne à l\'utilisateur dans ta réponse : explique en 3-4 lignes le budget quotidien proposé, les pays ciblés, et demande s\'il veut que tu la lances (google_ads_push) ou qu\'il préfère l\'ajuster d\'abord sur /admin/stores/{storeId}/campaign. Ne pousse JAMAIS la campagne sans confirmation explicite — c\'est une dépense réelle.',

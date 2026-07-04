@@ -8,10 +8,12 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   ArrowTopRightOnSquareIcon,
+  ChevronDownIcon,
 } from "@heroicons/react/20/solid";
 import { Heading, Subheading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
 import { AdminBadge } from "@/components/admin/AdminBadge";
+import { TemplatePicker } from "@/components/admin/TemplatePicker";
 import {
   Fieldset,
   FieldGroup,
@@ -23,6 +25,8 @@ import { Input } from "@/components/catalyst/input";
 import { Select } from "@/components/catalyst/select";
 import { CheckboxField, Checkbox } from "@/components/catalyst/checkbox";
 import { Button } from "@/components/catalyst/button";
+import type { StoreTemplate } from "@/lib/template-catalog";
+import { DesignPresetPicker } from "@/components/admin/DesignPresetPicker";
 
 interface AgentEvent {
   type: "step" | "progress" | "success" | "error" | "done";
@@ -42,9 +46,17 @@ function NewStoreForm() {
   const [niche, setNiche] = useState("");
   const [storeName, setStoreName] = useState("");
   const [mode, setMode] = useState<"mono" | "collection">("mono");
-  const [maxProducts] = useState(10);
+  const [maxProducts, setMaxProducts] = useState(12);
+  const [markets, setMarkets] = useState<string[]>(["FR"]);
   const [language, setLanguage] = useState<"fr" | "en">("fr");
   const [skipVideo, setSkipVideo] = useState(false);
+  const [skipAudio, setSkipAudio] = useState(false);
+  const [manualTemplate, setManualTemplate] = useState(false);
+  const [template, setTemplate] = useState<StoreTemplate>("auto");
+  const [showDesign, setShowDesign] = useState(false);
+  const [designPreset, setDesignPreset] = useState<string | null>(null);
+  const [primaryColor, setPrimaryColor] = useState("");
+  const [accentColor, setAccentColor] = useState("");
   const [running, setRunning] = useState(false);
   const [logs, setLogs] = useState<LogLine[]>([]);
   const [progress, setProgress] = useState(0);
@@ -114,16 +126,20 @@ function NewStoreForm() {
     storeName?: string;
     mode?: "mono" | "collection";
     maxProducts?: number;
+    markets?: string[];
     language?: "fr" | "en";
     skipVideo?: boolean;
+    skipAudio?: boolean;
   }) => {
     const eff = {
       niche: overrides?.niche ?? niche,
       storeName: overrides?.storeName ?? storeName,
       mode: overrides?.mode ?? mode,
       maxProducts: overrides?.maxProducts ?? maxProducts,
+      markets: overrides?.markets ?? markets,
       language: overrides?.language ?? language,
       skipVideo: overrides?.skipVideo ?? skipVideo,
+      skipAudio: overrides?.skipAudio ?? skipAudio,
     };
     if (!eff.niche.trim() || !eff.storeName.trim()) return;
     setRunning(true);
@@ -139,10 +155,24 @@ function NewStoreForm() {
     setMode(eff.mode);
 
     try {
+      // Only send `template` when the operator explicitly opted into manual
+      // selection — otherwise omit it entirely so the server keeps
+      // auto-suggesting via suggestTemplate() (the historical default).
+      const payload = {
+        ...eff,
+        ...(manualTemplate && template !== "auto" ? { template } : {}),
+        ...(designPreset ? { designPreset } : {}),
+        ...(designPreset && /^#[0-9a-fA-F]{6}$/.test(primaryColor)
+          ? { primaryColor }
+          : {}),
+        ...(designPreset && /^#[0-9a-fA-F]{6}$/.test(accentColor)
+          ? { accentColor }
+          : {}),
+      };
       const res = await apiFetch("/api/agent/create-store", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(eff),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok || !res.body) {
@@ -193,6 +223,9 @@ function NewStoreForm() {
     setElapsed(0);
     setNiche("");
     setStoreName("");
+    setDesignPreset(null);
+    setPrimaryColor("");
+    setAccentColor("");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -300,6 +333,51 @@ function NewStoreForm() {
                   </Field>
                 </div>
 
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                  <Field disabled={mode === "mono"}>
+                    <Label>Nombre de produits</Label>
+                    <Description>
+                      {mode === "mono"
+                        ? "Ignoré en mode mono-produit (1 produit)."
+                        : "Nombre de produits importés dans la collection."}
+                    </Description>
+                    <Select
+                      name="maxProducts"
+                      value={String(maxProducts)}
+                      onChange={(e) => setMaxProducts(Number(e.target.value))}
+                      disabled={mode === "mono"}
+                    >
+                      <option value="5">5 produits</option>
+                      <option value="10">10 produits</option>
+                      <option value="12">12 produits</option>
+                      <option value="15">15 produits</option>
+                      <option value="20">20 produits</option>
+                      <option value="25">25 produits</option>
+                    </Select>
+                  </Field>
+
+                  <Field>
+                    <Label>Marchés ciblés</Label>
+                    <Description>
+                      Codes pays ISO séparés par des virgules (5 max).
+                    </Description>
+                    <Input
+                      name="markets"
+                      value={markets.join(", ")}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        const codes = raw
+                          .split(",")
+                          .map((c) => c.trim().toUpperCase())
+                          .filter((c) => c.length > 0)
+                          .slice(0, 5);
+                        setMarkets(codes);
+                      }}
+                      placeholder="ex. FR, BE, CH"
+                    />
+                  </Field>
+                </div>
+
                 <CheckboxField>
                   <Checkbox
                     name="skipVideo"
@@ -310,6 +388,109 @@ function NewStoreForm() {
                     Ignorer la génération vidéo (création plus rapide)
                   </Label>
                 </CheckboxField>
+
+                <CheckboxField>
+                  <Checkbox
+                    name="skipAudio"
+                    checked={skipAudio}
+                    disabled={skipVideo}
+                    onChange={(checked) => setSkipAudio(checked)}
+                  />
+                  <Label>
+                    Ignorer la musique d&apos;ambiance de la vidéo
+                    {skipVideo ? " (déjà ignorée, pas de vidéo)" : ""}
+                  </Label>
+                </CheckboxField>
+
+                <div className="border-t border-admin-border pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setManualTemplate((v) => !v)}
+                    className="flex w-full items-center justify-between gap-2 text-left"
+                    aria-expanded={manualTemplate}
+                  >
+                    <span>
+                      <Label className="!mb-0">
+                        Choisir un template manuellement
+                      </Label>
+                      <Description className="!mt-0.5">
+                        Par défaut, l’agent suggère automatiquement le
+                        meilleur template selon la niche et le mode.
+                      </Description>
+                    </span>
+                    <ChevronDownIcon
+                      className={`size-5 shrink-0 text-zinc-400 transition-transform ${
+                        manualTemplate ? "rotate-180" : ""
+                      }`}
+                      aria-hidden="true"
+                    />
+                  </button>
+
+                  {manualTemplate && (
+                    <div className="mt-4">
+                      <TemplatePicker
+                        value={template}
+                        onChange={setTemplate}
+                        excludeAuto={false}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-admin-border pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowDesign((v) => !v)}
+                    className="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
+                  >
+                    {showDesign
+                      ? "Masquer la personnalisation du design"
+                      : "Personnaliser le design"}
+                  </button>
+
+                  {showDesign && (
+                    <div className="mt-4 space-y-4">
+                      <Field>
+                        <Label>Style visuel</Label>
+                        <Description>
+                          Optionnel. Sans choix, le store utilise le style par
+                          défaut (editorial serif, palette neutre) ou celui
+                          proposé par l’agent en conversation.
+                        </Description>
+                        <DesignPresetPicker
+                          value={designPreset}
+                          onChange={setDesignPreset}
+                          className="mt-2"
+                        />
+                      </Field>
+
+                      {designPreset && (
+                        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                          <Field>
+                            <Label>Couleur principale (optionnel)</Label>
+                            <Input
+                              name="primaryColor"
+                              value={primaryColor}
+                              onChange={(e) =>
+                                setPrimaryColor(e.target.value)
+                              }
+                              placeholder="#0d0d0d"
+                            />
+                          </Field>
+                          <Field>
+                            <Label>Couleur d’accent (optionnel)</Label>
+                            <Input
+                              name="accentColor"
+                              value={accentColor}
+                              onChange={(e) => setAccentColor(e.target.value)}
+                              placeholder="#c9a15a"
+                            />
+                          </Field>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </FieldGroup>
             </Fieldset>
 

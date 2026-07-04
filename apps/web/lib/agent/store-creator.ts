@@ -4,6 +4,7 @@ import { listSuppliers, searchAllSuppliers, type ProductSource } from '@/lib/sup
 import { EXCLUDED_PLATFORMS, evaluateDropshipPure } from '@/lib/suppliers/policy';
 import type { RawProduct } from '@/lib/suppliers/types';
 import { filterByImageQuality, type ImageQualityVerdict } from './image-quality';
+import { filterByListingQuality, DEFAULT_LISTING_QUALITY_THRESHOLD } from './listing-quality';
 import { generateCollectionHero, generateMonoAssets } from './asset-generator';
 import { suggestTemplate } from '@/lib/template-catalog';
 import { writeLandingContent } from './landing-writer';
@@ -35,6 +36,17 @@ export interface StoreCreationInput {
   mode?: 'mono' | 'collection';
   /** Skip the 5s promo video (faster + cheaper). Only relevant when mode='mono'. */
   skipVideo?: boolean;
+  /**
+   * Number of lifestyle images to generate (mono mode only). Default 3,
+   * bounded to [1, 5] — see `resolveLifestyleCount` in asset-generator.ts.
+   */
+  lifestyleImageCount?: number;
+  /**
+   * Skip the ambient audio narration track, independently of `skipVideo`.
+   * Default false. When `skipVideo` is true, audio is skipped automatically
+   * regardless of this flag (nothing to narrate).
+   */
+  skipAudio?: boolean;
   /**
    * Design system locked at creation. The chat picker writes these three
    * fields once and they become the source of truth — every storefront
@@ -196,17 +208,57 @@ interface SupplierSearchOutcome {
   errors: string[];
 }
 
+/**
+ * Market → (currency, countryCode, locale) used to localize the supplier
+ * search call (this only actually affects AliExpress's
+ * `aliexpress.ds.text.search`, which uses countryCode/currency/local to shape
+ * the returned price fields; CJ ignores these params entirely and always
+ * returns USD). Covers the EU markets + the GCC market ('AE') already
+ * referenced as an example in this platform's docs/tests
+ * (store-creator.e2e.test.ts uses markets: ['FR', 'AE']).
+ */
+const MARKET_LOCALE: Record<string, { currency: string; countryCode: string; locale: string }> = {
+  FR: { currency: 'EUR', countryCode: 'FR', locale: 'fr_FR' },
+  BE: { currency: 'EUR', countryCode: 'BE', locale: 'fr_FR' },
+  DE: { currency: 'EUR', countryCode: 'DE', locale: 'de_DE' },
+  ES: { currency: 'EUR', countryCode: 'ES', locale: 'es_ES' },
+  IT: { currency: 'EUR', countryCode: 'IT', locale: 'it_IT' },
+  NL: { currency: 'EUR', countryCode: 'NL', locale: 'nl_NL' },
+  PT: { currency: 'EUR', countryCode: 'PT', locale: 'pt_PT' },
+  GB: { currency: 'GBP', countryCode: 'GB', locale: 'en_GB' },
+  US: { currency: 'USD', countryCode: 'US', locale: 'en_US' },
+  AE: { currency: 'AED', countryCode: 'AE', locale: 'en_US' },
+  SA: { currency: 'SAR', countryCode: 'SA', locale: 'en_US' },
+};
+const DEFAULT_MARKET_LOCALE = MARKET_LOCALE.FR;
+
+/**
+ * Derive the supplier-search currency/countryCode/locale from the FIRST
+ * entry in `markets` (the primary target market). This sources for the
+ * primary market only — true multi-market parallel sourcing (searching once
+ * per market and merging/deduping results) is a future enhancement, not
+ * attempted here. Falls back to FR/EUR/fr_FR when `markets` is empty/absent
+ * or the market isn't in the mapping table, preserving prior behaviour
+ * exactly for callers that don't set `markets`.
+ */
+function resolvePrimaryMarketLocale(markets: string[]): { currency: string; countryCode: string; locale: string } {
+  const primary = markets[0]?.toUpperCase();
+  return (primary && MARKET_LOCALE[primary]) || DEFAULT_MARKET_LOCALE;
+}
+
 async function searchSuppliers(
   niche: string,
   maxPerSupplier: number,
   emit: (e: AgentEvent) => void,
+  markets: string[] = ['FR'],
 ): Promise<SupplierSearchOutcome> {
+  const { currency, countryCode, locale } = resolvePrimaryMarketLocale(markets);
   const { products, errors } = await searchAllSuppliers({
     keywords: niche,
     pageSize: maxPerSupplier,
-    currency: 'EUR',
-    countryCode: 'FR',
-    locale: 'fr_FR',
+    currency,
+    countryCode,
+    locale,
   });
 
   // Derive per-supplier counts for the progress event (mirrors old AE/CJ split).
@@ -720,7 +772,7 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
 
       emit({ type: 'step', message: 'Recherche produits chez les fournisseurs dropshipping...' });
 
-      const searchOutcome = await searchSuppliers(input.niche, 25, emit);
+      const searchOutcome = await searchSuppliers(input.niche, 25, emit, markets);
       const rawProducts = searchOutcome.products;
 
       // Supplier policy snapshot: which platforms were considered, which are
@@ -861,6 +913,51 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
       // gets to change them.
       if (input.primaryColor) branding.primaryColor = input.primaryColor;
       if (input.accentColor) branding.accentColor = input.accentColor;
+
+      // Listing-quality gate: the image-quality filter above only checked
+      // photos — nothing yet checks whether the enriched TITLE/DESCRIPTION
+      // copy is actually any good. Runs on `enriched` (only available once
+      // either enrichment branch above has completed), so it is necessarily
+      // sequential with enrichment, not parallel with the earlier vision
+      // filter (which gates `rawProducts`, a different array, before
+      // enrichment even happens). Fail-soft: an API error lets every product
+      // through ungated rather than failing the whole run.
+      if (enriched.length > 0) {
+        emit({
+          type: 'step',
+          message: `Filtre qualité rédactionnelle — analyse de ${enriched.length} fiches produit...`,
+        });
+        const { kept: listingKept, rejected: listingRejected, failedOpen } =
+          await filterByListingQuality(enriched, DEFAULT_LISTING_QUALITY_THRESHOLD);
+
+        if (failedOpen) {
+          emit({
+            type: 'progress',
+            message: '⚠ Contrôle qualité rédactionnelle indisponible — produits conservés sans filtrage',
+          });
+        } else {
+          emit({
+            type: 'progress',
+            message: `${listingKept.length} fiches qualifiées · ${listingRejected.length} écartées pour qualité de listing insuffisante`,
+            data: { kept: listingKept.length, rejected: listingRejected.length },
+          });
+
+          // Same "never lose the whole selection" policy as the vision gate:
+          // if literally everything failed the text gate, keep going with the
+          // best-ranked ones rather than aborting the run.
+          if (listingKept.length > 0) {
+            enriched = listingKept.map(({ _listingQuality: _lq, ...p }) => p);
+          } else if (listingRejected.length > 0) {
+            enriched = [...listingRejected]
+              .sort((a, b) => b._listingQuality.score - a._listingQuality.score)
+              .map(({ _listingQuality: _lq, ...p }) => p);
+            emit({
+              type: 'progress',
+              message: '⚠ Aucune fiche n’a passé le filtre qualité — on continue avec les meilleures malgré tout',
+            });
+          }
+        }
+      }
 
       // Medusa provisioning is best-effort: when the backend is down the run
       // MUST still deliver a store — products are persisted in Postgres with
@@ -1164,6 +1261,10 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
                 storeName: input.storeName,
                 language,
                 skipVideo: input.skipVideo,
+                lifestyleImageCount: input.lifestyleImageCount,
+                // No video means nothing to narrate — force-skip audio even
+                // if the operator didn't explicitly set skipAudio.
+                skipAudio: input.skipVideo ? true : input.skipAudio,
                 design: {
                   presetSlug: preset.slug,
                   imageryMood: preset.imageryMood,

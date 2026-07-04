@@ -15,6 +15,10 @@ import { rebuildMessages, stringifyToolOutput } from '../copilot-shared';
 import { TOOLS } from './tools';
 import { buildSystemPrompt } from './prompts';
 import { executeTool } from './executors';
+import {
+  getHistoricalPerformanceSummary,
+  formatHistoricalPerformanceForPrompt,
+} from '@/lib/ads/performance-insights';
 import type { ResearchStreamEvent, ShortlistPayload } from './types';
 
 // Niche research is the most strategic step in the pipeline — the choice of
@@ -134,6 +138,14 @@ export async function* runResearchTurn(
       const history = await loadHistory(sessionId);
       const messages = rebuildMessages(history);
 
+      // Cross-store historical performance signal (ROAS by niche/template/
+      // preset) — fetched once per turn, not per tool-loop iteration, and
+      // fail-soft (null on error or no data yet, e.g. a freshly cleared
+      // platform). Rendered as an advisory block; omitted entirely when null.
+      const historicalSummary = await getHistoricalPerformanceSummary();
+      const historicalPerformanceContext = formatHistoricalPerformanceForPrompt(historicalSummary);
+      const systemPrompt = buildSystemPrompt(historicalPerformanceContext);
+
       // storeId is null on purpose: the store doesn't exist yet.
       await runContext.run({ storeId: null }, async () => {
         let loops = 0;
@@ -148,7 +160,7 @@ export async function* runResearchTurn(
             {
               model: RESEARCH_MODEL,
               max_tokens: 4096,
-              system: buildSystemPrompt(),
+              system: systemPrompt,
               tools: TOOLS,
               messages,
             },

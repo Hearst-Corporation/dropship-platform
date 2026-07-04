@@ -16,6 +16,7 @@
 import { z } from 'zod';
 import { trackedOpenAIMessage } from './openai-agent';
 import { extractJson } from './json';
+import { generateKeywordIdeas } from '@/lib/ads/keyword-planner';
 
 export interface AdsPlanInput {
   storeName: string;
@@ -117,6 +118,24 @@ export function computePerformanceTargets(
   };
 }
 
+/**
+ * Normalized keyword idea, as returned by `lib/ads/keyword-planner.ts`.
+ * Duplicated here (not imported) purely to keep the Zod schema declarative
+ * and avoid coupling the plan's on-disk/JSON shape to that module's export
+ * shape — the fields are kept in lockstep manually since both are small and
+ * change rarely.
+ */
+const KeywordResearchIdeaSchema = z.object({
+  keyword: z.string(),
+  avgMonthlySearches: z.number().nullable(),
+  competition: z.enum(['LOW', 'MEDIUM', 'HIGH', 'UNKNOWN']),
+  competitionIndex: z.number().nullable(),
+  lowTopOfPageBidMicros: z.number().nullable(),
+  highTopOfPageBidMicros: z.number().nullable(),
+  lowTopOfPageBidEur: z.number().nullable(),
+  highTopOfPageBidEur: z.number().nullable(),
+});
+
 const GoogleAdsPlanSchema = z.object({
   campaignName: z.string().min(3).max(120),
   objective: z.string().min(3).max(200),
@@ -136,6 +155,14 @@ const GoogleAdsPlanSchema = z.object({
   performanceTargets: PerformanceTargetsSchema.optional(),
   // Short expert notes from the model (FR), optional and non-blocking.
   strategyNotes: z.array(z.string().min(5).max(300)).max(5).optional(),
+  // Real Google Ads Keyword Planner data used to ground the LLM's keyword
+  // choices, when available (never emitted by the model — attached in code
+  // after the keyword research call). Its mere presence (non-empty array)
+  // is the signal that this plan's keywords are grounded in real search
+  // data rather than pure LLM estimation; `source` itself stays
+  // 'openai' | 'fallback' to keep the schema from over-engineering a third
+  // provenance axis for something already inferable from this field.
+  keywordResearch: z.array(KeywordResearchIdeaSchema).optional(),
 });
 
 export type GoogleAdsPlan = z.infer<typeof GoogleAdsPlanSchema>;
@@ -158,13 +185,30 @@ function clampRsa(plan: GoogleAdsPlan): GoogleAdsPlan {
   };
 }
 
-/** Deterministic staged plan when the model is unavailable. Marked fallback. */
-export function buildFallbackGoogleAdsPlan(input: AdsPlanInput): GoogleAdsPlan {
-  const nicheWords = input.niche
+/** Split a free-form niche string into lowercase word tokens (>2 chars). */
+function nicheWordsOf(niche: string): string[] {
+  return niche
     .toLowerCase()
     .split(/[^\p{L}0-9]+/u)
     .filter((w) => w.length > 2)
     .slice(0, 6);
+}
+
+/**
+ * Derive simple seed keywords for the Keyword Planner call from the niche
+ * name + top product titles — same heuristic `buildFallbackGoogleAdsPlan`
+ * already uses to build its deterministic keyword list, reused here so the
+ * real-data grounding call is seeded consistently with the fallback.
+ */
+function deriveSeedKeywords(input: Pick<AdsPlanInput, 'niche' | 'products'>): string[] {
+  const nicheWords = nicheWordsOf(input.niche);
+  const topTitles = input.products.slice(0, 3).map((p) => p.title.toLowerCase().slice(0, 60));
+  return [...new Set([...nicheWords, ...topTitles])].slice(0, 10);
+}
+
+/** Deterministic staged plan when the model is unavailable. Marked fallback. */
+export function buildFallbackGoogleAdsPlan(input: AdsPlanInput): GoogleAdsPlan {
+  const nicheWords = nicheWordsOf(input.niche);
   const topTitles = input.products.slice(0, 3).map((p) => p.title);
   const avgPrice = input.products.length
     ? input.products.reduce((s, p) => s + p.priceCents, 0) / input.products.length / 100
@@ -235,6 +279,42 @@ export async function generateGoogleAdsPlan(input: AdsPlanInput): Promise<Google
   // Unit-economics constraints handed to the model (budget-independent).
   const econ = computePerformanceTargets(input.products, 25);
 
+  // Real Google Ads Keyword Planner grounding — best-effort, never blocks the
+  // pipeline. Empty when not configured, no seed keywords, or the API call
+  // fails (generateKeywordIdeas() itself fails soft and never throws).
+  let keywordResearch: Awaited<ReturnType<typeof generateKeywordIdeas>> = [];
+  try {
+    const seedKeywords = deriveSeedKeywords(input);
+    if (seedKeywords.length > 0) {
+      keywordResearch = await generateKeywordIdeas({
+        seedKeywords,
+        countryCode: input.markets[0] ?? 'FR',
+        languageCode: input.language,
+      });
+    }
+  } catch (e) {
+    // Defensive only — generateKeywordIdeas() already fails soft, but this
+    // call must NEVER become a new failure mode for ads planning.
+    console.error('[ads-planner] keyword research failed', {
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
+
+  const keywordResearchNote =
+    keywordResearch.length > 0
+      ? `\nVOICI DES DONNÉES RÉELLES DE VOLUME DE RECHERCHE GOOGLE ADS (Keyword Planner) pour orienter tes choix de mots-clés — préfère ces requêtes ou leurs variantes proches quand elles sont pertinentes pour ce catalogue :\n${keywordResearch
+          .slice(0, 20)
+          .map((k) => {
+            const vol = k.avgMonthlySearches != null ? `${k.avgMonthlySearches}/mois` : 'volume inconnu';
+            const bid =
+              k.lowTopOfPageBidEur != null && k.highTopOfPageBidEur != null
+                ? `CPC ${k.lowTopOfPageBidEur}-${k.highTopOfPageBidEur}€`
+                : 'CPC inconnu';
+            return `- "${k.keyword}" · ${vol} · concurrence ${k.competition} · ${bid}`;
+          })
+          .join('\n')}\n`
+      : '';
+
   const prompt = `You are a top 0.1% e-commerce growth data scientist specialised in dropshipping launches. You think in unit economics, not vibes.
 
 HARD ECONOMIC CONSTRAINTS (computed from the real catalog — respect them):
@@ -243,7 +323,7 @@ HARD ECONOMIC CONSTRAINTS (computed from the real catalog — respect them):
 - Max acceptable CPA: ${econ.maxCpaEur}€ — budget and structure must respect it
 - Keywords must be buying-intent long-tail; negatives must exclude bargain hunters, DIY, research-only and competitor-brand queries.
 
-
+${keywordResearchNote}
 Store: "${input.storeName}" (${input.landingUrl})
 Niche: "${input.niche}"
 Target markets (ISO codes): ${input.markets.join(', ') || 'FR'}
@@ -294,6 +374,7 @@ Return ONLY a JSON object with EXACTLY these keys:
       });
       if (candidate.success) {
         candidate.data.performanceTargets = computePerformanceTargets(input.products, candidate.data.dailyBudgetEur);
+        if (keywordResearch.length > 0) candidate.data.keywordResearch = keywordResearch;
         return clampRsa(candidate.data);
       }
       // Lenient second chance: coerce the common near-misses before giving up.
@@ -306,6 +387,7 @@ Return ONLY a JSON object with EXACTLY these keys:
       });
       if (coerced.success) {
         coerced.data.performanceTargets = computePerformanceTargets(input.products, coerced.data.dailyBudgetEur);
+        if (keywordResearch.length > 0) coerced.data.keywordResearch = keywordResearch;
         return clampRsa(coerced.data);
       }
     } catch (e) {
@@ -315,7 +397,9 @@ Return ONLY a JSON object with EXACTLY these keys:
       });
     }
   }
-  return buildFallbackGoogleAdsPlan(input);
+  const fallback = buildFallbackGoogleAdsPlan(input);
+  if (keywordResearch.length > 0) fallback.keywordResearch = keywordResearch;
+  return fallback;
 }
 
 interface Queryable {

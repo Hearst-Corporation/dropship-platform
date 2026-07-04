@@ -4,6 +4,11 @@
  *   - OpenAI path returns a validated plan (source 'openai');
  *   - unusable model output falls back cleanly (source 'fallback');
  *   - RSA hard limits (30-char headlines, 90-char descriptions) are clamped;
+ *   - real Keyword Planner data (when available) is injected into the LLM
+ *     prompt as grounding context and attached to the returned plan
+ *     (`keywordResearch`), on both the OpenAI and fallback paths;
+ *   - a failed/empty keyword research call is a strict no-op — the existing
+ *     LLM-only / fallback behavior is unchanged (never a new failure mode);
  *   - staging writes the variant + draft campaign rows, and skips without a
  *     product row id.
  */
@@ -17,13 +22,30 @@ const llm = vi.hoisted(() => ({
     finishReason: 'stop' as string | null,
   })) as (meta: { step: string }) => { text: string; usage: unknown; finishReason: string | null },
   calls: [] as Array<{ step: string }>,
+  prompts: [] as string[],
 }));
 
 vi.mock('@/lib/agent/openai-agent', () => ({
-  trackedOpenAIMessage: vi.fn((meta: { step: string }) => {
+  trackedOpenAIMessage: vi.fn((meta: { step: string }, messages: Array<{ content: string | null }>) => {
     llm.calls.push({ step: meta.step });
+    llm.prompts.push(messages[0]?.content ?? '');
     return Promise.resolve(llm.responder(meta));
   }),
+}));
+
+interface KeywordIdeasCallArgs {
+  seedKeywords?: string[];
+  seedUrl?: string;
+  countryCode: string;
+  languageCode?: string;
+}
+
+const keywordPlanner = vi.hoisted(() => ({
+  generateKeywordIdeas: vi.fn(async (_input: KeywordIdeasCallArgs) => [] as Array<Record<string, unknown>>),
+}));
+
+vi.mock('@/lib/ads/keyword-planner', () => ({
+  generateKeywordIdeas: keywordPlanner.generateKeywordIdeas,
 }));
 
 import {
@@ -70,11 +92,14 @@ const VALID_PLAN = {
 
 beforeEach(() => {
   llm.calls = [];
+  llm.prompts = [];
   llm.responder = () => ({
     text: '',
     usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
     finishReason: 'stop',
   });
+  keywordPlanner.generateKeywordIdeas.mockReset();
+  keywordPlanner.generateKeywordIdeas.mockResolvedValue([]);
 });
 
 describe('computePerformanceTargets', () => {
@@ -189,6 +214,106 @@ describe('generateGoogleAdsPlan', () => {
     const plan = await generateGoogleAdsPlan(INPUT);
     expect(plan.source).toBe('fallback');
     expect(plan.headlines.length).toBeGreaterThanOrEqual(5);
+  });
+});
+
+describe('generateGoogleAdsPlan — keyword research grounding', () => {
+  const SAMPLE_IDEAS = [
+    {
+      keyword: 'diffuseur huiles essentielles',
+      avgMonthlySearches: 9900,
+      competition: 'MEDIUM',
+      competitionIndex: 45,
+      lowTopOfPageBidMicros: 450000,
+      highTopOfPageBidMicros: 1200000,
+      lowTopOfPageBidEur: 0.45,
+      highTopOfPageBidEur: 1.2,
+    },
+    {
+      keyword: 'roller quartz visage',
+      avgMonthlySearches: null,
+      competition: 'LOW',
+      competitionIndex: null,
+      lowTopOfPageBidMicros: null,
+      highTopOfPageBidMicros: null,
+      lowTopOfPageBidEur: null,
+      highTopOfPageBidEur: null,
+    },
+  ];
+
+  it('injects real keyword data into the LLM prompt when the research call succeeds', async () => {
+    keywordPlanner.generateKeywordIdeas.mockResolvedValue(SAMPLE_IDEAS);
+    llm.responder = () => ({
+      text: JSON.stringify(VALID_PLAN),
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+      finishReason: 'stop',
+    });
+
+    await generateGoogleAdsPlan(INPUT);
+
+    expect(keywordPlanner.generateKeywordIdeas).toHaveBeenCalledTimes(1);
+    const callArgs = keywordPlanner.generateKeywordIdeas.mock.calls[0]![0];
+    expect(callArgs.countryCode).toBe('FR'); // first market in INPUT.markets
+    expect(callArgs.languageCode).toBe('fr');
+    expect(Array.isArray(callArgs.seedKeywords)).toBe(true);
+    expect(callArgs.seedKeywords!.length).toBeGreaterThan(0);
+
+    // The prompt sent to the LLM must carry the real data as grounding context.
+    expect(llm.prompts[0]).toContain('diffuseur huiles essentielles');
+    expect(llm.prompts[0]).toContain('9900/mois');
+    expect(llm.prompts[0]).toContain('DONNÉES RÉELLES');
+  });
+
+  it('attaches keywordResearch to the returned plan on the OpenAI success path', async () => {
+    keywordPlanner.generateKeywordIdeas.mockResolvedValue(SAMPLE_IDEAS);
+    llm.responder = () => ({
+      text: JSON.stringify(VALID_PLAN),
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+      finishReason: 'stop',
+    });
+    const plan = await generateGoogleAdsPlan(INPUT);
+    expect(plan.source).toBe('openai');
+    expect(plan.keywordResearch).toEqual(SAMPLE_IDEAS);
+  });
+
+  it('attaches keywordResearch to the returned plan on the fallback path too', async () => {
+    keywordPlanner.generateKeywordIdeas.mockResolvedValue(SAMPLE_IDEAS);
+    llm.responder = () => ({
+      text: 'pas du json du tout',
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+      finishReason: 'stop',
+    });
+    const plan = await generateGoogleAdsPlan(INPUT);
+    expect(plan.source).toBe('fallback');
+    expect(plan.keywordResearch).toEqual(SAMPLE_IDEAS);
+  });
+
+  it('never sets keywordResearch when the research call returns nothing (not configured)', async () => {
+    keywordPlanner.generateKeywordIdeas.mockResolvedValue([]);
+    llm.responder = () => ({
+      text: JSON.stringify(VALID_PLAN),
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+      finishReason: 'stop',
+    });
+    const plan = await generateGoogleAdsPlan(INPUT);
+    expect(plan.source).toBe('openai');
+    expect(plan.keywordResearch).toBeUndefined();
+    // No grounding note should appear when there's nothing to ground with.
+    expect(llm.prompts[0]).not.toContain('DONNÉES RÉELLES');
+  });
+
+  it('is a strict enhancement: a throwing keyword research call never becomes a new failure mode', async () => {
+    keywordPlanner.generateKeywordIdeas.mockRejectedValue(new Error('Google Ads API down'));
+    llm.responder = () => ({
+      text: JSON.stringify(VALID_PLAN),
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+      finishReason: 'stop',
+    });
+    const plan = await generateGoogleAdsPlan(INPUT);
+    // The LLM path must still succeed exactly as if keyword research didn't exist.
+    expect(plan.source).toBe('openai');
+    expect(plan.campaignName).toBe(VALID_PLAN.campaignName);
+    expect(plan.keywordResearch).toBeUndefined();
   });
 });
 
