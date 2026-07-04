@@ -93,7 +93,7 @@ Return ONLY this JSON, no preamble:
 
     return { score, issues, reason };
   } catch (e) {
-    console.error('[image-quality] vision call failed', e);
+    console.error('[image-quality] vision call failed', imageUrl, e instanceof Error ? e.message : e);
     // Fail open at a neutral score so a single broken image doesn't trash a
     // batch — but mark it low so genuinely good images still rank above it.
     return { score: 0.3, issues: ['low_quality'], reason: 'Erreur d’évaluation' };
