@@ -87,9 +87,9 @@ describe('isLuxuryTemplate', () => {
     expect(isLuxuryTemplate('')).toBe(false);
   });
 
-  it('exactly 3 luxury templates exist in the catalog', () => {
+  it('exactly 4 luxury templates exist in the catalog', () => {
     const luxuryEntries = TEMPLATE_CATALOG.filter((t) => t.register === 'luxury');
-    expect(luxuryEntries).toHaveLength(3);
+    expect(luxuryEntries).toHaveLength(4);
     // All must pass isLuxuryTemplate
     for (const entry of luxuryEntries) {
       expect(isLuxuryTemplate(entry.id)).toBe(true);
@@ -203,6 +203,141 @@ describe('suggestTemplate', () => {
     const entry = getTemplateEntry(id);
     expect(entry).toBeDefined();
     expect(entry!.niches).toContain('wellness');
+  });
+
+  // ── July 2026 batch: new niches/templates ──────────────────────────────
+
+  it('picks tech-modular (or another tech-tagged mono template) for a gadgets niche', () => {
+    const id = suggestTemplate({
+      niche: 'gadgets tech connectés',
+      mode: 'mono',
+      productCount: 1,
+    });
+
+    const entry = getTemplateEntry(id);
+    expect(entry).toBeDefined();
+    expect(entry!.niches).toContain('tech');
+    expect(entry!.mode).toBe('mono');
+  });
+
+  it('picks a pet-tagged collection template for a pet-only niche', () => {
+    const id = suggestTemplate({
+      niche: 'accessoires chien chat animaux',
+      mode: 'collection',
+      productCount: 5,
+    });
+
+    const entry = getTemplateEntry(id);
+    expect(entry).toBeDefined();
+    expect(entry!.niches).toContain('pet');
+  });
+
+  it('picks food-artisan for a gourmet food/beverage collection niche', () => {
+    const id = suggestTemplate({
+      niche: 'épicerie fine café thé gourmet',
+      mode: 'collection',
+      productCount: 5,
+    });
+
+    const entry = getTemplateEntry(id);
+    expect(entry).toBeDefined();
+    expect(entry!.niches.some((n) => n === 'food' || n === 'beverage')).toBe(true);
+  });
+
+  it('picks home-atelier for a home decor collection niche', () => {
+    const id = suggestTemplate({
+      niche: 'déco maison intérieur lampe meuble',
+      mode: 'collection',
+      productCount: 5,
+    });
+
+    const entry = getTemplateEntry(id);
+    expect(entry).toBeDefined();
+    expect(entry!.niches).toContain('home');
+  });
+
+  it('picks kids-playful for a kids collection niche', () => {
+    const id = suggestTemplate({
+      niche: 'jouet enfant bébé',
+      mode: 'collection',
+      productCount: 5,
+    });
+
+    const entry = getTemplateEntry(id);
+    expect(entry).toBeDefined();
+    expect(entry!.niches).toContain('kids');
+  });
+
+  it('picks outdoor-summit-ridge or another sport/outdoor template for an outdoor niche', () => {
+    const id = suggestTemplate({
+      niche: 'outdoor randonnée matériel sport',
+      mode: 'collection',
+      productCount: 5,
+    });
+
+    const entry = getTemplateEntry(id);
+    expect(entry).toBeDefined();
+    expect(entry!.niches).toContain('sport');
+  });
+
+  it('picks auto-garage for an automotive collection niche', () => {
+    const id = suggestTemplate({
+      niche: 'accessoires voiture véhicule dashcam',
+      mode: 'collection',
+      productCount: 5,
+    });
+
+    expect(id).toBe('auto-garage');
+    const entry = getTemplateEntry(id);
+    expect(entry).toBeDefined();
+    expect(entry!.niches).toContain('automotive');
+  });
+
+  it('picks gift-curated or another gifting template for a gift box niche', () => {
+    const id = suggestTemplate({
+      niche: 'coffret cadeau box curated',
+      mode: 'collection',
+      productCount: 6,
+    });
+
+    const entry = getTemplateEntry(id);
+    expect(entry).toBeDefined();
+    expect(entry!.niches).toContain('gifting');
+  });
+
+  it('never auto-suggests street-drop or orfevre-noir (autoCandidate: false, opt-in only)', () => {
+    const niches = [
+      'streetwear drop hype sneaker',
+      'bijoux joaillerie orfèvre pièce unique',
+    ];
+    for (const niche of niches) {
+      const id = suggestTemplate({ niche, mode: 'collection', productCount: 6 });
+      expect(id).not.toBe('street-drop');
+      expect(id).not.toBe('orfevre-noir');
+    }
+  });
+});
+
+// ── automotive niche / NICHE_KEYWORDS ─────────────────────────────────────
+
+describe('automotive niche', () => {
+  it('is a valid TemplateNiche used by at least one catalog entry', () => {
+    const entries = TEMPLATE_CATALOG.filter((t) => t.niches.includes('automotive'));
+    expect(entries.length).toBeGreaterThan(0);
+    expect(entries.some((t) => t.id === 'auto-garage')).toBe(true);
+  });
+
+  it('matches common French and English automotive keywords via suggestTemplate', () => {
+    // Note: "gadget" alone is shared with the tech niche keyword list, so a
+    // phrase mixing "auto" with "gadgets" can score a tech/events template
+    // higher than auto-garage — expected niche overlap, not tested here.
+    const phrases = ['voiture', 'véhicule', 'car accessories', 'dashcam', 'accessoire garage'];
+    for (const phrase of phrases) {
+      const id = suggestTemplate({ niche: phrase, mode: 'collection', productCount: 5 });
+      const entry = getTemplateEntry(id);
+      expect(entry).toBeDefined();
+      expect(entry!.niches).toContain('automotive');
+    }
   });
 });
 

@@ -42,7 +42,27 @@ export interface DesignProposal {
     | 'tech-mono'
     | 'brutalist-luxe'
     | 'gen-z-bold'
-    | 'lifestyle-warm';
+    | 'lifestyle-warm'
+    | 'gadget-graphite'
+    | 'pet-playful'
+    | 'gourmet-noir'
+    | 'home-linen'
+    | 'kids-crayon'
+    | 'jewel-mono'
+    | 'trail-forge'
+    | 'auto-carbon'
+    | 'urban-concrete'
+    | 'gift-ribbon'
+    | 'scandi-minimal'
+    | 'art-deco-glam'
+    | 'brutal-neon'
+    | 'y2k-pastel'
+    | 'mono-architect'
+    | 'botanical-green'
+    | 'coastal-nautical'
+    | 'diner-retro'
+    | 'wabi-sabi'
+    | 'desert-terracotta';
   primary: string;
   accent: string;
   rationale: string;

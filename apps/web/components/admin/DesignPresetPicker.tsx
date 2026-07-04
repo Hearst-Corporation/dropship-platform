@@ -36,13 +36,14 @@ interface DesignPresetPickerProps {
 }
 
 /**
- * Small card grid for picking one of the 5 curated design presets
+ * Small card grid for picking one of the curated design presets
  * (`lib/design/presets.ts`). Each card shows the preset name, tagline and
  * two color swatches (primary/accent) rendered purely from palette data —
  * there are no screenshot assets for presets, unlike storefront templates.
+ * Presets without an entry in `PREVIEW_COLORS` fall back to their neutrals.
  *
  * Independent of the storefront TEMPLATE picker (layout, 27 options) — this
- * is about color/typography mood (5 options) and has its own data source.
+ * is about color/typography mood and has its own data source.
  */
 export function DesignPresetPicker({
   value,

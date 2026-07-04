@@ -18,6 +18,14 @@ import { DESIGN_PRESETS, type DesignPreset, type StorePalette } from './presets'
 // General Sans, Satoshi, Geist) are commercial / Fontshare. For those we
 // either fall back to a close Google equivalent OR self-host them later.
 // Keep the mapping explicit so we never silently load a font that 404s.
+//
+// `weights` here are the map's defaults — `buildGoogleFontsUrl()` unions them
+// with whatever weight array the chosen preset actually requests
+// (`preset.fonts.display.weights` / `.body.weights`), so listing a superset
+// of commonly-needed weights per family is safe: every preset gets at least
+// what it asks for, and shared entries (e.g. Inter, Poppins, Archivo used by
+// several presets with different weight sets) resolve correctly for all of
+// them without needing preset-specific branches.
 const GOOGLE_FONT_FAMILIES: Record<string, { google: string; weights: number[]; italic?: boolean } | null> = {
   // Editorial serif
   'Instrument Serif': { google: 'Instrument+Serif', weights: [400], italic: true },
@@ -34,6 +42,41 @@ const GOOGLE_FONT_FAMILIES: Record<string, { google: string; weights: number[]; 
   'General Sans': null,
   'Migra': null,
   'PP Editorial New': null,
+
+  // --- Added for the 20 new presets (2026-07) ---
+  'Space Grotesk': { google: 'Space+Grotesk', weights: [400, 500, 600, 700] },
+  'Baloo 2': { google: 'Baloo+2', weights: [400, 500, 600, 700, 800] },
+  'Karla': { google: 'Karla', weights: [400, 500, 600, 700] },
+  'Cormorant Garamond': { google: 'Cormorant+Garamond', weights: [400, 500, 600], italic: true },
+  'Work Sans': { google: 'Work+Sans', weights: [400, 500, 600, 700] },
+  'Fredoka': { google: 'Fredoka', weights: [400, 500, 600, 700] },
+  'Quicksand': { google: 'Quicksand', weights: [400, 500, 600, 700] },
+  'Cormorant': { google: 'Cormorant', weights: [400, 500, 600, 700], italic: true },
+  'Jost': { google: 'Jost', weights: [400, 500, 600] },
+  'Oswald': { google: 'Oswald', weights: [400, 500, 600, 700] },
+  'Barlow': { google: 'Barlow', weights: [400, 500, 600, 700] },
+  'Rajdhani': { google: 'Rajdhani', weights: [400, 500, 600, 700] },
+  'Titillium Web': { google: 'Titillium+Web', weights: [400, 600, 700] },
+  'Archivo Expanded': { google: 'Archivo+Expanded', weights: [400, 600, 700] },
+  'Archivo': { google: 'Archivo', weights: [400, 500, 600, 700] },
+  'Marcellus': { google: 'Marcellus', weights: [400] },
+  'Mulish': { google: 'Mulish', weights: [400, 500, 600, 700] },
+  'Manrope': { google: 'Manrope', weights: [400, 500, 600, 700, 800] },
+  'Poiret One': { google: 'Poiret+One', weights: [400] },
+  'Josefin Sans': { google: 'Josefin+Sans', weights: [400, 500, 600, 700] },
+  'Space Mono': { google: 'Space+Mono', weights: [400, 700], italic: true },
+  'IBM Plex Mono': { google: 'IBM+Plex+Mono', weights: [400, 500, 600] },
+  'Poppins': { google: 'Poppins', weights: [400, 500, 600, 700] },
+  'Nunito Sans': { google: 'Nunito+Sans', weights: [400, 500, 600, 700] },
+  'Libre Franklin': { google: 'Libre+Franklin', weights: [400, 500, 600, 700] },
+  'Source Sans 3': { google: 'Source+Sans+3', weights: [400, 500, 600, 700] },
+  'Bebas Neue': { google: 'Bebas+Neue', weights: [400] },
+  'Roboto Slab': { google: 'Roboto+Slab', weights: [400, 500, 600, 700] },
+  'Shippori Mincho': { google: 'Shippori+Mincho', weights: [400, 500, 600, 700] },
+  'Zen Kaku Gothic New': { google: 'Zen+Kaku+Gothic+New', weights: [400, 500, 700] },
+  'Bricolage Grotesque': { google: 'Bricolage+Grotesque', weights: [400, 500, 600, 700, 800] },
+  'DM Sans': { google: 'DM+Sans', weights: [400, 500, 600, 700] },
+  'Inter': { google: 'Inter', weights: [400, 500, 600] },
 };
 
 export interface RuntimeDesign {

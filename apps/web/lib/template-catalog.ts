@@ -14,6 +14,7 @@
  */
 
 export type TemplateNiche =
+  | 'automotive'
   | 'fashion'
   | 'beauty'
   | 'wellness'
@@ -344,6 +345,117 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogEntry[] = [
     minProducts: 3,
     autoCandidate: false,
   },
+  // ============== New template batch — July 2026 ==============
+  {
+    id: 'tech-modular',
+    label: 'Tech modular',
+    hint: 'Gadget high-tech dark par défaut, hero produit sur panneau charbon, tableau comparatif et grille de specs pour projecteurs, écouteurs et objets connectés.',
+    niches: ['tech'],
+    register: 'premium',
+    mode: 'mono',
+    moods: ['dark', 'sans', 'bold'],
+    minProducts: 1,
+    autoCandidate: true,
+  },
+  {
+    id: 'pet-companion',
+    label: 'Pet companion',
+    hint: "Boutique pet playful et rassurante, photos animaux réelles, badges vétérinaire et grilles d'avis maîtres.",
+    niches: ['pet'],
+    register: 'mass',
+    mode: 'collection',
+    moods: ['playful', 'soft', 'organic'],
+    minProducts: 3,
+    autoCandidate: true,
+  },
+  {
+    id: 'food-artisan',
+    label: 'Artisan gourmet',
+    hint: "Épicerie fine et cafés/thés de spécialité, macro-photo produit, storytelling de sourcing et récit d'atelier.",
+    niches: ['food', 'beverage', 'gifting'],
+    register: 'premium',
+    mode: 'editorial',
+    moods: ['organic', 'serif', 'soft'],
+    minProducts: 3,
+    autoCandidate: true,
+  },
+  {
+    id: 'home-atelier',
+    label: 'Home atelier',
+    hint: 'Décoration et intérieur soft, photos en situation pièce par pièce et bloc shop the look.',
+    niches: ['home'],
+    register: 'premium',
+    mode: 'collection',
+    moods: ['soft', 'organic', 'serif'],
+    minProducts: 3,
+    autoCandidate: true,
+  },
+  {
+    id: 'kids-playful',
+    label: 'Kids playful',
+    hint: "Boutique enfant/bébé rassurante, badges âge et pictos sécurité, mur d'avis parents.",
+    niches: ['kids', 'gifting', 'home'],
+    register: 'mass',
+    mode: 'collection',
+    moods: ['playful', 'soft', 'sans'],
+    minProducts: 3,
+    autoCandidate: true,
+  },
+  {
+    id: 'orfevre-noir',
+    label: 'Orfèvre Noir',
+    hint: "Pièce unique orfèvrerie sur fond noir profond, scroll lent macro, sceau de certificat d'authenticité et sélecteur de taille.",
+    niches: ['jewelry'],
+    register: 'luxury',
+    mode: 'mono',
+    moods: ['dark', 'serif', 'cinematic'],
+    minProducts: 1,
+    autoCandidate: false,
+  },
+  {
+    id: 'outdoor-summit-ridge',
+    label: 'Outdoor Summit Ridge',
+    hint: 'Matériel outdoor rugged, hero pleine largeur en terrain réel, callouts specs poids et étanchéité.',
+    niches: ['sport', 'tech', 'travel'],
+    register: 'mass',
+    mode: 'collection',
+    moods: ['bold', 'organic', 'sans'],
+    minProducts: 3,
+    autoCandidate: true,
+  },
+  {
+    id: 'auto-garage',
+    label: 'Garage',
+    hint: 'Boutique gadgets auto, compatibilité véhicule mise en avant, esthétique carbone atelier.',
+    niches: ['automotive'],
+    register: 'mass',
+    mode: 'collection',
+    moods: ['dark', 'bold', 'sans'],
+    minProducts: 3,
+    autoCandidate: true,
+  },
+  {
+    id: 'street-drop',
+    label: 'Street drop',
+    hint: 'Noir absolu, titres condensés géants, compte à rebours de drop et accent néon.',
+    niches: ['fashion', 'sport', 'gifting'],
+    register: 'mass',
+    mode: 'collection',
+    moods: ['bold', 'dark', 'sans'],
+    minProducts: 3,
+    autoCandidate: false,
+  },
+  {
+    id: 'gift-curated',
+    label: 'Coffret cadeau',
+    hint: 'Coffrets et box cadeaux curés, navigation par occasion, contenu détaillé de chaque box.',
+    niches: ['gifting'],
+    register: 'premium',
+    mode: 'collection',
+    moods: ['soft', 'serif', 'organic'],
+    minProducts: 4,
+    autoCandidate: true,
+  },
 ] as const;
 
 export type StoreTemplate = (typeof TEMPLATE_CATALOG)[number]['id'];
@@ -370,6 +482,7 @@ export function isLuxuryTemplate(id: string | null | undefined): boolean {
 
 /** Keyword → TemplateNiche mapping used to score a free-form niche string. */
 const NICHE_KEYWORDS: ReadonlyArray<[TemplateNiche, RegExp]> = [
+  ['automotive', /car|auto|vehicle|dash ?cam|voiture|véhicule|garage/i],
   ['wellness', /wellness|bien[- ]?être|aromath|spa|relax|zen|massage|méditation|meditation|yoga/i],
   ['beauty', /beauty|beauté|cosm[ée]t|skincare|soin|visage|makeup|maquillage/i],
   ['health', /health|santé|fitness|sport|muscu|gym/i],
@@ -379,7 +492,7 @@ const NICHE_KEYWORDS: ReadonlyArray<[TemplateNiche, RegExp]> = [
   ['pet', /pet|animal|chien|chat|dog|cat/i],
   ['tech', /tech|gadget|électronique|electronique|audio|gaming|smart/i],
   ['kids', /kids|enfant|bébé|bebe|jouet|toy/i],
-  ['food', /food|cuisine|gourmet|thé|café|coffee|tea|snack/i],
+  ['food', /food|cuisine|gourmet|(?<![a-zà-ÿ])thé(?![a-zà-ÿ])|(?<![a-zà-ÿ])café|coffee|tea|snack/i],
   ['gifting', /cadeau|gift/i],
   ['sport', /sport|fitness|outdoor|randonnée|running/i],
 ];
@@ -415,9 +528,16 @@ export function suggestTemplate(args: {
 
     let score = 0;
     for (const n of t.niches) if (detected.has(n)) score += 3;
-    if (t.register === 'premium') score += 2;
-    if (t.mode !== 'collection') score += 1; // richer layout than the plain grid
-    if (t.autoCandidate) score += 1;
+    // Richness bonuses (register/mode/autoCandidate) only apply once a niche
+    // actually matched, or when nothing was detected at all (pure fallback —
+    // in that case richness alone should beat the plain grid). Without this
+    // guard, a premium/editorial template with zero niche overlap could tie
+    // or beat a mass-register template that genuinely matches the niche.
+    if (score > 0 || detected.size === 0) {
+      if (t.register === 'premium') score += 2;
+      if (t.mode !== 'collection') score += 1; // richer layout than the plain grid
+      if (t.autoCandidate) score += 1;
+    }
 
     if (!best || score > best.score) best = { id: t.id as StoreTemplate, score };
   }
