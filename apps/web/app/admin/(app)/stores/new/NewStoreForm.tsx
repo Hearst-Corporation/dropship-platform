@@ -410,13 +410,13 @@ function NewStoreForm() {
                     aria-expanded={manualTemplate}
                   >
                     <span>
-                      <Label className="!mb-0">
+                      <span className="block text-base/6 font-medium text-zinc-950 sm:text-sm/6 dark:text-white">
                         Choisir un template manuellement
-                      </Label>
-                      <Description className="!mt-0.5">
+                      </span>
+                      <Text className="!mt-0.5">
                         Par défaut, l’agent suggère automatiquement le
                         meilleur template selon la niche et le mode.
-                      </Description>
+                      </Text>
                     </span>
                     <ChevronDownIcon
                       className={`size-5 shrink-0 text-zinc-400 transition-transform ${
