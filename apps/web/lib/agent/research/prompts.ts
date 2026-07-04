@@ -12,6 +12,94 @@ import { TEMPLATE_CATALOG } from '@/lib/template-catalog';
 // ── System prompt ──────────────────────────────────────────────────────
 
 /**
+ * Closed set of commercial-event ids surfaced by `getUpcomingCommercialEvents()`.
+ *
+ * NOTE: this should eventually be replaced by (or aligned with) the
+ * `SeasonalTag` union type defined in `lib/agent/candidate-niches.ts` once
+ * that module exists in this tree — keeping it as a local string-literal
+ * union here avoids a compile error if that file hasn't landed yet.
+ */
+export type CommercialEventId =
+  | 'new-year'
+  | 'valentines'
+  | 'mothers-day'
+  | 'summer'
+  | 'back-to-school'
+  | 'black-friday'
+  | 'christmas';
+
+export interface CommercialEvent {
+  /** Closed set matching (eventually) `SeasonalTag` from candidate-niches.ts. */
+  id: CommercialEventId;
+  /** French display label, e.g. "Noël". */
+  label: string;
+  /** ISO date (YYYY-MM-DD) of the event / window start, current or next occurrence. */
+  date: string;
+  /** Days from referenceDate to the event (negative = already passed). */
+  daysAway: number;
+}
+
+// Returns the last occurrence of a given weekday (0=Sun…6=Sat) in a month.
+function lastWeekdayOfMonth(y: number, m: number, dow: number): Date {
+  const last = new Date(y, m + 1, 0); // last day of month
+  const diff = (last.getDay() - dow + 7) % 7;
+  return new Date(y, m, last.getDate() - diff);
+}
+// Returns the Nth occurrence of a weekday in a month (1-indexed).
+function nthWeekdayOfMonth(y: number, m: number, dow: number, n: number): Date {
+  const first = new Date(y, m, 1);
+  const diff = (dow - first.getDay() + 7) % 7;
+  return new Date(y, m, 1 + diff + (n - 1) * 7);
+}
+
+interface RawCommercialEvent {
+  id: CommercialEventId;
+  date: Date;
+  label: string;
+}
+
+/**
+ * Compute the upcoming French commercial events (dropshipping-relevant),
+ * filtered to the next 100 days (allowing a 7-day grace window for events
+ * that just passed), sorted soonest-first.
+ *
+ * Deterministic, server-side — never delegate this to an LLM (see
+ * `buildTemporalContext` doc comment for the historical bug this avoids).
+ */
+export function getUpcomingCommercialEvents(referenceDate: Date = new Date()): CommercialEvent[] {
+  const now = referenceDate;
+  const year = now.getFullYear();
+
+  const blackFriday = lastWeekdayOfMonth(year, 10, 5); // last Friday of November
+  const cyberMonday = new Date(blackFriday.getFullYear(), blackFriday.getMonth(), blackFriday.getDate() + 3);
+
+  // Upcoming commercial events relevant for dropshipping in FR.
+  // Roughly ordered by date.
+  const events: RawCommercialEvent[] = [
+    { id: 'new-year',       date: new Date(year, 0, 6),               label: 'soldes d\'hiver (FR, début janvier)' },
+    { id: 'valentines',     date: new Date(year, 1, 14),              label: 'Saint-Valentin (14 février)' },
+    { id: 'mothers-day',    date: lastWeekdayOfMonth(year, 4, 0),     label: 'fête des mères FR (dernier dim. mai)' },
+    { id: 'summer',         date: new Date(year, 5, 28),              label: 'soldes d\'été (FR, fin juin → fin juillet)' },
+    { id: 'summer',         date: nthWeekdayOfMonth(year, 5, 0, 3),   label: 'fête des pères FR (3e dim. juin)' },
+    { id: 'back-to-school', date: new Date(year, 8, 1),               label: 'rentrée scolaire (début septembre)' },
+    { id: 'black-friday',   date: new Date(year, 9, 31),              label: 'Halloween (31 octobre)' },
+    { id: 'black-friday',   date: blackFriday,                        label: 'Black Friday (dernier vendredi nov.)' },
+    { id: 'black-friday',   date: cyberMonday,                        label: 'Cyber Monday (lundi suivant Black Friday)' },
+    { id: 'christmas',      date: new Date(year, 11, 25),             label: 'Noël (25 décembre)' },
+  ];
+
+  return events
+    .map((e) => ({
+      id: e.id,
+      label: e.label,
+      date: e.date.toISOString().slice(0, 10),
+      daysAway: Math.round((e.date.getTime() - now.getTime()) / 86_400_000),
+    }))
+    .filter((e) => e.daysAway >= -7 && e.daysAway <= 100)
+    .sort((a, b) => a.daysAway - b.daysAway);
+}
+
+/**
  * Compute the current temporal context the agent needs.
  *
  * Claude's training cutoff is mid-2025; without an anchor it will hallucinate
@@ -42,40 +130,7 @@ export function buildTemporalContext(): string {
   ];
   const season = SEASON_BY_MONTH[month];
 
-  // Returns the last occurrence of a given weekday (0=Sun…6=Sat) in a month.
-  const lastWeekdayOfMonth = (y: number, m: number, dow: number): Date => {
-    const last = new Date(y, m + 1, 0); // last day of month
-    const diff = (last.getDay() - dow + 7) % 7;
-    return new Date(y, m, last.getDate() - diff);
-  };
-  // Returns the Nth occurrence of a weekday in a month (1-indexed).
-  const nthWeekdayOfMonth = (y: number, m: number, dow: number, n: number): Date => {
-    const first = new Date(y, m, 1);
-    const diff = (dow - first.getDay() + 7) % 7;
-    return new Date(y, m, 1 + diff + (n - 1) * 7);
-  };
-
-  const blackFriday = lastWeekdayOfMonth(year, 10, 5); // last Friday of November
-  const cyberMonday = new Date(blackFriday.getFullYear(), blackFriday.getMonth(), blackFriday.getDate() + 3);
-
-  // Upcoming commercial events relevant for dropshipping in FR.
-  // Roughly ordered by date. We surface the next 2 within ~90 days.
-  const events: Array<{ date: Date; label: string }> = [
-    { date: new Date(year, 0, 6),                           label: 'soldes d\'hiver (FR, début janvier)' },
-    { date: new Date(year, 1, 14),                          label: 'Saint-Valentin (14 février)' },
-    { date: lastWeekdayOfMonth(year, 4, 0),                 label: 'fête des mères FR (dernier dim. mai)' },
-    { date: new Date(year, 5, 28),                          label: 'soldes d\'été (FR, fin juin → fin juillet)' },
-    { date: nthWeekdayOfMonth(year, 5, 0, 3),               label: 'fête des pères FR (3e dim. juin)' },
-    { date: new Date(year, 8, 1),                           label: 'rentrée scolaire (début septembre)' },
-    { date: new Date(year, 9, 31),                          label: 'Halloween (31 octobre)' },
-    { date: blackFriday,                                    label: 'Black Friday (dernier vendredi nov.)' },
-    { date: cyberMonday,                                    label: 'Cyber Monday (lundi suivant Black Friday)' },
-    { date: new Date(year, 11, 25),                         label: 'Noël (25 décembre)' },
-  ];
-  const upcoming = events
-    .map((e) => ({ ...e, daysAway: Math.round((e.date.getTime() - now.getTime()) / 86_400_000) }))
-    .filter((e) => e.daysAway >= -7 && e.daysAway <= 100)
-    .sort((a, b) => a.daysAway - b.daysAway)
+  const upcoming = getUpcomingCommercialEvents(now)
     .slice(0, 3)
     .map((e) => `${e.label} ${e.daysAway >= 0 ? `dans ${e.daysAway}j` : `il y a ${-e.daysAway}j`}`)
     .join(' · ');

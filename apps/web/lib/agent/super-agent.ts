@@ -44,6 +44,8 @@ import { getMedusaBaseUrl, getMedusaAuthMode, medusa } from '@/lib/medusa';
 import { TEMPLATE_IDS } from '@/lib/template-catalog';
 import { DESIGN_PRESETS } from '@/lib/design/presets';
 import { zEnumFromReadonly } from '@/lib/zod-utils';
+import { CANDIDATE_NICHES } from './candidate-niches';
+import { scoreNicheOpportunities } from './niche-scorer';
 
 // ── Public types ────────────────────────────────────────────────────────
 
@@ -417,6 +419,18 @@ const SUPER_TOOLS: Anthropic.Messages.Tool[] = [
         markets: { type: 'array', items: { type: 'string' }, description: 'Marchés cibles en codes ISO (ex: ["FR","AE"]). Défaut: ["FR"].' },
       },
       required: ['niche', 'store_name'],
+    },
+  },
+  {
+    name: 'discover_opportunity',
+    description:
+      'Trouve les meilleures opportunités de niche produit à lancer MAINTENANT, sans que l\'opérateur ait besoin de nommer une niche précise. Balaie un catalogue de ~50 niches candidates et les classe selon : coût publicitaire (CPC réel via Google Ads Keyword Planner si configuré), volume de recherche, saisonnalité (proximité d\'un événement commercial comme Noël, rentrée, Saint-Valentin, calculée depuis la date du jour), et saturation publicitaire Meta. Lecture seule, ne crée rien, aucune confirmation requise. Utilise ce tool quand l\'opérateur demande une idée de produit/niche sans en préciser une (ex: "trouve-moi le meilleur produit à lancer maintenant", "qu\'est-ce qui marche en ce moment ?"). Retourne un classement de 3-5 opportunités avec justification ; propose ensuite à l\'opérateur de lancer create_store sur celle de son choix — ne lance JAMAIS create_store automatiquement sur le résultat sans validation explicite.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        count: { type: 'number', description: 'Nombre d\'opportunités à retourner (1-10). Défaut: 5.' },
+        markets: { type: 'array', items: { type: 'string' }, description: 'Marchés cibles en codes ISO pour le signal CPC/volume (ex: ["FR"]). Défaut: ["FR"]. Seul le premier marché est utilisé pour la recherche de mots-clés.' },
+      },
     },
   },
   {
@@ -1063,6 +1077,36 @@ async function execCreateStore(input: unknown): Promise<ExecResult> {
   };
 }
 
+async function execDiscoverOpportunity(input: unknown): Promise<ExecResult> {
+  const schema = z.object({
+    count: z.number().int().min(1).max(10).optional().default(5),
+    markets: z.array(z.string().regex(/^[A-Za-z]{2,3}$/)).max(5).optional(),
+  });
+  const args = schema.parse(input);
+  const countryCode = args.markets?.[0]?.toUpperCase() ?? 'FR';
+
+  const ranked = await scoreNicheOpportunities(CANDIDATE_NICHES, {
+    countryCode,
+    limit: args.count,
+  });
+
+  const opportunities = ranked.map((r) => ({
+    niche_label: r.niche.label,
+    template_niche: r.niche.templateNiche,
+    seed_keywords: r.niche.seedKeywords,
+    baseline_price_range_eur: r.niche.baselinePriceRangeEur,
+    score: Math.round(r.score * 100) / 100,
+    justification: r.justification,
+    keyword_data_available: r.keywordDataAvailable,
+    notes: r.niche.notes ?? null,
+  }));
+
+  return {
+    output: { opportunities, count: opportunities.length },
+    summary: `discover_opportunity — ${opportunities.length} opportunité(s) classée(s), meilleure: ${opportunities[0]?.niche_label ?? 'aucune'}`,
+  };
+}
+
 async function execGoogleAdsPush(
   input: unknown,
   confirmations: Record<string, boolean>,
@@ -1184,6 +1228,7 @@ async function executeSuperTool(
     case 'trigger_workflow': return execTriggerWorkflow(input, ctx.confirmations);
     case 'deploy_vercel': return execDeployVercel(input, ctx.confirmations);
     case 'create_store': return execCreateStore(input);
+    case 'discover_opportunity': return execDiscoverOpportunity(input);
     case 'google_ads_push': return execGoogleAdsPush(input, ctx.confirmations);
     case 'ads_performance': return execAdsPerformance(input);
   }
@@ -1200,6 +1245,11 @@ function buildSuperSystemPrompt(page: string, storeId?: string): string {
     'Tu peux aussi PROGRAMMER de la publicité : google_ads_push crée et publie une campagne Google Ads (AdWords) pour un produit ; ads_performance lit les perfs (dépense, ROAS, conversions) des campagnes d\'un store.',
     '',
     `Contexte actuel: page="${page}", store_id="${storeId || 'aucun'}"`,
+    '',
+    'Découverte d\'opportunité (avant de créer un store):',
+    '- Si l\'utilisateur demande une idée de produit/niche SANS en nommer une (ex: "trouve-moi le meilleur produit à lancer maintenant", "qu\'est-ce qui marche en ce moment ?", "j\'ai pas d\'idée, propose-moi quelque chose"), utilise `discover_opportunity` AVANT `create_store`. Il balaie ~50 niches candidates et retourne un classement avec CPC réel, volume de recherche, saisonnalité (proximité Noël/rentrée/Saint-Valentin calculée depuis la date du jour, jamais devinée) et saturation publicitaire.',
+    '- Présente les 3-5 résultats avec leur justification, demande à l\'utilisateur laquelle l\'intéresse, PUIS enchaîne sur `create_store` avec la niche choisie. Ne lance jamais `create_store` automatiquement sur le résultat de `discover_opportunity` sans que l\'utilisateur ait choisi.',
+    '- Si l\'utilisateur a déjà une niche précise en tête, saute `discover_opportunity` et va directement à `create_store`.',
     '',
     'Création de store:',
     '- Avant d\'appeler `create_store`, évalue si la demande de l\'utilisateur est assez précise. Si elle est courte ou vague (juste une niche, parfois un nom), pose 1-2 questions de clarification ciblées sur ce qui manque parmi : (a) mode mono (1 produit hero + assets photo/vidéo générés) vs collection (plusieurs produits, pas d\'assets générés) — c\'est le choix le plus structurant car il change tout le pipeline, à clarifier en priorité si absent ; (b) marchés cibles si ça semble pertinent pour la niche (sinon FR par défaut) ; (c) budget publicitaire visé si l\'utilisateur veut orienter le plan Ads ; (d) préférence vidéo/photo en mode mono. Ne demande QUE ce qui manque réellement : si l\'utilisateur a déjà précisé un point, ne le redemande pas. Si la demande est déjà détaillée (mode, marché et contraintes donnés), n\'ajoute aucune question et lance directement `create_store`. L\'objectif est de combler un vrai flou, pas de faire de la friction systématique.',
