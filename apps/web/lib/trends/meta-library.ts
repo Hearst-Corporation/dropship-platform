@@ -105,19 +105,24 @@ export async function validateNiche(
   }
 
   // 3. Claude fallback if scrape returned nothing usable.
+  let fallbackFailed = false;
   if (!result || result.totalAds === 0) {
     try {
       result = await estimateWithClaude(cleanNiche, country);
     } catch (e) {
       console.warn('[meta-library] claude fallback failed', e instanceof Error ? e.message : e);
       result = emptyResult(`Validation indisponible pour "${cleanNiche}".`, 'claude-fallback');
+      fallbackFailed = true;
     }
   }
 
   // 4. Cache the resolved envelope (fire-and-forget — never block the
-  //    admin on the write).
-  if (ttl > 0) {
-    void writeCache(cleanNiche, country, result, ttl);
+  //    admin on the write). Skip caching a failure envelope for the full
+  //    TTL — a transient API/model hiccup would otherwise poison the
+  //    result for 24h; retry soon instead via a short negative-cache TTL.
+  const effectiveTtl = fallbackFailed ? Math.min(ttl, 120) : ttl;
+  if (effectiveTtl > 0) {
+    void writeCache(cleanNiche, country, result, effectiveTtl);
   }
 
   return result;
@@ -401,7 +406,7 @@ async function estimateWithClaude(
   const response = await trackedMessage(
     { step: 'niche-validate' },
     {
-      model: 'claude-haiku-4-5-20251001',
+      model: 'gpt-5.4',
       max_tokens: 1024,
       messages: [
         {
