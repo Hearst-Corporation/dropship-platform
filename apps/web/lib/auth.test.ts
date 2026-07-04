@@ -4,7 +4,7 @@
  * top of the edge middleware's Basic auth gate.
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -76,5 +76,26 @@ describe('requireAdmin', () => {
 
     expect(res).not.toBeNull();
     expect(res!.status).toBe(401);
+  });
+
+  it('bypasses auth on local dev (NODE_ENV=development, not on Vercel prod) even with no Authorization header', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    delete process.env.VERCEL_ENV;
+    const { requireAdmin } = await import('./auth');
+    const res = requireAdmin(new Request('http://x'));
+
+    expect(res).toBeNull();
+    vi.unstubAllEnvs();
+  });
+
+  it('does NOT bypass auth when NODE_ENV=development but VERCEL_ENV=production (real prod deploy)', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    process.env.VERCEL_ENV = 'production';
+    const { requireAdmin } = await import('./auth');
+    const res = requireAdmin(new Request('http://x'));
+
+    expect(res).not.toBeNull();
+    expect(res!.status).toBe(401);
+    vi.unstubAllEnvs();
   });
 });

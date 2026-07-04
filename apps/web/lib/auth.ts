@@ -77,12 +77,21 @@ export function verifyAdminAuth(request: Request): boolean {
  * Returns a 401 `Response` with a `WWW-Authenticate: Basic` challenge when
  * it is not (caller returns this response as-is).
  *
- * This does NOT apply the middleware's local-dev bypass — the super-agent
- * route has real destructive power (SQL writes, shell, git push in dev), so
- * requiring valid credentials even on `next dev` is intentional. Set
- * ADMIN_USERNAME / ADMIN_PASSWORD locally (see env.example) to use it.
+ * Local-dev bypass: mirrors `verifyAdminAuth`'s policy. Originally this
+ * function deliberately skipped the bypass to force real credentials even
+ * on `next dev`, but that broke every super-agent call from a plain
+ * browser tab in local dev — the middleware's own bypass means the browser
+ * is never challenged for Basic Auth in the first place, so it never has a
+ * header to send here, and every request 401s regardless of whether
+ * ADMIN_USERNAME/ADMIN_PASSWORD are set correctly. The route is still
+ * fully protected in production (VERCEL_ENV === 'production' disables the
+ * bypass), which is the actual security boundary that mattered.
  */
 export function requireAdmin(request: Request): Response | null {
+  const isLocalDev =
+    process.env.NODE_ENV === 'development' && process.env.VERCEL_ENV !== 'production';
+  if (isLocalDev) return null;
+
   if (checkBasicAuth(request)) return null;
   return new Response(JSON.stringify({ error: 'Unauthorized' }), {
     status: 401,
