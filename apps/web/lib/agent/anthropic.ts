@@ -26,6 +26,10 @@ const PRICING: Record<string, { input: number; output: number }> = {
   'gpt-4o-mini': { input: 0.15, output: 0.6 },
   'gpt-4.1': { input: 2.0, output: 8.0 },
   'gpt-4.1-mini': { input: 0.4, output: 1.6 },
+  // Placeholder pricing — update from the OpenAI pricing page once gpt-5.4's
+  // public rate is confirmed; until then cost tracking under-/over-estimates
+  // this model's ledger rows but token counts remain accurate.
+  'gpt-5.4': { input: 2.5, output: 10.0 },
   // Legacy Claude ids kept so historical ledger rows still price.
   'claude-haiku-4-5-20251001': { input: 0.8, output: 4.0 },
   'claude-sonnet-4-6': { input: 3.0, output: 15.0 },
@@ -152,11 +156,22 @@ export function toOpenAIBody(
     }
   }
 
-  const body: Record<string, unknown> = {
-    model: OPENAI_MODEL,
-    messages,
-    max_tokens: params.max_tokens,
-  };
+  // Call sites pass an Anthropic-shaped `model` id (e.g. RESEARCH_MODEL);
+  // honor it when it's a real OpenAI id we have pricing for, otherwise fall
+  // back to the global default. Previously this always ignored
+  // params.model, so every call site silently ran on OPENAI_MODEL
+  // regardless of what it requested.
+  const model = params.model && PRICING[params.model] ? params.model : OPENAI_MODEL;
+
+  const body: Record<string, unknown> = { model, messages };
+  // Newer OpenAI models (gpt-5.x and the o-series reasoning models) reject
+  // `max_tokens` outright and require `max_completion_tokens` instead; older
+  // chat-completions models (gpt-4o family) only accept `max_tokens`.
+  if (/^(gpt-5|o[0-9])/.test(model)) {
+    body.max_completion_tokens = params.max_tokens;
+  } else {
+    body.max_tokens = params.max_tokens;
+  }
   if (typeof params.temperature === 'number') body.temperature = params.temperature;
 
   if (params.tools && params.tools.length > 0) {
@@ -345,7 +360,7 @@ async function callWithRetry(
         await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
         continue;
       }
-      return toAnthropicMessage(data, OPENAI_MODEL);
+      return toAnthropicMessage(data, body.model as string);
     } catch (e) {
       lastError = e;
       const msg = e instanceof Error ? e.message : String(e);
@@ -366,8 +381,11 @@ export async function trackedMessage(
   params: Anthropic.Messages.MessageCreateParamsNonStreaming,
 ): Promise<Anthropic.Messages.Message> {
   const startedAt = Date.now();
-  // Ledger records the OpenAI model actually used, not the requested Claude id.
-  const model = OPENAI_MODEL;
+  // Resolve up front the same way toOpenAIBody() does, so the ledger records
+  // the model that was actually requested for the call even if it errors
+  // before a response comes back (response.model covers the success path).
+  const requestedModel =
+    params.model && PRICING[params.model] ? params.model : OPENAI_MODEL;
   let response: Anthropic.Messages.Message | null = null;
   let errorJson: string | null = null;
   try {
@@ -381,6 +399,7 @@ export async function trackedMessage(
     });
     throw e;
   } finally {
+    const model = response?.model ?? requestedModel;
     const latencyMs = Date.now() - startedAt;
     const inputTokens = response?.usage?.input_tokens ?? 0;
     const outputTokens = response?.usage?.output_tokens ?? 0;
