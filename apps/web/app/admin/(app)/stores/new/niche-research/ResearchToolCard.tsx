@@ -66,8 +66,11 @@ export function ResearchToolCard({ message, onApplyShortlist }: ResearchToolCard
           {name === 'web_search' && <WebSearchRenderer output={message.tool_output} />}
           {name === 'ask_perplexity' && <PerplexityRenderer output={message.tool_output} />}
           {name === 'meta_ads_library' && <MetaLibraryRenderer output={message.tool_output} />}
-          {(name === 'aliexpress_search' || name === 'cj_search') && (
-            <SupplierRenderer output={message.tool_output} supplier={name === 'cj_search' ? 'cj' : 'aliexpress'} />
+          {(name === 'aliexpress_search' || name === 'cj_search' || name === 'zendrop_search') && (
+            <SupplierRenderer
+              output={message.tool_output}
+              supplier={name === 'cj_search' ? 'cj' : name === 'zendrop_search' ? 'zendrop' : 'aliexpress'}
+            />
           )}
           {/* search_ad_benchmarks has no dedicated renderer (added after
               these cards were first written) — it falls through to the raw

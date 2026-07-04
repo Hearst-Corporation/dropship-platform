@@ -105,7 +105,7 @@ export function CopilotSidebar({
         <ul className={cn("text-[11px] space-y-1.5 leading-snug", adminTextMuted)}>
           <li><span className={cn("font-medium", adminText)}>Recherche web</span> · Tavily + Perplexity</li>
           <li><span className={cn("font-medium", adminText)}>Meta Ads</span> · saturation 0-100 + angles</li>
-          <li><span className={cn("font-medium", adminText)}>AliExpress + CJ</span> · supply + marge</li>
+          <li><span className={cn("font-medium", adminText)}>AliExpress · CJ · Zendrop</span> · supply + marge</li>
         </ul>
       </div>
 

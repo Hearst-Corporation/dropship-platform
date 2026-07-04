@@ -181,7 +181,7 @@ export function buildSystemPrompt(historicalPerformanceContext?: string): string
     '',
     'Mandatory analysis sequence before `shortlist_niche` (DO NOT skip any step):',
     '1. **Saturation check** — call meta_ads_library on the candidate niche. Reject niches with saturation > 75.',
-    '2. **Supply check** — call aliexpress_search (and cj_search if relevant). Pick the strongest candidate: cost in EUR cents, ≥30 orders for social proof, rating ≥85%.',
+    '2. **Supply check** — call aliexpress_search (and cj_search and/or zendrop_search if relevant). Pick the strongest candidate: cost in EUR cents, ≥30 orders for social proof, rating ≥85%. If CJ returns off-topic results (its keyword match is fuzzy), lean on aliexpress_search or zendrop_search instead.',
     '3. **Market price benchmark — NON OPTIONAL**. Call web_search OR ask_perplexity to find the real retail price the product sells for on the French market (Amazon FR, established DTC competitors, prix moyen constaté). The `suggested_price_cents` returned by the supplier tools is a naive cost × 2.2 estimate — IGNORE IT for the operator-facing price.',
     '4. **Ad cost benchmarks — NON OPTIONAL**. Call `search_ad_benchmarks` with the exact niche and country. This tool fetches real CPM/CPC/CPA data for Meta Ads, TikTok Ads, Google Ads and Pinterest Ads specific to this niche and market. NEVER invent ad costs — use the numbers that come back. If `search_ad_benchmarks` returns data, use it verbatim in your media_plan.',
     '5. **Unit economics check** — compute three pricing scenarios (aggressive / balanced / premium) with: retail TTC, shipping ~2€, cost, gross margin €. Then qualify each: CPA-cible (from the ad benchmarks data), ROAS attendu, viability "FB Ads débutant" vs "branding requis".',
@@ -215,6 +215,7 @@ export function buildSystemPrompt(historicalPerformanceContext?: string): string
     `- ask_perplexity (Sonar): ${perplexityOk ? 'configured' : 'NOT configured (returns empty answer)'}`,
     '- meta_ads_library: always available (HTML scrape + Claude fallback)',
     '- aliexpress_search: live, may rate-limit',
-    '- cj_search: may be unconfigured (returns [])',
+    '- cj_search: may be unconfigured (returns []); keyword match is fuzzy, results can drift off-niche',
+    '- zendrop_search: live when ZENDROP_API_TOKEN is set (returns [] otherwise); curated catalog, good keyword relevance',
   ].join('\n');
 }

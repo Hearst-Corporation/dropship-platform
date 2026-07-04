@@ -230,7 +230,20 @@ export const TOOLS: Anthropic.Messages.Tool[] = [
   {
     name: 'cj_search',
     description:
-      'Search CJ Dropshipping (EU warehouses, faster shipping than AliExpress). Same shape as aliexpress_search. Returns [] when CJ credentials are missing or the API is down — treat empty results as "supply not verifiable via CJ", not "no supply".',
+      'Search CJ Dropshipping (EU warehouses, faster shipping than AliExpress). Same shape as aliexpress_search. Returns [] when CJ credentials are missing or the API is down — treat empty results as "supply not verifiable via CJ", not "no supply". NOTE: CJ keyword matching is fuzzy — if the results look off-topic vs the query, prefer aliexpress_search or zendrop_search for that niche.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string' },
+        limit: { type: 'number', description: 'Max results (1-20, default 10).' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'zendrop_search',
+    description:
+      'Search the Zendrop catalog (US/EU fulfillment, curated dropship SKUs). Same shape as aliexpress_search. Returns [] when the Zendrop token is missing or the API is down — treat empty results as "supply not verifiable via Zendrop", not "no supply".',
     input_schema: {
       type: 'object',
       properties: {
@@ -256,7 +269,7 @@ export const TOOLS: Anthropic.Messages.Tool[] = [
   {
     name: 'shortlist_niche',
     description:
-      'PRÉCONDITION : Cet outil ne peut être appelé qu\'après que ces 4 outils ont tous retourné des résultats dans la session : meta_ads_library, aliexpress_search (ou cj_search), (web_search OU ask_perplexity) pour le benchmark prix, search_ad_benchmarks. Si l\'un est manquant, l\'appeler d\'abord.\n\nPropose a final niche to the operator with a structured payload. The UI renders this as a "Lancer cette niche" card with a button that pre-fills the store-creation form below. featured_product, media_plan and design_proposals (exactly 3) are ALL REQUIRED — a shortlist without them is incomplete and will be rejected. When you have ran aliexpress_search or cj_search and identified a clear winner among the candidates, copy its fields verbatim into `featured_product`.',
+      'PRÉCONDITION : Cet outil ne peut être appelé qu\'après que ces 4 outils ont tous retourné des résultats dans la session : meta_ads_library, aliexpress_search (ou cj_search ou zendrop_search), (web_search OU ask_perplexity) pour le benchmark prix, search_ad_benchmarks. Si l\'un est manquant, l\'appeler d\'abord.\n\nPropose a final niche to the operator with a structured payload. The UI renders this as a "Lancer cette niche" card with a button that pre-fills the store-creation form below. featured_product, media_plan and design_proposals (exactly 3) are ALL REQUIRED — a shortlist without them is incomplete and will be rejected. When you have ran aliexpress_search, cj_search or zendrop_search and identified a clear winner among the candidates, copy its fields verbatim into `featured_product`.',
     input_schema: {
       type: 'object',
       properties: {

@@ -70,7 +70,12 @@ function execSupplierSearch(id: SupplierId) {
   return async (raw: unknown): Promise<ResearchToolResult> => {
     const input = SupplierSearchInput.parse(raw);
     const limit = Math.min(20, input.limit ?? 10);
-    const label = id === 'aliexpress' ? 'AliExpress' : id.toUpperCase();
+    const LABELS: Partial<Record<SupplierId, string>> = {
+      aliexpress: 'AliExpress',
+      cj: 'CJ',
+      zendrop: 'Zendrop',
+    };
+    const label = LABELS[id] ?? id.toUpperCase();
 
     let result;
     try {
@@ -257,6 +262,8 @@ export async function executeTool(name: string, input: unknown): Promise<Researc
       return execSupplierSearch('aliexpress')(input);
     case 'cj_search':
       return execSupplierSearch('cj')(input);
+    case 'zendrop_search':
+      return execSupplierSearch('zendrop')(input);
     case 'search_ad_benchmarks':
       return execAdBenchmarks(input);
     case 'shortlist_niche':

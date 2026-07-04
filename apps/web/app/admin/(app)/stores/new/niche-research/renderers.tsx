@@ -190,7 +190,7 @@ export function SupplierRenderer({
   supplier,
 }: {
   output: unknown;
-  supplier: 'aliexpress' | 'cj';
+  supplier: 'aliexpress' | 'cj' | 'zendrop';
 }) {
   const data = output as {
     query?: string;

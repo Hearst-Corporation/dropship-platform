@@ -100,5 +100,6 @@ export type ToolName =
   | 'meta_ads_library'
   | 'aliexpress_search'
   | 'cj_search'
+  | 'zendrop_search'
   | 'search_ad_benchmarks'
   | 'shortlist_niche';
