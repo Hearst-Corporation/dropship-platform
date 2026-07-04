@@ -38,7 +38,7 @@ import {
   adminTextMuted,
 } from '@/components/admin/admin-surface';
 import { cn } from '@/lib/utils/cn';
-import { CopilotSidebar } from './niche-research/CopilotSidebar';
+import { CopilotControls } from './niche-research/CopilotControls';
 import { CreationProgressInline } from './niche-research/CreationProgressInline';
 import { ResearchToolCard } from './niche-research/ResearchToolCard';
 import { TypingDots } from './niche-research/renderers';
@@ -421,93 +421,91 @@ export function NicheResearchCopilot({
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_260px] items-stretch flex-1 min-h-0">
-        {/* Chat column — fills the available height from parent flex-1 */}
-        <div className={cn("flex flex-col min-w-0 min-h-0 border-r", adminBorder)}>
-          <div
-            ref={scrollRef}
-            className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-5 space-y-4"
-          >
-            {messages.length === 0 && !streaming && (
-              <div className={cn("text-center text-sm mt-12 max-w-md mx-auto", adminTextMuted)}>
-                <p className={cn("font-medium", adminText)}>Aucun message.</p>
-                <p className="mt-1.5">
-                  Demande par exemple : <em>« trouve-moi une niche premium pour Noël pas trop saturée »</em>,
-                  <em> « analyse la niche tapis de yoga »</em>,
-                  ou <em>« qu&apos;est-ce qui marche actuellement en France pour les chats ? »</em>.
-                </p>
-              </div>
-            )}
-            {messages.map((m) => {
-              if (m.role === 'user') {
-                return (
-                  <div key={m.id} className="flex justify-end">
-                    <div className={cn("max-w-[78%] rounded-2xl rounded-tr-md px-4 py-2.5 text-sm whitespace-pre-wrap", adminBgInset, adminText)}>
-                      {m.content}
-                    </div>
-                  </div>
-                );
-              }
-              if (m.role === 'assistant') {
-                return (
-                  <div key={m.id} className="flex justify-start">
-                    <div className={cn("max-w-[78%] rounded-2xl rounded-tl-md border px-4 py-2.5 text-sm whitespace-pre-wrap", adminBorder, adminBgPanel, adminText)}>
-                      {m.content || (m.streaming ? <TypingDots /> : <span className={adminTextMuted}>…</span>)}
-                    </div>
-                  </div>
-                );
-              }
-              // tool
-              return (
-                <ResearchToolCard key={m.id} message={m} onApplyShortlist={applyShortlist} />
-              );
-            })}
-            {creationProgress && <CreationProgressInline progress={creationProgress} />}
-          </div>
+      {/* Horizontal control bar — Format / Langue / Vidéo promo, above the chat */}
+      <CopilotControls
+        mode={mode}
+        onModeChange={onModeChange}
+        language={language}
+        onLanguageChange={onLanguageChange}
+        skipVideo={skipVideo}
+        onSkipVideoChange={onSkipVideoChange}
+        cost={cost}
+      />
 
-          {error && (
-            <div className={cn("px-5 py-2 text-xs border-t", adminBgInset, adminBorder, adminTextMuted)}>
-              {error}
+      {/* Chat column — full width, fills the available height from parent flex-1 */}
+      <div className="flex flex-col min-w-0 min-h-0 flex-1">
+        <div
+          ref={scrollRef}
+          className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-5 space-y-4"
+        >
+          {messages.length === 0 && !streaming && (
+            <div className={cn("text-center text-sm mt-12 max-w-md mx-auto", adminTextMuted)}>
+              <p className={cn("font-medium", adminText)}>Aucun message.</p>
+              <p className="mt-1.5">
+                Demande par exemple : <em>« trouve-moi une niche premium pour Noël pas trop saturée »</em>,
+                <em> « analyse la niche tapis de yoga »</em>,
+                ou <em>« qu&apos;est-ce qui marche actuellement en France pour les chats ? »</em>.
+              </p>
             </div>
           )}
-
-          <form onSubmit={onSubmit} className={cn("p-3 border-t", adminBorder, adminBgPanel)}>
-            <div className="flex gap-2 items-end">
-              <Textarea
-                ref={taRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={onKeyDown}
-                placeholder="Demande quelque chose… (Entrée pour envoyer · Shift+Entrée pour saut de ligne)"
-                rows={2}
-                disabled={streaming}
-                resizable={false}
-                className="flex-1 !text-sm"
-              />
-              {streaming ? (
-                <Button outline onClick={stop} className="shrink-0">
-                  <span className="w-2 h-2 rounded-sm bg-current" aria-hidden />
-                  Stop
-                </Button>
-              ) : (
-                <Button type="submit" color="indigo" disabled={!input.trim()} className="shrink-0">
-                  Envoyer
-                </Button>
-              )}
-            </div>
-          </form>
+          {messages.map((m) => {
+            if (m.role === 'user') {
+              return (
+                <div key={m.id} className="flex justify-end">
+                  <div className={cn("max-w-[78%] rounded-2xl rounded-tr-md px-4 py-2.5 text-sm whitespace-pre-wrap", adminBgInset, adminText)}>
+                    {m.content}
+                  </div>
+                </div>
+              );
+            }
+            if (m.role === 'assistant') {
+              return (
+                <div key={m.id} className="flex justify-start">
+                  <div className={cn("max-w-[78%] rounded-2xl rounded-tl-md border px-4 py-2.5 text-sm whitespace-pre-wrap", adminBorder, adminBgPanel, adminText)}>
+                    {m.content || (m.streaming ? <TypingDots /> : <span className={adminTextMuted}>…</span>)}
+                  </div>
+                </div>
+              );
+            }
+            // tool
+            return (
+              <ResearchToolCard key={m.id} message={m} onApplyShortlist={applyShortlist} />
+            );
+          })}
+          {creationProgress && <CreationProgressInline progress={creationProgress} />}
         </div>
 
-        {/* Right context column */}
-        <CopilotSidebar
-          mode={mode}
-          onModeChange={onModeChange}
-          language={language}
-          onLanguageChange={onLanguageChange}
-          skipVideo={skipVideo}
-          onSkipVideoChange={onSkipVideoChange}
-          cost={cost}
-        />
+        {error && (
+          <div className={cn("px-5 py-2 text-xs border-t", adminBgInset, adminBorder, adminTextMuted)}>
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={onSubmit} className={cn("p-3 border-t", adminBorder, adminBgPanel)}>
+          <div className="flex gap-2 items-end">
+            <Textarea
+              ref={taRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder="Demande quelque chose… (Entrée pour envoyer · Shift+Entrée pour saut de ligne)"
+              rows={2}
+              disabled={streaming}
+              resizable={false}
+              className="flex-1 !text-sm"
+            />
+            {streaming ? (
+              <Button outline onClick={stop} className="shrink-0">
+                <span className="w-2 h-2 rounded-sm bg-current" aria-hidden />
+                Stop
+              </Button>
+            ) : (
+              <Button type="submit" color="indigo" disabled={!input.trim()} className="shrink-0">
+                Envoyer
+              </Button>
+            )}
+          </div>
+        </form>
       </div>
       <ConfirmDialog
         open={deleteTargetId !== null}

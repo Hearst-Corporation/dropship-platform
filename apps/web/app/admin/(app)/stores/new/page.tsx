@@ -407,9 +407,13 @@ function CreationScreen({
 }
 
 export default function NewStorePage() {
+  // Bound the page to the viewport height (minus the SidebarLayout <main>
+  // vertical padding) so the chat fills it and its composer sticks to the
+  // bottom while the messages scroll above. min-h-0 lets the flex child
+  // (the chat section) actually shrink and own the scroll.
   return (
-    <div className="flex flex-1 min-h-0 flex-col space-y-8">
-      <div>
+    <div className="flex h-[calc(100svh-5rem)] min-h-0 flex-col gap-4">
+      <div className="shrink-0">
         <p className="text-sm/6">
           <TextLink href="/admin/stores">&larr; Stores</TextLink>
         </p>
