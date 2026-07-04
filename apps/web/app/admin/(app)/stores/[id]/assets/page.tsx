@@ -6,7 +6,8 @@ import { Heading } from "@/components/catalyst/heading";
 import { Text, Code } from "@/components/catalyst/text";
 import { AdminBadge } from "@/components/admin/AdminBadge";
 import { AdminSection } from "@/components/admin/AdminSection";
-import { AssetRegenerator, ASSET_KIND_LABELS } from "./AssetRegenerator";
+import { AssetRegenerator } from "./AssetRegenerator";
+import { ASSET_KIND_LABELS } from "./asset-labels";
 
 export const dynamic = "force-dynamic";
 

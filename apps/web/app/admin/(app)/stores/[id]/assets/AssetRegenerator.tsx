@@ -12,6 +12,7 @@ import { formatShortDateTime as formatRunDate } from "@/lib/format";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AssetKind } from "@/lib/agent/asset-regenerator";
+import { ASSET_KIND_LABELS } from "./asset-labels";
 import { Text, TextLink } from "@/components/catalyst/text";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
@@ -46,32 +47,6 @@ interface LogLine {
   ts: string;
 }
 
-export const ASSET_KIND_LABELS: Record<AssetKind, { title: string; hint: string }> = {
-  hero: {
-    title: "Hero",
-    hint: "Plein cadre éditorial 16:9 servi en haut du storefront.",
-  },
-  cutout: {
-    title: "Cutout",
-    hint: "Produit centré sur fond studio sombre. Sert aussi de source à la vidéo promo.",
-  },
-  "lifestyle-1": {
-    title: "Lifestyle 1",
-    hint: "Premier moment de vie : contexte intérieur lumineux.",
-  },
-  "lifestyle-2": {
-    title: "Lifestyle 2",
-    hint: "Deuxième moment de vie : contexte extérieur ou alternatif.",
-  },
-  "lifestyle-3": {
-    title: "Lifestyle 3",
-    hint: "Troisième moment de vie : usage situé, distinct des deux précédents.",
-  },
-  promo: {
-    title: "Vidéo promo",
-    hint: "5 secondes 9:16, image-to-video à partir du cutout.",
-  },
-};
 
 export function AssetRegenerator({
   storeId,
