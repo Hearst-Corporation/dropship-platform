@@ -518,16 +518,26 @@ export function suggestTemplate(args: {
   let best: { id: StoreTemplate; score: number } | null = null;
   for (const t of TEMPLATE_CATALOG) {
     if (t.id === 'auto') continue;
-    // Mode compatibility: mono stores need a mono-capable template; collection
-    // stores need anything that lays out several products.
-    if (args.mode === 'mono' && t.mode !== 'mono') continue;
-    if (args.mode === 'collection' && t.mode === 'mono') continue;
     if (args.productCount < t.minProducts) continue;
     // Luxury register is operator-opt-in only (maison voice changes the copy).
     if (t.register === 'luxury') continue;
 
-    let score = 0;
-    for (const n of t.niches) if (detected.has(n)) score += 3;
+    let nicheScore = 0;
+    for (const n of t.niches) if (detected.has(n)) nicheScore += 3;
+
+    // Mode compatibility.
+    //   - collection stores can't use a mono-only template (single-SKU layout).
+    //   - mono stores prefer a mono-capable template, BUT a niche-matched
+    //     richer template (editorial/split/collection) still gives the store
+    //     its true identity: the storefront renders MonoProductLanding driven
+    //     by the design preset regardless of the template's own mode. So in
+    //     mono mode we only KEEP a non-mono template when it genuinely matches
+    //     the niche (nicheScore > 0) — otherwise it's excluded and we fall back
+    //     to a plain mono template.
+    if (args.mode === 'collection' && t.mode === 'mono') continue;
+    if (args.mode === 'mono' && t.mode !== 'mono' && nicheScore === 0) continue;
+
+    let score = nicheScore;
     // Richness bonuses (register/mode/autoCandidate) only apply once a niche
     // actually matched, or when nothing was detected at all (pure fallback —
     // in that case richness alone should beat the plain grid). Without this
