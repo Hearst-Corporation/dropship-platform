@@ -1,3 +1,6 @@
+import { Button } from '@/components/catalyst/button';
+import { adminBgInset, adminBgPanel, adminBorder, adminText, adminTextMuted } from '@/components/admin/admin-surface';
+import { cn } from '@/lib/utils/cn';
 import type { CreationProgress } from './types';
 
 /**
@@ -13,25 +16,20 @@ export function CreationProgressInline({ progress }: { progress: CreationProgres
   if (result) {
     return (
       <div className="flex justify-start">
-        <div className="max-w-[88%] rounded-2xl rounded-tl-md px-4 py-3 text-sm" style={{ border: '1px solid var(--ct-border-accent)', background: 'var(--ct-accent-soft)' }}>
+        <div className="max-w-[88%] rounded-2xl rounded-tl-md border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 text-sm">
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="w-2 h-2 rounded-full" style={{ background: 'var(--ct-accent)' }} aria-hidden />
-            <span className="font-medium" style={{ color: 'var(--ct-text-primary)' }}>
+            <span className="w-2 h-2 rounded-full bg-emerald-500" aria-hidden />
+            <span className={cn("font-medium", adminText)}>
               {result.storeName} est en ligne
             </span>
           </div>
-          <p className="text-xs mb-3" style={{ color: 'var(--ct-text-body)' }}>
+          <p className={cn("text-xs mb-3", adminTextMuted)}>
             {result.productCount} produit{result.productCount > 1 ? 's' : ''} importé
             {result.productCount > 1 ? 's' : ''} · prêt à vendre
           </p>
-          <a
-            href={`/shop/${result.slug}`}
-            target="_blank"
-            rel="noreferrer"
-            className="ct-seg-btn primary inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5"
-          >
+          <Button href={`/shop/${result.slug}`} target="_blank" color="indigo">
             Ouvrir le store →
-          </a>
+          </Button>
         </div>
       </div>
     );
@@ -40,12 +38,12 @@ export function CreationProgressInline({ progress }: { progress: CreationProgres
   if (error) {
     return (
       <div className="flex justify-start">
-        <div className="max-w-[88%] rounded-2xl rounded-tl-md px-4 py-3 text-sm" style={{ border: '1px solid var(--ct-border-accent)', background: 'var(--ct-accent-soft)' }}>
+        <div className="max-w-[88%] rounded-2xl rounded-tl-md border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm">
           <div className="flex items-center gap-2 mb-1">
-            <span className="w-2 h-2 rounded-full" style={{ background: 'var(--ct-accent-strong)' }} aria-hidden />
-            <span className="font-medium" style={{ color: 'var(--ct-text-primary)' }}>Création interrompue</span>
+            <span className="w-2 h-2 rounded-full bg-red-500" aria-hidden />
+            <span className={cn("font-medium", adminText)}>Création interrompue</span>
           </div>
-          <p className="text-xs whitespace-pre-wrap" style={{ color: 'var(--ct-text-body)' }}>{error}</p>
+          <p className={cn("text-xs whitespace-pre-wrap", adminTextMuted)}>{error}</p>
         </div>
       </div>
     );
@@ -57,33 +55,33 @@ export function CreationProgressInline({ progress }: { progress: CreationProgres
 
   return (
     <div className="flex justify-start">
-      <div className="max-w-[88%] w-full rounded-2xl rounded-tl-md px-4 py-3 text-sm" style={{ border: '1px solid var(--ct-border)', background: 'var(--ct-surface-1)', boxShadow: 'var(--ct-shadow-depth)' }}>
+      <div className={cn("max-w-[88%] w-full rounded-2xl rounded-tl-md border px-4 py-3 text-sm", adminBorder, adminBgPanel)}>
         <div className="flex items-center gap-2 mb-2">
-          <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--ct-accent)' }} aria-hidden />
-          <span className="font-medium truncate" style={{ color: 'var(--ct-text-primary)' }}>
+          <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" aria-hidden />
+          <span className={cn("font-medium truncate", adminText)}>
             Création de {storeName || '…'}
           </span>
-          <span className="ml-auto text-[11px] tabular-nums shrink-0" style={{ color: 'var(--ct-text-muted)' }}>
+          <span className={cn("ml-auto text-[11px] tabular-nums shrink-0", adminTextMuted)}>
             {percent}% · {elapsed}s
           </span>
         </div>
         {currentStep && (
-          <p className="text-xs italic mb-2 truncate" style={{ color: 'var(--ct-text-body)' }} title={currentStep}>
+          <p className={cn("text-xs italic mb-2 truncate", adminTextMuted)} title={currentStep}>
             {currentStep}
           </p>
         )}
-        <div className="h-1 w-full rounded-full overflow-hidden" style={{ background: 'var(--ct-surface-3)' }}>
+        <div className={cn("h-1 w-full rounded-full overflow-hidden", adminBgInset)}>
           <div
-            className="h-full transition-all duration-300"
-            style={{ width: `${Math.max(2, Math.min(100, percent))}%`, background: 'var(--ct-accent)' }}
+            className="h-full bg-indigo-500 transition-all duration-300"
+            style={{ width: `${Math.max(2, Math.min(100, percent))}%` }}
             aria-hidden
           />
         </div>
         {recentLogs.length > 0 && (
-          <ul className="mt-3 space-y-1 text-[11px] max-h-32 overflow-y-auto pr-1" style={{ color: 'var(--ct-text-body)' }}>
+          <ul className={cn("mt-3 space-y-1 text-[11px] max-h-32 overflow-y-auto pr-1", adminTextMuted)}>
             {recentLogs.map((l) => (
               <li key={l.id} className="flex items-start gap-2">
-                <span className="mt-px shrink-0" style={{ color: 'var(--ct-border-strong)' }}>·</span>
+                <span className="mt-px shrink-0">·</span>
                 <span className="break-words">{l.message}</span>
               </li>
             ))}

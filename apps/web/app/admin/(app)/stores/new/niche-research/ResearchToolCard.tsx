@@ -7,6 +7,8 @@ import {
 } from './renderers';
 import { ShortlistCard } from './ShortlistCard';
 import type { ChatMessage, ShortlistPayload } from './types';
+import { adminBgInset, adminBorder, adminBorderSoft, adminTextMuted } from '@/components/admin/admin-surface';
+import { cn } from '@/lib/utils/cn';
 
 interface ResearchToolCardProps {
   message: ChatMessage;
@@ -38,35 +40,29 @@ export function ResearchToolCard({ message, onApplyShortlist }: ResearchToolCard
 
   return (
     <div
-      className="rounded-xl text-sm overflow-hidden"
-      style={{
-        border: `1px solid ${isError ? 'var(--ct-border-accent)' : 'var(--ct-border)'}`,
-        background: isError ? 'var(--ct-accent-soft)' : 'var(--ct-surface-1)',
-      }}
+      className={cn(
+        "rounded-xl border text-sm overflow-hidden",
+        isError ? "border-red-500/40 bg-red-500/5" : cn(adminBorder, adminBgInset),
+      )}
     >
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="w-full px-4 py-2 flex items-center gap-2 text-left transition-colors"
-        style={{ background: 'transparent' }}
       >
         <span
-          className="inline-block w-1.5 h-1.5 rounded-full"
-          style={{
-            background: isError
-              ? 'var(--ct-accent-strong)'
-              : message.tool_output
-              ? 'var(--ct-accent)'
-              : 'var(--ct-border-strong)',
-          }}
+          className={cn(
+            "inline-block w-1.5 h-1.5 rounded-full",
+            isError ? "bg-red-500" : message.tool_output ? "bg-emerald-500" : "bg-zinc-500",
+          )}
         />
-        <code className="font-mono text-xs" style={{ color: 'var(--ct-text-body)' }}>{name}</code>
-        <span className="ml-auto text-xs line-clamp-1" style={{ color: 'var(--ct-text-muted)' }}>{message.content}</span>
-        <span className="text-xs" style={{ color: 'var(--ct-border-strong)' }}>{open ? '▾' : '▸'}</span>
+        <code className={cn("font-mono text-xs", adminTextMuted)}>{name}</code>
+        <span className={cn("ml-auto text-xs line-clamp-1", adminTextMuted)}>{message.content}</span>
+        <span className={cn("text-xs", adminTextMuted)}>{open ? '▾' : '▸'}</span>
       </button>
 
       {open && message.tool_output != null && (
-        <div className="px-4 pb-4 pt-1 space-y-3" style={{ borderTop: '1px solid var(--ct-border-soft)' }}>
+        <div className={cn("px-4 pb-4 pt-1 space-y-3 border-t", adminBorderSoft)}>
           {name === 'web_search' && <WebSearchRenderer output={message.tool_output} />}
           {name === 'ask_perplexity' && <PerplexityRenderer output={message.tool_output} />}
           {name === 'meta_ads_library' && <MetaLibraryRenderer output={message.tool_output} />}
@@ -76,18 +72,18 @@ export function ResearchToolCard({ message, onApplyShortlist }: ResearchToolCard
           {/* search_ad_benchmarks has no dedicated renderer (added after
               these cards were first written) — it falls through to the raw
               JSON <details> below like any other unrecognized tool. */}
-          <details className="text-xs" style={{ color: 'var(--ct-text-muted)' }}>
+          <details className={cn("text-xs", adminTextMuted)}>
             <summary className="cursor-pointer">Détails techniques</summary>
             <div className="mt-2 space-y-2">
               <div>
-                <div className="text-kicker uppercase tracking-cta" style={{ color: 'var(--ct-text-muted)' }}>input</div>
-                <pre className="mt-1 rounded p-2 overflow-x-auto font-mono text-xs whitespace-pre-wrap break-all max-w-full" style={{ background: 'var(--ct-surface-0)', color: 'var(--ct-text-body)' }}>
+                <div className={cn("text-[10px] font-semibold uppercase tracking-wide", adminTextMuted)}>input</div>
+                <pre className={cn("mt-1 rounded p-2 overflow-x-auto font-mono text-xs whitespace-pre-wrap break-all max-w-full", adminBgInset)}>
                   {inputJson}
                 </pre>
               </div>
               <div>
-                <div className="text-kicker uppercase tracking-cta" style={{ color: 'var(--ct-text-muted)' }}>output</div>
-                <pre className="mt-1 rounded p-2 overflow-x-auto font-mono text-xs whitespace-pre-wrap break-all max-w-full" style={{ background: 'var(--ct-surface-0)', color: 'var(--ct-text-body)' }}>
+                <div className={cn("text-[10px] font-semibold uppercase tracking-wide", adminTextMuted)}>output</div>
+                <pre className={cn("mt-1 rounded p-2 overflow-x-auto font-mono text-xs whitespace-pre-wrap break-all max-w-full", adminBgInset)}>
                   {outputJson}
                 </pre>
               </div>

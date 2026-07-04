@@ -1,4 +1,8 @@
 import { useState } from 'react';
+import { Badge } from '@/components/catalyst/badge';
+import { Button } from '@/components/catalyst/button';
+import { adminBgInset, adminBgPanel, adminBorder, adminText, adminTextMuted } from '@/components/admin/admin-surface';
+import { cn } from '@/lib/utils/cn';
 import { DesignPickerBlock } from './DesignPickerBlock';
 import { MediaPlanBlock } from './MediaPlanBlock';
 import type { DesignProposal, ShortlistPayload } from './types';
@@ -17,30 +21,31 @@ export function ShortlistCard({
     payload.design_proposals?.[0] ?? null,
   );
   const sat = payload.saturation;
-  const verdictBorder = sat != null && sat > 70 ? 'var(--ct-border)' : 'var(--ct-border-accent)';
-  const verdictBg = sat != null && sat > 70 ? 'var(--ct-surface-1)' : 'var(--ct-accent-soft)';
+  const cautious = sat != null && sat <= 70;
   const fp = payload.featured_product;
   const fpCost = fp ? (fp.cost_cents / 100).toFixed(2) : null;
   const fpPrice = fp ? (fp.suggested_price_cents / 100).toFixed(2) : null;
   const fpMargin = fp ? ((fp.suggested_price_cents - fp.cost_cents) / 100).toFixed(2) : null;
-  const supplierTagStyle = fp?.supplier === 'cj'
-    ? { background: 'var(--ct-accent-soft)', color: 'var(--ct-accent)', borderColor: 'var(--ct-border-accent)' }
-    : { background: 'var(--ct-surface-3)', color: 'var(--ct-text-body)', borderColor: 'var(--ct-border)' };
 
   return (
-    <div className="rounded-xl px-5 py-4 space-y-4 min-w-0 max-w-full" style={{ border: `1px solid ${verdictBorder}`, background: verdictBg }}>
+    <div
+      className={cn(
+        "rounded-xl border px-5 py-4 space-y-4 min-w-0 max-w-full",
+        cautious ? "border-amber-500/40 bg-amber-500/5" : cn(adminBorder, adminBgPanel),
+      )}
+    >
       <div className="flex items-baseline justify-between gap-3">
-        <p className="text-kicker uppercase tracking-label font-medium" style={{ color: 'var(--ct-text-muted)' }}>
+        <p className={cn("text-[10px] uppercase tracking-wide font-semibold", adminTextMuted)}>
           Recommandation IA
         </p>
         {sat != null && (
-          <span className="text-xs" style={{ color: 'var(--ct-text-muted)' }}>Saturation {sat}/100</span>
+          <span className={cn("text-xs", adminTextMuted)}>Saturation {sat}/100</span>
         )}
       </div>
-      <h3 className="font-semibold tracking-tight text-xl" style={{ color: 'var(--ct-text-primary)' }}>
+      <h3 className={cn("font-semibold tracking-tight text-xl", adminText)}>
         <em className="italic">{payload.niche}</em>
       </h3>
-      <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--ct-text-body)' }}>
+      <p className={cn("text-sm leading-relaxed whitespace-pre-wrap", adminTextMuted)}>
         {payload.rationale}
       </p>
 
@@ -52,10 +57,13 @@ export function ShortlistCard({
           href={fp.supplier_url}
           target="_blank"
           rel="noreferrer noopener"
-          className="group flex gap-3 items-stretch rounded-xl transition-colors overflow-hidden"
-          style={{ border: '1px solid var(--ct-border)', background: 'var(--ct-surface-1)' }}
+          className={cn(
+            "group flex gap-3 items-stretch rounded-xl border transition-colors overflow-hidden",
+            adminBorder,
+            adminBgInset,
+          )}
         >
-          <div className="w-28 sm:w-32 shrink-0 aspect-square overflow-hidden" style={{ background: 'var(--ct-surface-2)' }}>
+          <div className={cn("w-28 sm:w-32 shrink-0 aspect-square overflow-hidden", adminBgInset)}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={fp.image_url}
@@ -65,50 +73,48 @@ export function ShortlistCard({
             />
           </div>
           <div className="flex-1 min-w-0 py-3 pr-3 space-y-1.5">
-            <div className="flex items-center gap-2 text-[10px] uppercase tracking-cta">
-              <span className="px-1.5 py-0.5 rounded-sm border font-semibold" style={supplierTagStyle}>
-                {fp.supplier}
-              </span>
+            <div className="flex items-center gap-2 text-[10px] uppercase tracking-wide">
+              <Badge color={fp.supplier === 'cj' ? 'indigo' : 'zinc'}>{fp.supplier}</Badge>
               {fp.orders != null && (
-                <span className="tabular-nums" style={{ color: 'var(--ct-text-muted)' }}>{fp.orders} cmd</span>
+                <span className={cn("tabular-nums", adminTextMuted)}>{fp.orders} cmd</span>
               )}
               {fp.rating && (
-                <span className="tabular-nums" style={{ color: 'var(--ct-text-muted)' }}>★ {fp.rating}</span>
+                <span className={cn("tabular-nums", adminTextMuted)}>★ {fp.rating}</span>
               )}
             </div>
-            <p className="text-sm font-medium line-clamp-2 leading-tight" style={{ color: 'var(--ct-text-primary)' }}>
+            <p className={cn("text-sm font-medium line-clamp-2 leading-tight", adminText)}>
               {fp.title}
             </p>
             <div className="flex items-baseline gap-3 text-xs tabular-nums">
-              <span style={{ color: 'var(--ct-text-muted)' }}>{fpCost} €</span>
-              <span style={{ color: 'var(--ct-border-strong)' }}>→</span>
-              <span className="font-semibold" style={{ color: 'var(--ct-text-primary)' }}>{fpPrice} €</span>
-              <span className="font-medium" style={{ color: 'var(--ct-accent)' }}>+{fpMargin} €</span>
+              <span className={adminTextMuted}>{fpCost} €</span>
+              <span className={adminTextMuted}>→</span>
+              <span className={cn("font-semibold", adminText)}>{fpPrice} €</span>
+              <span className="font-medium text-emerald-600 dark:text-emerald-400">+{fpMargin} €</span>
               {fp.expected_aov_eur != null && (
-                <span className="ml-auto" style={{ color: 'var(--ct-text-muted)' }}>AOV ~{fp.expected_aov_eur} €</span>
+                <span className={cn("ml-auto", adminTextMuted)}>AOV ~{fp.expected_aov_eur} €</span>
               )}
             </div>
             {fp.pricing_rationale && (
-              <p className="text-xs leading-snug line-clamp-2 italic" style={{ color: 'var(--ct-text-body)' }}>
+              <p className={cn("text-xs leading-snug line-clamp-2 italic", adminTextMuted)}>
                 {fp.pricing_rationale}
               </p>
             )}
             {fp.why_this_one && (
-              <p className="text-xs leading-snug line-clamp-2" style={{ color: 'var(--ct-text-muted)' }}>{fp.why_this_one}</p>
+              <p className={cn("text-xs leading-snug line-clamp-2", adminTextMuted)}>{fp.why_this_one}</p>
             )}
           </div>
         </a>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-        <div className="rounded-lg p-3" style={{ background: 'var(--ct-surface-1)', border: '1px solid var(--ct-border)' }}>
-          <p className="text-kicker uppercase tracking-cta" style={{ color: 'var(--ct-text-muted)' }}>Nom suggéré</p>
-          <p className="mt-1 font-medium" style={{ color: 'var(--ct-text-primary)' }}>{payload.suggested_store_name}</p>
+        <div className={cn("rounded-lg border p-3", adminBorder, adminBgInset)}>
+          <p className={cn("text-[10px] uppercase tracking-wide font-semibold", adminTextMuted)}>Nom suggéré</p>
+          <p className={cn("mt-1 font-medium", adminText)}>{payload.suggested_store_name}</p>
         </div>
         {payload.estimated_aov_eur != null && (
-          <div className="rounded-lg p-3" style={{ background: 'var(--ct-surface-1)', border: '1px solid var(--ct-border)' }}>
-            <p className="text-kicker uppercase tracking-cta" style={{ color: 'var(--ct-text-muted)' }}>AOV estimé</p>
-            <p className="mt-1 font-medium" style={{ color: 'var(--ct-text-primary)' }}>
+          <div className={cn("rounded-lg border p-3", adminBorder, adminBgInset)}>
+            <p className={cn("text-[10px] uppercase tracking-wide font-semibold", adminTextMuted)}>AOV estimé</p>
+            <p className={cn("mt-1 font-medium", adminText)}>
               {payload.estimated_aov_eur.toLocaleString('fr-FR', {
                 style: 'currency',
                 currency: 'EUR',
@@ -119,8 +125,8 @@ export function ShortlistCard({
         )}
       </div>
       {payload.target_audience && (
-        <p className="text-xs leading-relaxed" style={{ color: 'var(--ct-text-muted)' }}>
-          <span className="font-medium" style={{ color: 'var(--ct-text-body)' }}>Cible : </span>
+        <p className={cn("text-xs leading-relaxed", adminTextMuted)}>
+          <span className={cn("font-medium", adminText)}>Cible : </span>
           {payload.target_audience}
         </p>
       )}
@@ -134,9 +140,11 @@ export function ShortlistCard({
         />
       )}
 
-      <div className="sticky bottom-0 -mx-5 -mb-4 px-5 pt-3 pb-4 backdrop-blur-sm" style={{ background: 'linear-gradient(to top, var(--ct-surface-0) 60%, transparent)' }}>
-        <button
+      <div className={cn("sticky bottom-0 -mx-5 -mb-4 px-5 pt-3 pb-4", adminBgPanel)}>
+        <Button
           type="button"
+          color="indigo"
+          className="w-full justify-center"
           onClick={() =>
             onApply({
               ...payload,
@@ -146,10 +154,9 @@ export function ShortlistCard({
               design_proposals: selectedDesign ? [selectedDesign] : payload.design_proposals,
             })
           }
-          className="ct-seg-btn primary w-full py-3 rounded-lg text-sm font-medium"
         >
           Lancer cette niche →
-        </button>
+        </Button>
       </div>
     </div>
   );

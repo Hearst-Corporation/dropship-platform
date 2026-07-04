@@ -27,6 +27,17 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Trash2 } from 'lucide-react';
+import { Button } from '@/components/catalyst/button';
+import { Select } from '@/components/catalyst/select';
+import { Textarea } from '@/components/catalyst/textarea';
+import {
+  adminBgInset,
+  adminBgPanel,
+  adminBorder,
+  adminText,
+  adminTextMuted,
+} from '@/components/admin/admin-surface';
+import { cn } from '@/lib/utils/cn';
 import { CopilotSidebar } from './niche-research/CopilotSidebar';
 import { CreationProgressInline } from './niche-research/CreationProgressInline';
 import { ResearchToolCard } from './niche-research/ResearchToolCard';
@@ -364,24 +375,23 @@ export function NicheResearchCopilot({
   const messageCount = useMemo(() => messages.length, [messages]);
 
   return (
-    <section className="ct-card overflow-hidden flex flex-col flex-1 min-h-0" style={{ borderRadius: 12, margin: 0 }}>
-      <header className="px-4 py-2 flex items-center justify-between gap-3 shrink-0" style={{ borderBottom: '1px solid var(--ct-border)' }}>
+    <section className={cn("rounded-xl border overflow-hidden flex flex-col flex-1 min-h-0", adminBorder, adminBgPanel)}>
+      <header className={cn("px-4 py-2 flex items-center justify-between gap-3 shrink-0 border-b", adminBorder)}>
         <div className="flex items-baseline gap-3 min-w-0">
-          <h2 className="text-sm font-semibold tracking-tight shrink-0" style={{ color: 'var(--ct-text-primary)' }}>
-            Copilote <em className="italic" style={{ color: 'var(--ct-text-muted)' }}>de niches</em>
+          <h2 className={cn("text-sm font-semibold tracking-tight shrink-0", adminText)}>
+            Copilote <em className={cn("italic", adminTextMuted)}>de niches</em>
           </h2>
           {messageCount > 0 && (
-            <span className="text-[11px] truncate" style={{ color: 'var(--ct-text-muted)' }}>
+            <span className={cn("text-[11px] truncate", adminTextMuted)}>
               {messageCount} msg · {sessionId?.slice(0, 8)}
             </span>
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          <select
+          <Select
             value={sessionId ?? ''}
             onChange={(e) => loadSession(e.target.value || null)}
-            className="text-xs rounded-lg px-2 py-1 max-w-[200px]"
-            style={{ border: '1px solid var(--ct-border)', background: 'var(--ct-surface-2)', color: 'var(--ct-text-body)' }}
+            className="!w-auto max-w-[200px] text-xs"
           >
             <option value="">Nouvelle session</option>
             {sessions.map((s) => (
@@ -389,42 +399,39 @@ export function NicheResearchCopilot({
                 {fmtDate(s.updated_at)} · {s.preview?.slice(0, 30) ?? '—'}
               </option>
             ))}
-          </select>
+          </Select>
           {sessionId && (
-            <button
-              type="button"
+            <Button
+              plain
               onClick={() => setDeleteTargetId(sessionId)}
               title="Supprimer cette session"
               aria-label="Supprimer cette session"
-              className="ct-seg-btn inline-flex items-center justify-center w-7 h-7"
             >
               <Trash2 size={13} strokeWidth={1.75} aria-hidden />
-            </button>
+            </Button>
           )}
-          <button
-            type="button"
+          <Button
+            outline
             onClick={startNewSession}
             title="Nouvelle session"
             aria-label="Nouvelle session"
-            className="ct-seg-btn text-xs px-2.5 py-1"
           >
             +
-          </button>
+          </Button>
         </div>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_260px] items-stretch flex-1 min-h-0">
         {/* Chat column — fills the available height from parent flex-1 */}
-        <div className="flex flex-col min-w-0 min-h-0" style={{ borderRight: '1px solid var(--ct-border)' }}>
+        <div className={cn("flex flex-col min-w-0 min-h-0 border-r", adminBorder)}>
           <div
             ref={scrollRef}
             className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-5 space-y-4"
-            style={{ background: 'var(--ct-surface-0)' }}
           >
             {messages.length === 0 && !streaming && (
-              <div className="text-center text-sm mt-12 max-w-md mx-auto" style={{ color: 'var(--ct-text-body)' }}>
-                <p className="font-medium" style={{ color: 'var(--ct-text-primary)' }}>Aucun message.</p>
-                <p className="mt-1.5" style={{ color: 'var(--ct-text-body)' }}>
+              <div className={cn("text-center text-sm mt-12 max-w-md mx-auto", adminTextMuted)}>
+                <p className={cn("font-medium", adminText)}>Aucun message.</p>
+                <p className="mt-1.5">
                   Demande par exemple : <em>« trouve-moi une niche premium pour Noël pas trop saturée »</em>,
                   <em> « analyse la niche tapis de yoga »</em>,
                   ou <em>« qu&apos;est-ce qui marche actuellement en France pour les chats ? »</em>.
@@ -435,7 +442,7 @@ export function NicheResearchCopilot({
               if (m.role === 'user') {
                 return (
                   <div key={m.id} className="flex justify-end">
-                    <div className="max-w-[78%] rounded-2xl rounded-tr-md px-4 py-2.5 text-sm whitespace-pre-wrap" style={{ background: 'var(--ct-surface-3)', color: 'var(--ct-text-primary)' }}>
+                    <div className={cn("max-w-[78%] rounded-2xl rounded-tr-md px-4 py-2.5 text-sm whitespace-pre-wrap", adminBgInset, adminText)}>
                       {m.content}
                     </div>
                   </div>
@@ -444,8 +451,8 @@ export function NicheResearchCopilot({
               if (m.role === 'assistant') {
                 return (
                   <div key={m.id} className="flex justify-start">
-                    <div className="max-w-[78%] rounded-2xl rounded-tl-md px-4 py-2.5 text-sm whitespace-pre-wrap" style={{ background: 'var(--ct-surface-1)', border: '1px solid var(--ct-border)', color: 'var(--ct-text-primary)' }}>
-                      {m.content || (m.streaming ? <TypingDots /> : <span style={{ color: 'var(--ct-text-muted)' }}>…</span>)}
+                    <div className={cn("max-w-[78%] rounded-2xl rounded-tl-md border px-4 py-2.5 text-sm whitespace-pre-wrap", adminBorder, adminBgPanel, adminText)}>
+                      {m.content || (m.streaming ? <TypingDots /> : <span className={adminTextMuted}>…</span>)}
                     </div>
                   </div>
                 );
@@ -459,14 +466,14 @@ export function NicheResearchCopilot({
           </div>
 
           {error && (
-            <div className="px-5 py-2 text-xs" style={{ background: 'var(--ct-surface-2)', borderTop: '1px solid var(--ct-border)', color: 'var(--ct-text-body)' }}>
+            <div className={cn("px-5 py-2 text-xs border-t", adminBgInset, adminBorder, adminTextMuted)}>
               {error}
             </div>
           )}
 
-          <form onSubmit={onSubmit} className="p-3" style={{ borderTop: '1px solid var(--ct-border)', background: 'var(--ct-surface-1)' }}>
+          <form onSubmit={onSubmit} className={cn("p-3 border-t", adminBorder, adminBgPanel)}>
             <div className="flex gap-2 items-end">
-              <textarea
+              <Textarea
                 ref={taRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -474,26 +481,18 @@ export function NicheResearchCopilot({
                 placeholder="Demande quelque chose… (Entrée pour envoyer · Shift+Entrée pour saut de ligne)"
                 rows={2}
                 disabled={streaming}
-                className="flex-1 resize-none text-sm rounded-lg px-3 py-2 focus:outline-none disabled:opacity-50 transition-colors"
-                style={{ background: 'var(--ct-surface-2)', color: 'var(--ct-text-primary)', border: '1px solid var(--ct-border)' }}
+                resizable={false}
+                className="flex-1 !text-sm"
               />
               {streaming ? (
-                <button
-                  type="button"
-                  onClick={stop}
-                  className="ct-seg-btn text-sm px-4 py-2 shrink-0 inline-flex items-center gap-1.5"
-                >
-                  <span className="w-2 h-2 rounded-sm" style={{ background: 'var(--ct-text-primary)' }} aria-hidden />
+                <Button outline onClick={stop} className="shrink-0">
+                  <span className="w-2 h-2 rounded-sm bg-current" aria-hidden />
                   Stop
-                </button>
+                </Button>
               ) : (
-              <button
-                type="submit"
-                disabled={!input.trim()}
-                className="ct-seg-btn primary text-sm px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-              >
-                Envoyer
-              </button>
+                <Button type="submit" color="indigo" disabled={!input.trim()} className="shrink-0">
+                  Envoyer
+                </Button>
               )}
             </div>
           </form>

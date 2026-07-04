@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { DESIGN_PRESETS } from '@/lib/design/presets';
+import { adminBgInset, adminBorder, adminText, adminTextMuted } from '@/components/admin/admin-surface';
+import { cn } from '@/lib/utils/cn';
 import type { DesignProposal } from './types';
 
 /**
@@ -53,7 +55,7 @@ export function DesignPickerBlock({
 
   return (
     <div className="space-y-2">
-      <p className="text-kicker uppercase tracking-cta font-medium" style={{ color: 'var(--ct-text-muted)' }}>
+      <p className={cn("text-[10px] uppercase tracking-wide font-semibold", adminTextMuted)}>
         Design system — choisis l&apos;ambiance
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -68,15 +70,15 @@ export function DesignPickerBlock({
               key={`${p.preset}-${p.primary}`}
               type="button"
               onClick={() => onSelect(p)}
-              className="text-left rounded-xl overflow-hidden transition-all"
-              style={{
-                border: isActive ? '1px solid var(--ct-text-primary)' : '1px solid var(--ct-border)',
-                background: 'var(--ct-surface-1)',
-                boxShadow: isActive ? '0 0 0 2px var(--ct-border-strong)' : 'none',
-              }}
+              className={cn(
+                "text-left rounded-xl border overflow-hidden transition-all",
+                isActive ? "border-indigo-500 ring-2 ring-indigo-500" : adminBorder,
+                adminBgInset,
+              )}
               aria-pressed={isActive}
             >
-              {/* Sample */}
+              {/* Sample — primary/accent are the AI's proposed hex values,
+                  the actual content being previewed, not design tokens. */}
               <div
                 className="px-3 py-3 flex items-baseline gap-2"
                 style={{ background: p.primary }}
@@ -88,7 +90,7 @@ export function DesignPickerBlock({
                   Aa
                 </span>
                 <span
-                  className="text-[11px] uppercase tracking-cta text-white/70 font-medium"
+                  className="text-[11px] uppercase tracking-wide text-white/70 font-medium"
                   style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
                 >
                   Sample
@@ -101,25 +103,25 @@ export function DesignPickerBlock({
               </div>
               {/* Body */}
               <div className="px-3 py-2.5 space-y-1">
-                <p className="text-[13px] font-semibold leading-tight" style={{ color: 'var(--ct-text-primary)' }}>
+                <p className={cn("text-[13px] font-semibold leading-tight", adminText)}>
                   {label}
                 </p>
-                <p className="text-[11px] leading-snug line-clamp-2" style={{ color: 'var(--ct-text-muted)' }}>
+                <p className={cn("text-[11px] leading-snug line-clamp-2", adminTextMuted)}>
                   {tagline}
                 </p>
                 <div className="flex items-center gap-1.5 pt-1">
                   <span
-                    className="inline-block w-3 h-3 rounded-sm"
-                    style={{ background: p.primary, border: '1px solid var(--ct-border)' }}
+                    className={cn("inline-block w-3 h-3 rounded-sm border", adminBorder)}
+                    style={{ background: p.primary }}
                     aria-hidden
                   />
-                  <span className="text-[10px] tabular-nums uppercase" style={{ color: 'var(--ct-text-muted)' }}>{p.primary}</span>
+                  <span className={cn("text-[10px] tabular-nums uppercase", adminTextMuted)}>{p.primary}</span>
                   <span
-                    className="inline-block w-3 h-3 rounded-sm ml-1.5"
-                    style={{ background: p.accent, border: '1px solid var(--ct-border)' }}
+                    className={cn("inline-block w-3 h-3 rounded-sm ml-1.5 border", adminBorder)}
+                    style={{ background: p.accent }}
                     aria-hidden
                   />
-                  <span className="text-[10px] tabular-nums uppercase" style={{ color: 'var(--ct-text-muted)' }}>{p.accent}</span>
+                  <span className={cn("text-[10px] tabular-nums uppercase", adminTextMuted)}>{p.accent}</span>
                 </div>
               </div>
             </button>
@@ -127,7 +129,7 @@ export function DesignPickerBlock({
         })}
       </div>
       {selected?.rationale && (
-        <p className="text-xs leading-relaxed italic" style={{ color: 'var(--ct-text-muted)' }}>{selected.rationale}</p>
+        <p className={cn("text-xs leading-relaxed italic", adminTextMuted)}>{selected.rationale}</p>
       )}
     </div>
   );

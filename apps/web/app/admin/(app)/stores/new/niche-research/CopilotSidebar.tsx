@@ -1,3 +1,13 @@
+import { Checkbox, CheckboxField } from '@/components/catalyst/checkbox';
+import { Label } from '@/components/catalyst/fieldset';
+import {
+  adminBgInset,
+  adminBgPanel,
+  adminBorder,
+  adminText,
+  adminTextMuted,
+} from '@/components/admin/admin-surface';
+import { cn } from '@/lib/utils/cn';
 import type { CostSummary } from './types';
 import { fmtEur } from './utils';
 
@@ -11,6 +21,32 @@ interface CopilotSidebarProps {
   cost: CostSummary;
 }
 
+function SegmentedButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+        active
+          ? "bg-indigo-500 text-white"
+          : cn(adminTextMuted, "hover:text-zinc-100"),
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function CopilotSidebar({
   mode,
   onModeChange,
@@ -21,95 +57,73 @@ export function CopilotSidebar({
   cost,
 }: CopilotSidebarProps) {
   return (
-    <aside className="px-4 py-4 space-y-4 overflow-y-auto text-xs" style={{ background: 'var(--ct-surface-1)' }}>
+    <aside className={cn("px-4 py-4 space-y-4 overflow-y-auto text-xs border-l", adminBorder, adminBgPanel)}>
       {/* Sélecteurs rapides */}
       <div>
-        <p className="text-[10px] uppercase tracking-cta font-semibold mb-2" style={{ color: 'var(--ct-text-muted)' }}>
+        <p className={cn("text-[10px] uppercase tracking-wide font-semibold mb-2", adminTextMuted)}>
           Format
         </p>
-        <div className="ct-seg-track grid grid-cols-2 gap-1.5">
-          <button
-            type="button"
-            onClick={() => onModeChange('mono')}
-            className={`ct-seg-btn${mode === 'mono' ? ' active' : ''}`}
-          >
+        <div className={cn("grid grid-cols-2 gap-1 rounded-lg p-1", adminBgInset)}>
+          <SegmentedButton active={mode === 'mono'} onClick={() => onModeChange('mono')}>
             Mono
-          </button>
-          <button
-            type="button"
-            onClick={() => onModeChange('collection')}
-            className={`ct-seg-btn${mode === 'collection' ? ' active' : ''}`}
-          >
+          </SegmentedButton>
+          <SegmentedButton active={mode === 'collection'} onClick={() => onModeChange('collection')}>
             Collection
-          </button>
+          </SegmentedButton>
         </div>
       </div>
 
       <div>
-        <p className="text-[10px] uppercase tracking-cta font-semibold mb-2" style={{ color: 'var(--ct-text-muted)' }}>
+        <p className={cn("text-[10px] uppercase tracking-wide font-semibold mb-2", adminTextMuted)}>
           Langue
         </p>
-        <div className="ct-seg-track grid grid-cols-2 gap-1.5">
-          <button
-            type="button"
-            onClick={() => onLanguageChange('fr')}
-            className={`ct-seg-btn${language === 'fr' ? ' active' : ''}`}
-          >
+        <div className={cn("grid grid-cols-2 gap-1 rounded-lg p-1", adminBgInset)}>
+          <SegmentedButton active={language === 'fr'} onClick={() => onLanguageChange('fr')}>
             FR
-          </button>
-          <button
-            type="button"
-            onClick={() => onLanguageChange('en')}
-            className={`ct-seg-btn${language === 'en' ? ' active' : ''}`}
-          >
+          </SegmentedButton>
+          <SegmentedButton active={language === 'en'} onClick={() => onLanguageChange('en')}>
             EN
-          </button>
+          </SegmentedButton>
         </div>
       </div>
 
       {mode === 'mono' && (
-        <div>
-          <label className="flex items-center justify-between gap-2 cursor-pointer">
-            <span className="text-[10px] uppercase tracking-cta font-semibold" style={{ color: 'var(--ct-text-muted)' }}>
-              Vidéo promo
-            </span>
-            <input
-              type="checkbox"
-              checked={!skipVideo}
-              onChange={(e) => onSkipVideoChange(!e.target.checked)}
-              className="w-3.5 h-3.5"
-            />
-          </label>
-        </div>
+        <CheckboxField>
+          <Checkbox
+            checked={!skipVideo}
+            onChange={(checked) => onSkipVideoChange(!checked)}
+          />
+          <Label>Vidéo promo</Label>
+        </CheckboxField>
       )}
 
       {/* Comment ça marche */}
-      <div className="pt-3" style={{ borderTop: '1px solid var(--ct-border)' }}>
-        <p className="text-[10px] uppercase tracking-cta font-semibold mb-2" style={{ color: 'var(--ct-text-muted)' }}>
+      <div className={cn("pt-3 border-t", adminBorder)}>
+        <p className={cn("text-[10px] uppercase tracking-wide font-semibold mb-2", adminTextMuted)}>
           Comment ça marche
         </p>
-        <ul className="text-[11px] space-y-1.5 leading-snug" style={{ color: 'var(--ct-text-body)' }}>
-          <li><span className="font-medium" style={{ color: 'var(--ct-text-primary)' }}>Recherche web</span> · Tavily + Perplexity</li>
-          <li><span className="font-medium" style={{ color: 'var(--ct-text-primary)' }}>Meta Ads</span> · saturation 0-100 + angles</li>
-          <li><span className="font-medium" style={{ color: 'var(--ct-text-primary)' }}>AliExpress + CJ</span> · supply + marge</li>
+        <ul className={cn("text-[11px] space-y-1.5 leading-snug", adminTextMuted)}>
+          <li><span className={cn("font-medium", adminText)}>Recherche web</span> · Tavily + Perplexity</li>
+          <li><span className={cn("font-medium", adminText)}>Meta Ads</span> · saturation 0-100 + angles</li>
+          <li><span className={cn("font-medium", adminText)}>AliExpress + CJ</span> · supply + marge</li>
         </ul>
       </div>
 
       {/* Coût session */}
-      <div className="pt-3" style={{ borderTop: '1px solid var(--ct-border)' }}>
-        <p className="text-[10px] uppercase tracking-cta font-semibold mb-2" style={{ color: 'var(--ct-text-muted)' }}>
+      <div className={cn("pt-3 border-t", adminBorder)}>
+        <p className={cn("text-[10px] uppercase tracking-wide font-semibold mb-2", adminTextMuted)}>
           Coût session
         </p>
         <div className="space-y-1 tabular-nums text-[11px]">
           <div className="flex justify-between">
-            <span style={{ color: 'var(--ct-text-body)' }}>Tokens i/o</span>
-            <span style={{ color: 'var(--ct-text-primary)' }}>
+            <span className={adminTextMuted}>Tokens i/o</span>
+            <span className={adminText}>
               {cost.input_tokens.toLocaleString('fr-FR')} / {cost.output_tokens.toLocaleString('fr-FR')}
             </span>
           </div>
           <div className="flex justify-between">
-            <span style={{ color: 'var(--ct-text-body)' }}>Estimation</span>
-            <span className="font-semibold" style={{ color: 'var(--ct-text-primary)' }}>{fmtEur(cost.cost_eur)}</span>
+            <span className={adminTextMuted}>Estimation</span>
+            <span className={cn("font-semibold", adminText)}>{fmtEur(cost.cost_eur)}</span>
           </div>
         </div>
       </div>

@@ -49,6 +49,22 @@ import {
   FileText,
   type LucideIcon,
 } from 'lucide-react';
+import { Button } from '@/components/catalyst/button';
+import { Checkbox, CheckboxField } from '@/components/catalyst/checkbox';
+import { Dialog, DialogActions, DialogBody, DialogTitle } from '@/components/catalyst/dialog';
+import { Label } from '@/components/catalyst/fieldset';
+import { Select } from '@/components/catalyst/select';
+import { Textarea } from '@/components/catalyst/textarea';
+import {
+  adminBgInset,
+  adminBgPanel,
+  adminBorder,
+  adminBorderSoft,
+  adminPanel,
+  adminText,
+  adminTextMuted,
+} from '@/components/admin/admin-surface';
+import { cn } from '@/lib/utils/cn';
 
 export type CopilotMode = 'research' | 'curation' | 'ads' | 'medias' | 'dev';
 
@@ -378,8 +394,8 @@ export function CopilotHub({
   return (
     <>
       {/* Mode pills */}
-      <div className="ct-card p-3" style={{ margin: 0 }}>
-        <div className="ct-seg-track flex flex-wrap items-center gap-2">
+      <div className={cn("rounded-xl border p-3", adminBorder, adminBgPanel)}>
+        <div className={cn("flex flex-wrap items-center gap-1 rounded-lg p-1", adminBgInset)}>
           {MODE_ORDER.map((m) => {
             const meta = MODE_LABELS[m];
             const active = m === mode;
@@ -388,7 +404,11 @@ export function CopilotHub({
                 key={m}
                 type="button"
                 onClick={() => setMode(m)}
-                className={`ct-seg-btn flex items-center gap-2${active ? ' active' : ''}`}
+                aria-pressed={active}
+                className={cn(
+                  "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
+                  active ? "bg-indigo-500 text-white" : cn(adminTextMuted, "hover:text-zinc-100"),
+                )}
               >
                 <meta.Icon size={16} strokeWidth={1.75} aria-hidden />
                 <span className="font-medium">{meta.label}</span>
@@ -397,11 +417,10 @@ export function CopilotHub({
           })}
           <div className="flex-1" />
           <div className="flex items-center gap-2">
-            <select
+            <Select
               value={sessionId ?? ''}
               onChange={(e) => loadSession(e.target.value || null)}
-              className="text-sm rounded-lg px-2 py-1 max-w-[260px]"
-              style={{ border: '1px solid var(--ct-border)', background: 'var(--ct-surface-2)', color: 'var(--ct-text-body)' }}
+              className="!w-auto max-w-[260px] text-sm"
             >
               {modeSessions.length === 0 && <option value="">Aucune session</option>}
               {modeSessions.map((s) => (
@@ -409,31 +428,22 @@ export function CopilotHub({
                   {s.title || fmtDate(s.updated_at)} · {s.message_count} msg
                 </option>
               ))}
-            </select>
-            <button
-              type="button"
-              onClick={startNewSession}
-              className="ct-seg-btn text-sm px-3 py-1"
-            >
+            </Select>
+            <Button outline onClick={startNewSession}>
               + Nouvelle
-            </button>
+            </Button>
             {mode === 'dev' && (
-              <label className="flex items-center gap-1.5 text-xs ml-2 select-none" style={{ color: 'var(--ct-text-body)' }}>
-                <input
-                  type="checkbox"
-                  checked={autoPush}
-                  onChange={(e) => setAutoPush(e.target.checked)}
-                  className="w-3.5 h-3.5"
-                />
-                <span>Auto-push</span>
-              </label>
+              <CheckboxField className="ml-2">
+                <Checkbox checked={autoPush} onChange={setAutoPush} />
+                <Label>Auto-push</Label>
+              </CheckboxField>
             )}
           </div>
         </div>
-        <p className="mt-2 text-xs" style={{ color: 'var(--ct-text-muted)' }}>
+        <p className={cn("mt-2 text-xs", adminTextMuted)}>
           {MODE_LABELS[mode].tagline}
           {mode === 'dev' && (
-            <span className="ml-2 font-medium" style={{ color: 'var(--ct-accent)' }}>
+            <span className="ml-2 font-medium text-indigo-500">
               Mode développeur — agent avec accès lecture/écriture sur le repo.
             </span>
           )}
@@ -442,11 +452,11 @@ export function CopilotHub({
 
       <div className="mt-4 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4 flex-1 min-h-0">
         {/* CHAT */}
-        <section className="ct-card flex flex-col min-h-[520px] lg:min-h-0 lg:h-full overflow-hidden" style={{ margin: 0 }}>
-          <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-5 space-y-4" style={{ background: 'var(--ct-surface-0)' }}>
+        <section className={cn("rounded-xl border flex flex-col min-h-[520px] lg:min-h-0 lg:h-full overflow-hidden", adminBorder, adminBgPanel)}>
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
             {messages.length === 0 && !streaming && (
-              <div className="text-center text-sm mt-12" style={{ color: 'var(--ct-text-muted)' }}>
-                <p className="font-medium flex items-center justify-center gap-2" style={{ color: 'var(--ct-text-body)' }}>
+              <div className={cn("text-center text-sm mt-12", adminTextMuted)}>
+                <p className={cn("font-medium flex items-center justify-center gap-2", adminText)}>
                   {(() => {
                     const ModeIcon = MODE_LABELS[mode].Icon;
                     return <ModeIcon size={16} strokeWidth={1.75} aria-hidden />;
@@ -461,7 +471,7 @@ export function CopilotHub({
               if (m.role === 'user') {
                 return (
                   <div key={m.id} className="flex justify-end">
-                    <div className="max-w-[78%] rounded-2xl rounded-tr-md px-4 py-2.5 text-sm whitespace-pre-wrap" style={{ background: 'var(--ct-surface-3)', color: 'var(--ct-text-primary)' }}>
+                    <div className={cn("max-w-[78%] rounded-2xl rounded-tr-md px-4 py-2.5 text-sm whitespace-pre-wrap", adminBgInset, adminText)}>
                       {m.content}
                     </div>
                   </div>
@@ -470,8 +480,8 @@ export function CopilotHub({
               if (m.role === 'assistant') {
                 return (
                   <div key={m.id} className="flex justify-start">
-                    <div className="max-w-[78%] rounded-2xl rounded-tl-md px-4 py-2.5 text-sm whitespace-pre-wrap" style={{ background: 'var(--ct-surface-1)', border: '1px solid var(--ct-border)', color: 'var(--ct-text-primary)' }}>
-                      {m.content || (m.streaming ? <TypingDots /> : <span style={{ color: 'var(--ct-text-muted)' }}>…</span>)}
+                    <div className={cn("max-w-[78%] rounded-2xl rounded-tl-md border px-4 py-2.5 text-sm whitespace-pre-wrap", adminBorder, adminBgPanel, adminText)}>
+                      {m.content || (m.streaming ? <TypingDots /> : <span className={adminTextMuted}>…</span>)}
                     </div>
                   </div>
                 );
@@ -481,14 +491,14 @@ export function CopilotHub({
           </div>
 
           {error && (
-            <div className="px-5 py-2 text-xs" style={{ background: 'var(--ct-surface-2)', borderTop: '1px solid var(--ct-border)', color: 'var(--ct-text-body)' }}>
+            <div className={cn("px-5 py-2 text-xs border-t", adminBgInset, adminBorder, adminTextMuted)}>
               {error}
             </div>
           )}
 
-          <form onSubmit={onSubmit} className="p-3" style={{ borderTop: '1px solid var(--ct-border)', background: 'var(--ct-surface-1)' }}>
+          <form onSubmit={onSubmit} className={cn("p-3 border-t", adminBorder, adminBgPanel)}>
             <div className="flex gap-2 items-end">
-              <textarea
+              <Textarea
                 ref={taRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -496,27 +506,23 @@ export function CopilotHub({
                 placeholder={`Demande quelque chose à ${MODE_LABELS[mode].label}… (Cmd+Enter pour envoyer)`}
                 rows={2}
                 disabled={streaming}
-                className="flex-1 resize-none text-sm rounded-lg px-3 py-2 focus:outline-none disabled:opacity-50 transition-colors"
-                style={{ border: '1px solid var(--ct-border)', background: 'var(--ct-surface-2)', color: 'var(--ct-text-primary)' }}
+                resizable={false}
+                className="flex-1 !text-sm"
               />
-              <button
-                type="submit"
-                disabled={streaming || !input.trim()}
-                className="ct-seg-btn primary text-sm px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-              >
+              <Button type="submit" color="indigo" disabled={streaming || !input.trim()} className="shrink-0">
                 {streaming ? 'Envoi…' : 'Envoyer'}
-              </button>
+              </Button>
             </div>
           </form>
         </section>
 
         {/* SIDEBAR */}
-        <aside className="ct-card flex flex-col min-h-[520px] lg:min-h-0 lg:h-full overflow-hidden" style={{ margin: 0 }}>
-          <header className="px-5 py-3" style={{ borderBottom: '1px solid var(--ct-border)' }}>
-            <div className="text-kicker uppercase tracking-cta font-medium text-xs" style={{ color: 'var(--ct-text-muted)' }}>
+        <aside className={cn("rounded-xl border flex flex-col min-h-[520px] lg:min-h-0 lg:h-full overflow-hidden", adminBorder, adminBgPanel)}>
+          <header className={cn("px-5 py-3 border-b", adminBorder)}>
+            <div className={cn("text-[10px] uppercase tracking-wide font-semibold", adminTextMuted)}>
               Contexte
             </div>
-            <p className="mt-0.5 text-sm font-medium" style={{ color: 'var(--ct-text-primary)' }}>
+            <p className={cn("mt-0.5 text-sm font-medium", adminText)}>
               {MODE_LABELS[mode].label}
             </p>
           </header>
@@ -527,40 +533,30 @@ export function CopilotHub({
       </div>
 
       {/* Confirm push modal */}
-      {confirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
-          <div className="ct-card rounded-xl max-w-md w-full p-6 space-y-4" style={{ margin: 0, boxShadow: 'var(--ct-shadow-depth)' }}>
-            <div>
-              <p className="text-kicker uppercase tracking-cta text-xs font-medium" style={{ color: 'var(--ct-text-muted)' }}>
-                Mode Dev
-              </p>
-              <h3 className="mt-1 text-lg font-semibold tracking-tight" style={{ color: 'var(--ct-text-primary)' }}>
-                L&apos;agent veut pousser en prod
-              </h3>
-              <p className="mt-2 text-sm" style={{ color: 'var(--ct-text-body)' }}>
-                Le copilote a préparé un commit et demande l&apos;autorisation de faire <code className="px-1 py-0.5 rounded text-xs" style={{ background: 'var(--ct-surface-3)', color: 'var(--ct-text-body)' }}>git push origin</code> sur la branche courante. Confirmer ?
-              </p>
-            </div>
-            <div className="text-xs rounded-lg p-3 font-mono max-h-32 overflow-auto" style={{ background: 'var(--ct-surface-2)', color: 'var(--ct-text-body)' }}>
-              {JSON.stringify(confirmModal.input ?? {}, null, 2)}
-            </div>
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={cancelPush}
-                className="ct-seg-btn text-sm px-4 py-2"
-              >
-                Non, j&apos;annule
-              </button>
-              <button
-                onClick={confirmPush}
-                className="ct-seg-btn primary text-sm px-4 py-2"
-              >
-                Oui, pousser
-              </button>
-            </div>
-          </div>
+      <Dialog open={confirmModal !== null} onClose={cancelPush} size="md">
+        <div className={cn("text-[10px] uppercase tracking-wide font-semibold", adminTextMuted)}>
+          Mode Dev
         </div>
-      )}
+        <DialogTitle>L&apos;agent veut pousser en prod</DialogTitle>
+        <DialogBody className="space-y-4">
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            Le copilote a préparé un commit et demande l&apos;autorisation de faire{' '}
+            <code className={cn("rounded px-1 py-0.5 text-xs", adminBgInset)}>git push origin</code> sur la
+            branche courante. Confirmer ?
+          </p>
+          <pre className={cn("rounded-lg p-3 font-mono text-xs max-h-32 overflow-auto", adminBgInset, adminTextMuted)}>
+            {JSON.stringify(confirmModal?.input ?? {}, null, 2)}
+          </pre>
+        </DialogBody>
+        <DialogActions>
+          <Button plain onClick={cancelPush}>
+            Non, j&apos;annule
+          </Button>
+          <Button color="indigo" onClick={confirmPush}>
+            Oui, pousser
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }
@@ -594,27 +590,27 @@ function Sidebar({
   if (mode === 'curation') {
     return (
       <div className="space-y-2">
-        <p className="text-xs mb-2" style={{ color: 'var(--ct-text-body)' }}>{products.length} produits en catalogue</p>
+        <p className={cn("text-xs mb-2", adminTextMuted)}>{products.length} produits en catalogue</p>
         {products.length === 0 ? (
-          <p className="text-sm" style={{ color: 'var(--ct-text-muted)' }}>Aucun produit.</p>
+          <p className={cn("text-sm", adminTextMuted)}>Aucun produit.</p>
         ) : (
           products.map((p) => (
-            <div key={p.id} className="rounded-lg p-2 flex gap-2" style={{ border: '1px solid var(--ct-border)', background: 'var(--ct-surface-2)' }}>
-              <div className="w-10 h-10 rounded overflow-hidden shrink-0" style={{ background: 'var(--ct-surface-3)' }}>
+            <div key={p.id} className={cn("rounded-lg border p-2 flex gap-2", adminBorder, adminBgInset)}>
+              <div className={cn("w-10 h-10 rounded overflow-hidden shrink-0", adminBgInset)}>
                 {p.image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={p.image_url} alt="" className="w-full h-full object-cover" />
                 ) : null}
               </div>
               <div className="flex-1 min-w-0 text-xs">
-                <p className="font-medium line-clamp-2 leading-tight" style={{ color: 'var(--ct-text-primary)' }}>{p.enriched_title}</p>
-                <p className="mt-0.5" style={{ color: 'var(--ct-text-muted)' }}>{fmtEur(p.price_cents)}</p>
+                <p className={cn("font-medium line-clamp-2 leading-tight", adminText)}>{p.enriched_title}</p>
+                <p className={cn("mt-0.5", adminTextMuted)}>{fmtEur(p.price_cents)}</p>
               </div>
             </div>
           ))
         )}
         <div className="pt-2">
-          <Link href={`/shop/${storeSlug}`} target="_blank" className="text-xs hover:underline" style={{ color: 'var(--ct-text-muted)' }}>
+          <Link href={`/shop/${storeSlug}`} target="_blank" className={cn("text-xs hover:underline", adminTextMuted)}>
             Voir le storefront →
           </Link>
         </div>
@@ -623,8 +619,8 @@ function Sidebar({
   }
   if (mode === 'ads') {
     return (
-      <div className="text-sm space-y-2" style={{ color: 'var(--ct-text-body)' }}>
-        <p className="font-medium" style={{ color: 'var(--ct-text-primary)' }}>Outils dispo</p>
+      <div className={cn("text-sm space-y-2", adminTextMuted)}>
+        <p className={cn("font-medium", adminText)}>Outils dispo</p>
         <ul className="text-xs list-disc pl-4 space-y-1">
           <li>list_variants — voir l&apos;état des ads</li>
           <li>rewrite_hook — réécrire headline + body</li>
@@ -632,7 +628,7 @@ function Sidebar({
           <li>suggest_targeting — age, intérêts, placements</li>
           <li>estimate_budget — CPM × jours</li>
         </ul>
-        <p className="text-xs pt-2" style={{ color: 'var(--ct-text-muted)' }}>
+        <p className="text-xs pt-2">
           Astuce: démarre par &laquo; liste mes variantes &raquo;.
         </p>
       </div>
@@ -640,17 +636,17 @@ function Sidebar({
   }
   if (mode === 'medias') {
     return (
-      <div className="text-sm space-y-2" style={{ color: 'var(--ct-text-body)' }}>
-        <p className="font-medium" style={{ color: 'var(--ct-text-primary)' }}>Slots d&apos;assets</p>
+      <div className={cn("text-sm space-y-2", adminTextMuted)}>
+        <p className={cn("font-medium", adminText)}>Slots d&apos;assets</p>
         <ul className="text-xs space-y-1">
           {['hero', 'cutout', 'lifestyle-1', 'lifestyle-2', 'lifestyle-3', 'promo'].map((k) => (
             <li key={k} className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full" style={{ background: 'var(--ct-border-strong)' }} />
+              <span className="w-2 h-2 rounded-full bg-zinc-500" />
               <code className="text-xs">{k}</code>
             </li>
           ))}
         </ul>
-        <p className="text-xs pt-2" style={{ color: 'var(--ct-text-muted)' }}>
+        <p className="text-xs pt-2">
           Astuce: &laquo; liste les assets &raquo; puis &laquo; régénère le hero &raquo;.
         </p>
       </div>
@@ -658,10 +654,10 @@ function Sidebar({
   }
   if (mode === 'dev') {
     return (
-      <div className="text-sm space-y-3" style={{ color: 'var(--ct-text-body)' }}>
+      <div className={cn("text-sm space-y-3", adminTextMuted)}>
         <div>
-          <p className="font-medium" style={{ color: 'var(--ct-text-primary)' }}>Capacités</p>
-          <ul className="mt-1 text-xs list-disc pl-4 space-y-0.5" style={{ color: 'var(--ct-text-muted)' }}>
+          <p className={cn("font-medium", adminText)}>Capacités</p>
+          <ul className="mt-1 text-xs list-disc pl-4 space-y-0.5">
             <li>read_file / list_files / search_code</li>
             <li>write_file / apply_patch</li>
             <li>run_bash (whitelist: npm, npx, node, git, ls, cat, grep…)</li>
@@ -669,16 +665,16 @@ function Sidebar({
             <li>git_push (confirmation requise)</li>
           </ul>
         </div>
-        <div className="pt-3" style={{ borderTop: '1px solid var(--ct-border-soft)' }}>
-          <p className="font-medium" style={{ color: 'var(--ct-text-primary)' }}>Garde-fous</p>
-          <ul className="mt-1 text-xs list-disc pl-4 space-y-0.5" style={{ color: 'var(--ct-text-muted)' }}>
+        <div className={cn("pt-3 border-t", adminBorderSoft)}>
+          <p className={cn("font-medium", adminText)}>Garde-fous</p>
+          <ul className="mt-1 text-xs list-disc pl-4 space-y-0.5">
             <li>Lecture/écriture refusée sur .env*, .git/, node_modules/, .next/</li>
             <li>Commandes interdites: rm -rf, sudo, ssh, scp, mkfs…</li>
             <li>15 boucles max, 20 outils max par tour</li>
             <li>Pas de force-push, pas de --no-verify</li>
           </ul>
         </div>
-        <div className="pt-3 text-xs" style={{ borderTop: '1px solid var(--ct-border-soft)', color: 'var(--ct-text-muted)' }}>
+        <div className={cn("pt-3 text-xs border-t", adminBorderSoft)}>
           Astuce: « ajoute un bouton de partage social sur la page produit ».
         </div>
       </div>
@@ -686,8 +682,8 @@ function Sidebar({
   }
   // research
   return (
-    <div className="text-sm space-y-2" style={{ color: 'var(--ct-text-body)' }}>
-      <p className="font-medium" style={{ color: 'var(--ct-text-primary)' }}>Modes utiles</p>
+    <div className={cn("text-sm space-y-2", adminTextMuted)}>
+      <p className={cn("font-medium", adminText)}>Modes utiles</p>
       <ul className="text-xs list-disc pl-4 space-y-1">
         <li>web_search — Tavily</li>
         <li>ask_perplexity — synthèse + citations</li>
@@ -695,7 +691,7 @@ function Sidebar({
         <li>aliexpress_search / cj_search</li>
         <li>shortlist_niche — recommandation finale</li>
       </ul>
-      <p className="text-xs pt-2" style={{ color: 'var(--ct-text-muted)' }}>
+      <p className="text-xs pt-2">
         Astuce: démarre par &laquo; analyse la niche &lt;mot-clé&gt; &raquo;.
       </p>
     </div>
@@ -707,9 +703,9 @@ function Sidebar({
 function TypingDots() {
   return (
     <span className="inline-flex items-center gap-1">
-      <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--ct-border-strong)' }} />
-      <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--ct-border-strong)', animationDelay: '120ms' }} />
-      <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--ct-border-strong)', animationDelay: '240ms' }} />
+      <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-pulse" />
+      <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-pulse [animation-delay:120ms]" />
+      <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-pulse [animation-delay:240ms]" />
     </span>
   );
 }
@@ -720,32 +716,31 @@ function ToolCard({ message }: { message: ChatMessage }) {
   const name = message.tool_name || 'tool';
 
   return (
-    <div className="rounded-xl text-sm overflow-hidden" style={{ border: '1px solid var(--ct-border)', background: 'var(--ct-surface-1)' }}>
+    <div className={cn("rounded-xl border text-sm overflow-hidden", adminBorder, adminBgPanel)}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="w-full px-4 py-2 flex items-center gap-2 text-left"
-        style={{ background: 'transparent' }}
       >
-        <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: isError ? 'var(--ct-border)' : message.tool_output ? 'var(--ct-accent-soft)' : 'var(--ct-surface-3)' }} />
-        <code className="font-mono text-xs" style={{ color: 'var(--ct-text-body)' }}>{name}</code>
-        <span className="ml-auto text-xs line-clamp-1" style={{ color: 'var(--ct-text-muted)' }}>{message.content}</span>
-        <span className="text-xs" style={{ color: 'var(--ct-border-strong)' }}>{open ? '▾' : '▸'}</span>
+        <span className={cn("inline-block w-1.5 h-1.5 rounded-full", isError ? "bg-red-500" : message.tool_output ? "bg-emerald-500" : "bg-zinc-500")} />
+        <code className={cn("font-mono text-xs", adminTextMuted)}>{name}</code>
+        <span className={cn("ml-auto text-xs line-clamp-1", adminTextMuted)}>{message.content}</span>
+        <span className={cn("text-xs", adminTextMuted)}>{open ? '▾' : '▸'}</span>
       </button>
 
       {open && (
-        <div className="px-4 pb-4 pt-1 space-y-3" style={{ borderTop: '1px solid var(--ct-border-soft)' }}>
+        <div className={cn("px-4 pb-4 pt-1 space-y-3 border-t", adminBorderSoft)}>
           <SpecialisedRenderer name={name} input={message.tool_input} output={message.tool_output} isError={isError} />
-          <details className="text-xs" style={{ color: 'var(--ct-text-muted)' }}>
-            <summary className="cursor-pointer" style={{ color: 'var(--ct-text-body)' }}>Détails techniques</summary>
+          <details className={cn("text-xs", adminTextMuted)}>
+            <summary className="cursor-pointer">Détails techniques</summary>
             <div className="mt-2 space-y-2">
               <div>
-                <div className="text-kicker uppercase tracking-cta" style={{ color: 'var(--ct-text-muted)' }}>input</div>
-                <pre className="mt-1 rounded p-2 overflow-x-auto font-mono text-xs" style={{ background: 'var(--ct-surface-2)', color: 'var(--ct-text-body)' }}>{JSON.stringify(message.tool_input ?? {}, null, 2)}</pre>
+                <div className={cn("text-[10px] uppercase tracking-wide font-semibold", adminTextMuted)}>input</div>
+                <pre className={cn("mt-1 rounded p-2 overflow-x-auto font-mono text-xs", adminBgInset)}>{JSON.stringify(message.tool_input ?? {}, null, 2)}</pre>
               </div>
               <div>
-                <div className="text-kicker uppercase tracking-cta" style={{ color: 'var(--ct-text-muted)' }}>output</div>
-                <pre className="mt-1 rounded p-2 overflow-x-auto font-mono text-xs" style={{ background: 'var(--ct-surface-2)', color: 'var(--ct-text-body)' }}>{JSON.stringify(message.tool_output ?? {}, null, 2)}</pre>
+                <div className={cn("text-[10px] uppercase tracking-wide font-semibold", adminTextMuted)}>output</div>
+                <pre className={cn("mt-1 rounded p-2 overflow-x-auto font-mono text-xs", adminBgInset)}>{JSON.stringify(message.tool_output ?? {}, null, 2)}</pre>
               </div>
             </div>
           </details>
@@ -775,16 +770,16 @@ function SpecialisedRenderer({
     const preview = content.split('\n').slice(0, 20).join('\n');
     return (
       <div className="text-xs space-y-1">
-        <p className="font-mono" style={{ color: 'var(--ct-text-body)' }}>{String(inp.path ?? '')}</p>
-        <pre className="rounded p-3 overflow-x-auto font-mono text-xs" style={{ background: 'var(--ct-surface-0)', color: 'var(--ct-text-primary)' }}>{preview}{content.split('\n').length > 20 ? '\n…' : ''}</pre>
+        <p className={cn("font-mono", adminTextMuted)}>{String(inp.path ?? '')}</p>
+        <pre className={cn("rounded p-3 overflow-x-auto font-mono text-xs", adminBgInset, adminText)}>{preview}{content.split('\n').length > 20 ? '\n…' : ''}</pre>
       </div>
     );
   }
   if (name === 'write_file' || name === 'apply_patch') {
     return (
       <div className="text-xs">
-        <p className="font-mono" style={{ color: 'var(--ct-text-body)' }}>{String(inp.path ?? '')}</p>
-        <p className="mt-1" style={{ color: 'var(--ct-text-muted)' }}>
+        <p className={cn("font-mono", adminTextMuted)}>{String(inp.path ?? '')}</p>
+        <p className={cn("mt-1", adminTextMuted)}>
           {name === 'apply_patch' ? 'Patch appliqué' : `Écriture (${out.bytes ?? '?'} octets)`}
         </p>
       </div>
@@ -796,23 +791,23 @@ function SpecialisedRenderer({
     const exitCode = typeof out.exit_code === 'number' ? out.exit_code : '?';
     return (
       <div className="text-xs space-y-1">
-        <p className="font-mono" style={{ color: 'var(--ct-text-body)' }}>$ {String(out.command ?? inp.command ?? '')}</p>
+        <p className={cn("font-mono", adminTextMuted)}>$ {String(out.command ?? inp.command ?? '')}</p>
         {stdout && (
-          <pre className="rounded p-3 overflow-x-auto font-mono text-xs whitespace-pre-wrap" style={{ background: 'var(--ct-surface-0)', color: 'var(--ct-text-primary)' }}>{stdout}</pre>
+          <pre className={cn("rounded p-3 overflow-x-auto font-mono text-xs whitespace-pre-wrap", adminBgInset, adminText)}>{stdout}</pre>
         )}
         {stderr && (
-          <pre className="rounded p-3 overflow-x-auto font-mono text-xs whitespace-pre-wrap" style={{ background: 'var(--ct-surface-2)', color: 'var(--ct-text-muted)' }}>{stderr}</pre>
+          <pre className={cn("rounded p-3 overflow-x-auto font-mono text-xs whitespace-pre-wrap", adminBgInset, adminTextMuted)}>{stderr}</pre>
         )}
-        <p className="font-medium" style={{ color: exitCode === 0 ? 'var(--ct-accent)' : 'var(--ct-text-muted)' }}>
+        <p className={cn("font-medium", exitCode === 0 ? "text-emerald-500" : adminTextMuted)}>
           exit {exitCode}
         </p>
       </div>
     );
   }
   if (name === 'git_commit') {
-    if (out.empty) return <p className="text-xs" style={{ color: 'var(--ct-text-muted)' }}>Rien à commiter.</p>;
+    if (out.empty) return <p className={cn("text-xs", adminTextMuted)}>Rien à commiter.</p>;
     return (
-      <div className="inline-flex items-center gap-2 text-xs px-2 py-1 rounded-full" style={{ background: 'var(--ct-accent-soft)', color: 'var(--ct-accent)' }}>
+      <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-2 py-1 text-xs text-emerald-600 dark:text-emerald-400">
         <Check size={12} strokeWidth={2.5} aria-hidden />
         <span>commit</span>
         <code className="font-mono">{String(out.short_sha ?? '')}</code>
@@ -823,14 +818,14 @@ function SpecialisedRenderer({
   if (name === 'git_push') {
     if (out.confirm_required) {
       return (
-        <p className="text-xs px-2 py-1 rounded inline-flex items-center gap-1.5" style={{ color: 'var(--ct-accent)', background: 'var(--ct-accent-soft)' }}>
+        <p className="inline-flex items-center gap-1.5 rounded bg-amber-500/10 px-2 py-1 text-xs text-amber-600 dark:text-amber-400">
           <Pause size={12} strokeWidth={2.5} aria-hidden />
           En attente de confirmation utilisateur.
         </p>
       );
     }
     return (
-      <div className="inline-flex items-center gap-2 text-xs px-2 py-1 rounded-full" style={{ background: 'var(--ct-accent-soft)', color: 'var(--ct-accent)' }}>
+      <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-2 py-1 text-xs text-emerald-600 dark:text-emerald-400">
         <Rocket size={12} strokeWidth={2} aria-hidden />
         pushed to {String(out.branch ?? 'origin')}
       </div>
@@ -839,21 +834,21 @@ function SpecialisedRenderer({
   if (name === 'git_status' || name === 'git_diff') {
     const text = typeof out.porcelain === 'string' ? out.porcelain : typeof out.diff === 'string' ? out.diff : '';
     return (
-      <pre className="rounded p-3 overflow-x-auto font-mono text-xs whitespace-pre-wrap max-h-72" style={{ background: 'var(--ct-surface-0)', color: 'var(--ct-text-primary)' }}>{text || '(vide)'}</pre>
+      <pre className={cn("rounded p-3 overflow-x-auto font-mono text-xs whitespace-pre-wrap max-h-72", adminBgInset, adminText)}>{text || '(vide)'}</pre>
     );
   }
   if (name === 'search_code') {
     const matches = Array.isArray(out.matches) ? (out.matches as Array<{ file: string; line: number; content: string }>) : [];
-    if (matches.length === 0) return <p className="text-xs" style={{ color: 'var(--ct-text-muted)' }}>Aucun match.</p>;
+    if (matches.length === 0) return <p className={cn("text-xs", adminTextMuted)}>Aucun match.</p>;
     return (
       <div className="text-xs space-y-0.5 font-mono">
         {matches.slice(0, 12).map((m, i) => (
           <div key={i} className="truncate">
-            <span style={{ color: 'var(--ct-text-muted)' }}>{m.file}:{m.line}</span>{' '}
-            <span style={{ color: 'var(--ct-text-body)' }}>{m.content.trim()}</span>
+            <span className={adminTextMuted}>{m.file}:{m.line}</span>{' '}
+            <span className={adminTextMuted}>{m.content.trim()}</span>
           </div>
         ))}
-        {matches.length > 12 && <p style={{ color: 'var(--ct-text-muted)' }}>…et {matches.length - 12} de plus</p>}
+        {matches.length > 12 && <p className={adminTextMuted}>…et {matches.length - 12} de plus</p>}
       </div>
     );
   }
@@ -863,18 +858,18 @@ function SpecialisedRenderer({
       <div className="text-xs font-mono space-y-0.5 max-h-48 overflow-y-auto">
         {entries.slice(0, 30).map((e, i) => (
           <div key={i} className="flex items-center gap-1.5">
-            <span className="inline-flex" style={{ color: 'var(--ct-text-muted)' }}>
+            <span className={cn("inline-flex", adminTextMuted)}>
               {e.type === 'dir' ? <Folder size={12} strokeWidth={1.75} aria-hidden /> : <FileText size={12} strokeWidth={1.75} aria-hidden />}
             </span>
             <span>{e.path}</span>
           </div>
         ))}
-        {entries.length > 30 && <p style={{ color: 'var(--ct-text-muted)' }}>…et {entries.length - 30} de plus</p>}
+        {entries.length > 30 && <p className={adminTextMuted}>…et {entries.length - 30} de plus</p>}
       </div>
     );
   }
   if (isError && typeof out.error === 'string') {
-    return <p className="text-xs" style={{ color: 'var(--ct-text-muted)' }}>{out.error}</p>;
+    return <p className={cn("text-xs", adminTextMuted)}>{out.error}</p>;
   }
   return null;
 }

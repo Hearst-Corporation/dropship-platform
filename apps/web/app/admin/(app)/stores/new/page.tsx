@@ -4,9 +4,18 @@ import { apiFetch } from '@/lib/client-fetch';
 
 import { useState, useRef, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import { Button } from '@/components/catalyst/button';
 import { TextLink } from '@/components/catalyst/text';
+import {
+  adminBgInset,
+  adminBgPanel,
+  adminBorder,
+  adminBorderSoft,
+  adminText,
+  adminTextMuted,
+} from '@/components/admin/admin-surface';
+import { cn } from '@/lib/utils/cn';
 import type { StoreTemplate } from '@/lib/template-catalog';
 import { NicheResearchCopilot, type ShortlistPayload } from './NicheResearchCopilot';
 
@@ -236,7 +245,7 @@ function NewStoreForm() {
   const isActive = running || !!result || !!error;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: 8 }}>
+    <div className="flex flex-col flex-1 min-h-0 gap-2">
       {/* Quand la création tourne : plein écran dédié impossible à rater */}
       {isActive ? (
         <CreationScreen
@@ -295,116 +304,101 @@ function CreationScreen({
 
   if (result) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, alignItems: 'center', justifyContent: 'center', gap: 24 }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--ct-accent-soft)', border: '1px solid var(--ct-border-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--ct-accent)' }}>
+      <div className="flex flex-col flex-1 min-h-0 items-center justify-center gap-6">
+        <div className="text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500">
               <path d="M20 6L9 17l-5-5" />
             </svg>
           </div>
-          <h2 style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--ct-text-primary)' }}>{result.storeName}</h2>
-          <p style={{ marginTop: 4, fontSize: 13, color: 'var(--ct-text-muted)' }}>{result.productCount} produit{result.productCount > 1 ? 's' : ''} import&eacute;{result.productCount > 1 ? 's' : ''} &middot; pr&ecirc;t &agrave; vendre</p>
+          <h2 className={cn("text-xl font-semibold tracking-tight", adminText)}>{result.storeName}</h2>
+          <p className={cn("mt-1 text-[13px]", adminTextMuted)}>{result.productCount} produit{result.productCount > 1 ? 's' : ''} import&eacute;{result.productCount > 1 ? 's' : ''} &middot; pr&ecirc;t &agrave; vendre</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Link
-            href={`/shop/${result.slug}`}
-            target="_blank"
-            rel="noreferrer"
-            style={{ padding: '8px 20px', borderRadius: 8, background: 'var(--ct-accent)', color: '#fff', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}
-          >
+        <div className="flex items-center gap-3">
+          <Button href={`/shop/${result.slug}`} target="_blank" color="indigo">
             Ouvrir le store &rarr;
-          </Link>
-          <Link
-            href="/admin/stores"
-            style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid var(--ct-border)', color: 'var(--ct-text-body)', fontSize: 13, fontWeight: 500, textDecoration: 'none', background: 'var(--ct-surface-1)' }}
-          >
+          </Button>
+          <Button href="/admin/stores" outline>
             Voir tous les stores
-          </Link>
-          <button
-            type="button"
-            onClick={onReset}
-            style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid var(--ct-border)', color: 'var(--ct-text-muted)', fontSize: 13, fontWeight: 500, background: 'var(--ct-surface-1)', cursor: 'pointer' }}
-          >
+          </Button>
+          <Button onClick={onReset} plain>
             Cr&eacute;er un autre
-          </button>
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, border: '1px solid var(--ct-border)', borderRadius: 12, background: 'var(--ct-surface-0)', overflow: 'hidden' }}>
+    <div className={cn("flex flex-col flex-1 min-h-0 rounded-xl border overflow-hidden", adminBorder, adminBgPanel)}>
       {/* Header */}
-      <div style={{ flexShrink: 0, padding: '10px 20px', borderBottom: '1px solid var(--ct-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-          {running ? (
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--ct-accent)', flexShrink: 0, animation: 'pulse 1.5s infinite' }} />
-          ) : (
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--ct-accent-strong)', flexShrink: 0 }} />
-          )}
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ct-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <div className={cn("shrink-0 flex items-center justify-between gap-4 px-5 py-2.5 border-b", adminBorder)}>
+        <div className="flex items-center gap-3 min-w-0">
+          <span className={cn("h-2 w-2 shrink-0 rounded-full", running ? "bg-indigo-500 animate-pulse" : "bg-red-500")} />
+          <span className={cn("truncate text-[13px] font-semibold", adminText)}>
             {running ? `Construction de « ${storeName} »` : `Erreur — « ${storeName} »`}
           </span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+        <div className="flex shrink-0 items-center gap-3">
           {running && (
-            <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', color: 'var(--ct-text-muted)', fontWeight: 500 }}>
+            <span className={cn("text-xs font-medium tabular-nums", adminTextMuted)}>
               {percent}% &middot; {elapsed}s
             </span>
           )}
           {error && (
-            <button
-              type="button"
-              onClick={onReset}
-              style={{ fontSize: 12, padding: '4px 12px', borderRadius: 8, border: '1px solid var(--ct-border)', color: 'var(--ct-text-muted)', background: 'var(--ct-surface-2)', cursor: 'pointer' }}
-            >
+            <Button outline onClick={onReset}>
               R&eacute;essayer
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
       {/* Barre de progression */}
-      <div style={{ flexShrink: 0, height: 2, background: 'var(--ct-surface-3)' }}>
+      <div className={cn("h-0.5 shrink-0", adminBgInset)}>
         <div
-          style={{ height: '100%', background: 'var(--ct-accent)', transition: 'width 500ms', width: `${Math.max(2, Math.min(100, percent))}%` }}
+          className="h-full bg-indigo-500 transition-all duration-500"
+          style={{ width: `${Math.max(2, Math.min(100, percent))}%` }}
         />
       </div>
 
       {/* Étape courante */}
       {currentStep && (
-        <div style={{ flexShrink: 0, padding: '8px 20px', borderBottom: '1px solid var(--ct-border-soft)', background: 'var(--ct-surface-1)' }}>
-          <p style={{ fontSize: 12, color: 'var(--ct-text-body)', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentStep}</p>
+        <div className={cn("shrink-0 border-b px-5 py-2", adminBorderSoft, adminBgInset)}>
+          <p className={cn("truncate text-xs italic", adminTextMuted)}>{currentStep}</p>
         </div>
       )}
 
       {/* Error banner */}
       {error && (
-        <div style={{ flexShrink: 0, padding: '12px 20px', background: 'var(--ct-accent-soft)', borderBottom: '1px solid var(--ct-border-accent)' }}>
-          <p style={{ fontSize: 13, color: 'var(--ct-accent-strong)', fontWeight: 500 }}>Erreur de cr&eacute;ation</p>
-          <p style={{ fontSize: 12, color: 'var(--ct-accent)', marginTop: 4, whiteSpace: 'pre-wrap' }}>{error}</p>
+        <div className="shrink-0 border-b border-red-500/30 bg-red-500/5 px-5 py-3">
+          <p className="text-[13px] font-medium text-red-600 dark:text-red-400">Erreur de cr&eacute;ation</p>
+          <p className="mt-1 whitespace-pre-wrap text-xs text-red-600/90 dark:text-red-400/90">{error}</p>
         </div>
       )}
 
       {/* Logs en temps réel */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 6, fontFamily: 'monospace', fontSize: 12 }}>
+      <div className="flex flex-1 flex-col gap-1.5 overflow-y-auto px-5 py-4 font-mono text-xs">
         {logs.map((l) => (
-          <div key={l.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-            <span style={{ color: 'var(--ct-text-faint)', fontVariantNumeric: 'tabular-nums', flexShrink: 0, paddingTop: 1 }}>{l.ts}</span>
-            <span style={{
-              color: l.type === 'error' ? 'var(--ct-accent-strong)' :
-                     l.type === 'success' ? '#22c55e' :
-                     l.type === 'step' ? 'var(--ct-text-primary)' :
-                     'var(--ct-text-muted)',
-              fontWeight: l.type === 'step' ? 500 : 400,
-            }}>
-              {l.type === 'step' && <span style={{ color: 'var(--ct-text-faint)', marginRight: 6 }}>&rsaquo;</span>}
+          <div key={l.id} className="flex items-start gap-3">
+            <span className={cn("shrink-0 pt-px tabular-nums", adminTextMuted)}>{l.ts}</span>
+            <span
+              className={cn(
+                l.type === 'error'
+                  ? "text-red-500"
+                  : l.type === 'success'
+                  ? "text-emerald-500"
+                  : l.type === 'step'
+                  ? cn(adminText, "font-medium")
+                  : adminTextMuted,
+              )}
+            >
+              {l.type === 'step' && <span className={cn("mr-1.5", adminTextMuted)}>&rsaquo;</span>}
               {l.message}
             </span>
           </div>
         ))}
         {running && logs.length === 0 && (
-          <p style={{ color: 'var(--ct-text-faint)' }}>D&eacute;marrage&hellip;</p>
+          <p className={adminTextMuted}>D&eacute;marrage&hellip;</p>
         )}
         <div ref={logsEndRef} />
       </div>
@@ -414,7 +408,7 @@ function CreationScreen({
 
 export default function NewStorePage() {
   return (
-    <div className="space-y-8" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+    <div className="flex flex-1 min-h-0 flex-col space-y-8">
       <div>
         <p className="text-sm/6">
           <TextLink href="/admin/stores">&larr; Stores</TextLink>
