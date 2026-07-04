@@ -3,7 +3,7 @@ import type { RawProduct, SupplierClient, SupplierSearchParams } from './types';
 import { evaluateDropshipPure, isExcludedPlatform } from './policy';
 import { aliexpressClient } from './aliexpress';
 import { cjClient } from './cj';
-import { zendropClient } from './zendrop';
+import { zendropClient } from './zendrop-connector';
 import { spocketClient } from './spocket';
 import { synceeClient } from './syncee';
 import { bigbuyClient } from './bigbuy';

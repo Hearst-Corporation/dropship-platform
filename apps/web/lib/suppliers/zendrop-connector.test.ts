@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { toZendropProduct, zendropConnector } from './zendrop-connector';
+import { toZendropProduct, zendropClient, zendropConnector } from './zendrop-connector';
 
 function mcpOk(structuredContent: unknown) {
   return {
@@ -103,5 +103,74 @@ describe('zendropConnector', () => {
     vi.stubGlobal('fetch', fetchMock);
     await expect(zendropConnector.listStores()).rejects.toThrow(/HTTP 401/);
     await expect(zendropConnector.listStores()).rejects.not.toThrow(/test-zendrop-token/);
+  });
+});
+
+// This is the SupplierClient actually wired into lib/suppliers/registry.ts —
+// zendrop.ts also exports a same-named client but it requires the
+// unconfigured OAuth flow, so registry.ts imports this one instead.
+describe('zendropClient (registry adapter)', () => {
+  beforeEach(() => {
+    vi.stubEnv('ZENDROP_API_TOKEN', 'test-zendrop-token');
+    vi.restoreAllMocks();
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('is search_only — catalog search works, fulfillment is not wired yet', () => {
+    expect(zendropClient.id).toBe('zendrop');
+    expect(zendropClient.status).toBe('search_only');
+    expect(zendropClient.placeOrder).toBeUndefined();
+  });
+
+  it('ensureAuth reflects whether the token is configured', async () => {
+    expect(await zendropClient.ensureAuth!()).toBe(true);
+    vi.stubEnv('ZENDROP_API_TOKEN', '');
+    expect(await zendropClient.ensureAuth!()).toBe(false);
+  });
+
+  it('searchProducts returns needsAuth when the token is missing (no network call)', async () => {
+    vi.stubEnv('ZENDROP_API_TOKEN', '');
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const result = await zendropClient.searchProducts({ keywords: 'anything' });
+    expect(result).toEqual({ success: false, products: [], needsAuth: true, error: expect.any(String) });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('searchProducts maps catalog results into RawProduct (EUR price, supplier id)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      mcpOk({
+        total: 1,
+        products: [{ id: 42, name: 'Ring', image: 'https://z/r.jpg', images: [{ id: 9, url: 'https://z/r.jpg' }], price: '10' }],
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await zendropClient.searchProducts({ keywords: 'ring', page: 2, pageSize: 5 });
+    expect(result.success).toBe(true);
+    expect(result.total).toBe(1);
+    expect(result.products).toEqual([
+      {
+        supplier: 'zendrop',
+        externalId: '42',
+        title: 'Ring',
+        price: expect.any(Number),
+        imageUrl: 'https://z/r.jpg',
+        supplierUrl: 'https://app.zendrop.com/product/42',
+      },
+    ]);
+    const args = JSON.parse(fetchMock.mock.calls[0][1].body).params.arguments;
+    expect(args).toEqual({ keyword: 'ring', page: 2, limit: 5 });
+  });
+
+  it('searchProducts fails soft on a connector error', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 500, text: async () => 'boom' });
+    vi.stubGlobal('fetch', fetchMock);
+    const result = await zendropClient.searchProducts({ keywords: 'anything' });
+    expect(result.success).toBe(false);
+    expect(result.products).toEqual([]);
+    expect(result.error).toMatch(/HTTP 500/);
   });
 });

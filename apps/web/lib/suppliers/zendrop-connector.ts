@@ -25,6 +25,8 @@
  *   token is never logged in full (only a masked prefix in errors).
  */
 import 'server-only';
+import type { SupplierClient, SupplierSearchResult } from './types';
+import { usdToEur } from './fx';
 
 const ZENDROP_MCP_URL = (process.env.SUPPLIER_ZENDROP_MCP_URL || 'https://app.zendrop.com/mcp/v1').trim();
 const zendropToken = () => (process.env.ZENDROP_API_TOKEN || '').trim();
@@ -259,3 +261,65 @@ export const zendropConnector = {
 };
 
 export type ZendropConnector = typeof zendropConnector;
+
+// ---------------------------------------------------------------------------
+// SupplierClient implementation — pluggable registry adapter
+// ---------------------------------------------------------------------------
+
+/**
+ * Registry-facing adapter over the verified token-auth connector above.
+ * `lib/suppliers/zendrop.ts` also exports a `zendropClient` but it requires
+ * the (unconfigured, // CONFIRM-stage) OAuth flow — this is the one actually
+ * wired into `lib/suppliers/registry.ts` for automated sourcing.
+ */
+export const zendropClient: SupplierClient = {
+  id: 'zendrop',
+  label: 'Zendrop',
+  tier: 'v1',
+  // Catalog search is live (verified 2026-07); fulfillOrder() in the
+  // connector above still throws (no connected Zendrop store yet) — until
+  // that's wired, this stays search_only rather than claiming placeOrder.
+  status: 'search_only',
+  capabilities: {
+    unitOrder: true,
+    noStock: true,
+    directShip: true,
+    neutralPackaging: true,
+    stockPriceSync: true,
+    tracking: true,
+    returns: true,
+    imageRights: false,
+  },
+
+  async ensureAuth(): Promise<boolean> {
+    return zendropConnector.isConfigured();
+  },
+
+  async searchProducts(params): Promise<SupplierSearchResult> {
+    if (!zendropConnector.isConfigured()) {
+      return { success: false, products: [], needsAuth: true, error: 'ZENDROP_API_TOKEN manquant dans .env.local' };
+    }
+    try {
+      const { total, products } = await zendropConnector.getCatalogProducts({
+        keyword: params.keywords,
+        page: params.page,
+        limit: params.pageSize,
+      });
+      return {
+        success: true,
+        total,
+        products: products.map((p) => ({
+          supplier: 'zendrop',
+          externalId: p.supplierProductId,
+          title: p.title,
+          // Zendrop catalog prices are quoted in USD (see toZendropProduct).
+          price: usdToEur(p.costPrice ?? 0),
+          imageUrl: p.images[0] ?? '',
+          supplierUrl: `https://app.zendrop.com/product/${p.supplierProductId}`,
+        })),
+      };
+    } catch (e) {
+      return { success: false, products: [], error: e instanceof Error ? e.message : 'Erreur Zendrop' };
+    }
+  },
+};
