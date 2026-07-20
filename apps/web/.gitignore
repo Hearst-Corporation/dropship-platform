@@ -1,3 +1,10 @@
 .vercel
 .env*.local
 .refonte-backup-*
+
+# Supplier product images persisted by the local-filesystem fallback of
+# `persistSupplierProductImage`. Every `npm test` run exercises that path
+# through the store-creator E2E suite, so these pile up on each run. The
+# real assets (R2 in prod) never land here; the committed run-*/current
+# fixtures under public/generated/ stay tracked and are unaffected.
+public/generated/*/products/
