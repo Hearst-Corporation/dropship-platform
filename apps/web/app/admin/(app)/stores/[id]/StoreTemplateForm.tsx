@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { type StoreTemplate } from "@/lib/template-catalog";
 import { AdminSection } from "@/components/admin/AdminSection";
 import { TemplatePicker } from "@/components/admin/TemplatePicker";
-import { Button } from "@/components/catalyst/button";
+import { Button } from "@/components/ui/button";
 
 type Template = StoreTemplate;
 

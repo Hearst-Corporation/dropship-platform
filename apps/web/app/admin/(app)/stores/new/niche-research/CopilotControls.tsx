@@ -1,5 +1,5 @@
-import { Checkbox, CheckboxField } from '@/components/catalyst/checkbox';
-import { Label } from '@/components/catalyst/fieldset';
+import { Checkbox, CheckboxField } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/fieldset';
 import {
   adminBgInset,
   adminBorder,

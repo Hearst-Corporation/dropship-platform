@@ -6,7 +6,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
 import { AdminSection } from "@/components/admin/AdminSection";
-import { Button } from "@/components/catalyst/button";
+import { Button } from "@/components/ui/button";
 import {
   Fieldset,
   Legend,
@@ -14,9 +14,9 @@ import {
   Field,
   Label,
   Description,
-} from "@/components/catalyst/fieldset";
-import { Input } from "@/components/catalyst/input";
-import { Text } from "@/components/catalyst/text";
+} from "@/components/ui/fieldset";
+import { Input } from "@/components/ui/input";
+import { Text } from "@/components/ui/text";
 
 interface InitialValues {
   ga4MeasurementId: string;

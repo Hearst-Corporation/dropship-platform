@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Badge } from '@/components/catalyst/badge';
-import { Button } from '@/components/catalyst/button';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { adminBgInset, adminBgPanel, adminBorder, adminText, adminTextMuted } from '@/components/admin/admin-surface';
 import { cn } from '@/lib/utils/cn';
 import { DesignPickerBlock } from './DesignPickerBlock';

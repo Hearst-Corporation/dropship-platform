@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeftIcon } from "@heroicons/react/20/solid";
-import { TextLink } from "@/components/catalyst/text";
+import { TextLink } from "@/components/ui/text";
 
 /**
  * Breadcrumb "Stores" back link with a muted→light hover.

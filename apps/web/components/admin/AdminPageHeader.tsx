@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import type React from "react";
-import { Heading } from "@/components/catalyst/heading";
+import { Heading } from "@/components/ui/heading";
 import { adminDivider, adminTextMuted } from "./admin-surface";
 
 /**

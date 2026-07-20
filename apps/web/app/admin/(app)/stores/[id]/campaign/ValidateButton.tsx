@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/catalyst/button";
+import { Button } from "@/components/ui/button";
 
 /**
  * Small client button that POSTs a validation (budget or calendar) to the

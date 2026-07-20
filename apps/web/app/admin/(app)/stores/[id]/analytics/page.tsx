@@ -2,8 +2,8 @@ import { notFound } from "next/navigation";
 import { getDbRead } from "@/lib/db";
 import { resolveStoreId } from "@/lib/resolve-store";
 import { formatMoney } from "@/lib/medusa-store";
-import { Heading } from "@/components/catalyst/heading";
-import { Text, TextLink, Strong } from "@/components/catalyst/text";
+import { Heading } from "@/components/ui/heading";
+import { Text, TextLink, Strong } from "@/components/ui/text";
 import { AdminBadge } from "@/components/admin/AdminBadge";
 import { AdminStatCard } from "@/components/admin/AdminStatCard";
 import { AdminStatsGrid } from "@/components/admin/AdminStatsGrid";
@@ -11,7 +11,7 @@ import { AdminDataTable } from "@/components/admin/AdminDataTable";
 import { AdminTruncatedText } from "@/components/admin/AdminTruncatedText";
 import { AdminSection } from "@/components/admin/AdminSection";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
-import { Button } from "@/components/catalyst/button";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableHead,
@@ -19,12 +19,12 @@ import {
   TableRow,
   TableHeader,
   TableCell,
-} from "@/components/catalyst/table";
+} from "@/components/ui/table";
 import {
   DescriptionList,
   DescriptionTerm,
   DescriptionDetails,
-} from "@/components/catalyst/description-list";
+} from "@/components/ui/description-list";
 
 export const dynamic = "force-dynamic";
 

@@ -5,9 +5,9 @@ import { DryRunPendingButton } from "./DryRunPendingButton";
 import { MarkPaidButton } from "./MarkPaidButton";
 import { formatMoney } from "@/lib/medusa-store";
 import { aliExpressOrderUrl } from "@/lib/suppliers/aliexpress";
-import { Subheading } from "@/components/catalyst/heading";
-import { Text, TextLink, Strong } from "@/components/catalyst/text";
-import { Badge } from "@/components/catalyst/badge";
+import { Subheading } from "@/components/ui/heading";
+import { Text, TextLink, Strong } from "@/components/ui/text";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableHead,
@@ -15,7 +15,7 @@ import {
   TableRow,
   TableHeader,
   TableCell,
-} from "@/components/catalyst/table";
+} from "@/components/ui/table";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminSection } from "@/components/admin/AdminSection";
 import { AdminStatCard } from "@/components/admin/AdminStatCard";

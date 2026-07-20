@@ -49,12 +49,12 @@ import {
   FileText,
   type LucideIcon,
 } from 'lucide-react';
-import { Button } from '@/components/catalyst/button';
-import { Checkbox, CheckboxField } from '@/components/catalyst/checkbox';
-import { Dialog, DialogActions, DialogBody, DialogTitle } from '@/components/catalyst/dialog';
-import { Label } from '@/components/catalyst/fieldset';
-import { Select } from '@/components/catalyst/select';
-import { Textarea } from '@/components/catalyst/textarea';
+import { Button } from '@/components/ui/button';
+import { Checkbox, CheckboxField } from '@/components/ui/checkbox';
+import { Dialog, DialogActions, DialogBody, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/fieldset';
+import { Select } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import {
   adminBgInset,
   adminBgPanel,

@@ -13,16 +13,16 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AssetKind } from "@/lib/agent/asset-regenerator";
 import { ASSET_KIND_LABELS } from "./asset-labels";
-import { Text, TextLink } from "@/components/catalyst/text";
-import { Badge } from "@/components/catalyst/badge";
-import { Button } from "@/components/catalyst/button";
-import { Textarea } from "@/components/catalyst/textarea";
+import { Text, TextLink } from "@/components/ui/text";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Fieldset,
   Field,
   Label,
   Description,
-} from "@/components/catalyst/fieldset";
+} from "@/components/ui/fieldset";
 
 interface RunLite {
   id: string;

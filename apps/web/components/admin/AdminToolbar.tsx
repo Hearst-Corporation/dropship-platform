@@ -3,8 +3,8 @@
 import clsx from "clsx";
 import type React from "react";
 import { MagnifyingGlassIcon } from "@heroicons/react/16/solid";
-import { Input, InputGroup } from "@/components/catalyst/input";
-import { Select } from "@/components/catalyst/select";
+import { Input, InputGroup } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { adminPanel } from "./admin-surface";
 
 /**

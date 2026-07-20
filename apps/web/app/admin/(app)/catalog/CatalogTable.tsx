@@ -15,15 +15,15 @@ import {
   TableRow,
   TableHeader,
   TableCell,
-} from "@/components/catalyst/table";
-import { Button } from "@/components/catalyst/button";
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import {
   Dropdown,
   DropdownButton,
   DropdownItem,
   DropdownLabel,
   DropdownMenu,
-} from "@/components/catalyst/dropdown";
+} from "@/components/ui/dropdown";
 import { AdminBadge } from "@/components/admin/AdminBadge";
 import { AdminToolbar } from "@/components/admin/AdminToolbar";
 import { AdminDataTable } from "@/components/admin/AdminDataTable";

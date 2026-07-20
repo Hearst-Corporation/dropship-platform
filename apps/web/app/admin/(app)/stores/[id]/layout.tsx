@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getDbRead } from "@/lib/db";
 import { StoreLogo } from "@/components/ui";
 import { AdminBadge } from "@/components/admin/AdminBadge";
-import { Heading } from "@/components/catalyst/heading";
+import { Heading } from "@/components/ui/heading";
 import { StoreTabsBar } from "./_components/StoreTabsBar";
 import { BreadcrumbBackLink } from "./_components/BreadcrumbBackLink";
 

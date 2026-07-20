@@ -1,4 +1,4 @@
-import { Button } from '@/components/catalyst/button';
+import { Button } from '@/components/ui/button';
 import { adminBgInset, adminBgPanel, adminBorder, adminText, adminTextMuted } from '@/components/admin/admin-surface';
 import { cn } from '@/lib/utils/cn';
 import type { CreationProgress } from './types';

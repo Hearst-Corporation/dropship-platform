@@ -1,10 +1,10 @@
-import { Subheading } from "@/components/catalyst/heading";
-import { Text, TextLink } from "@/components/catalyst/text";
+import { Subheading } from "@/components/ui/heading";
+import { Text, TextLink } from "@/components/ui/text";
 import {
   DescriptionList,
   DescriptionTerm,
   DescriptionDetails,
-} from "@/components/catalyst/description-list";
+} from "@/components/ui/description-list";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminBadge } from "@/components/admin/AdminBadge";
 import {
@@ -14,7 +14,7 @@ import {
   TableRow,
   TableHeader,
   TableCell,
-} from "@/components/catalyst/table";
+} from "@/components/ui/table";
 import {
   CpuChipIcon,
   MegaphoneIcon,

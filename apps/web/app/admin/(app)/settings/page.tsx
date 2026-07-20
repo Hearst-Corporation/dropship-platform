@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
 import { ArrowTopRightOnSquareIcon } from "@heroicons/react/16/solid";
 import { getDbRead } from "@/lib/db";
-import { Text, TextLink, Strong, Code } from "@/components/catalyst/text";
-import { Subheading } from "@/components/catalyst/heading";
-import { Badge } from "@/components/catalyst/badge";
-import { Button } from "@/components/catalyst/button";
+import { Text, TextLink, Strong, Code } from "@/components/ui/text";
+import { Subheading } from "@/components/ui/heading";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableHead,
@@ -12,7 +12,7 @@ import {
   TableRow,
   TableHeader,
   TableCell,
-} from "@/components/catalyst/table";
+} from "@/components/ui/table";
 import {
   getSupplierPolicyView,
   type SupplierPolicyRow,

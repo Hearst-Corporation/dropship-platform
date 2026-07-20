@@ -1,9 +1,9 @@
 import { CubeIcon } from "@heroicons/react/24/outline";
 import { medusa, type MedusaProduct } from "@/lib/medusa";
-import { Subheading } from "@/components/catalyst/heading";
-import { Text } from "@/components/catalyst/text";
-import { Badge } from "@/components/catalyst/badge";
-import { Button } from "@/components/catalyst/button";
+import { Subheading } from "@/components/ui/heading";
+import { Text } from "@/components/ui/text";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Pagination,
   PaginationGap,
@@ -11,7 +11,7 @@ import {
   PaginationNext,
   PaginationPage,
   PaginationPrevious,
-} from "@/components/catalyst/pagination";
+} from "@/components/ui/pagination";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 import { CatalogTable } from "./CatalogTable";

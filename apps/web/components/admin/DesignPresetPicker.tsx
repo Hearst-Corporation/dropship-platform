@@ -2,7 +2,7 @@
 
 import { CheckIcon } from "@heroicons/react/20/solid";
 import { DESIGN_PRESETS, type DesignPreset } from "@/lib/design/presets";
-import { Text } from "@/components/catalyst/text";
+import { Text } from "@/components/ui/text";
 
 /**
  * Default primary/accent shown on each preset card before the operator

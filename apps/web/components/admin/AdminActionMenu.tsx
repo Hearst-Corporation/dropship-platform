@@ -8,7 +8,7 @@ import {
   DropdownItem,
   DropdownLabel,
   DropdownMenu,
-} from "@/components/catalyst/dropdown";
+} from "@/components/ui/dropdown";
 
 /**
  * Kebab (…) action menu for admin table rows and headers. Renders a Catalyst

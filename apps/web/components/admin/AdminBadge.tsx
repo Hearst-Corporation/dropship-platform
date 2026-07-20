@@ -1,5 +1,5 @@
 import type React from "react";
-import { Badge } from "@/components/catalyst/badge";
+import { Badge } from "@/components/ui/badge";
 
 type BadgeColor = React.ComponentProps<typeof Badge>["color"];
 

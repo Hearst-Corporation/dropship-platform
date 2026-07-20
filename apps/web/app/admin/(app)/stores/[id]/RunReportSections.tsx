@@ -1,6 +1,6 @@
 import { Fragment } from "react";
-import { Text } from "@/components/catalyst/text";
-import { Badge } from "@/components/catalyst/badge";
+import { Text } from "@/components/ui/text";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableHead,
@@ -8,12 +8,12 @@ import {
   TableRow,
   TableHeader,
   TableCell,
-} from "@/components/catalyst/table";
+} from "@/components/ui/table";
 import {
   DescriptionList,
   DescriptionTerm,
   DescriptionDetails,
-} from "@/components/catalyst/description-list";
+} from "@/components/ui/description-list";
 import { AdminBadge } from "@/components/admin/AdminBadge";
 import { AdminDataTable } from "@/components/admin/AdminDataTable";
 import { AdminTruncatedText } from "@/components/admin/AdminTruncatedText";

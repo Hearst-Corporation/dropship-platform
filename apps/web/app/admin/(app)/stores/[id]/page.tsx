@@ -5,8 +5,8 @@ import { loadStoreReport } from "@/lib/agent/store-report";
 import { StoreAvatar } from "@/components/ui";
 import { StoreActions } from "../StoreActions";
 import { RunReportSections } from "./RunReportSections";
-import { Heading } from "@/components/catalyst/heading";
-import { Text, TextLink, Strong, Code } from "@/components/catalyst/text";
+import { Heading } from "@/components/ui/heading";
+import { Text, TextLink, Strong, Code } from "@/components/ui/text";
 import { AdminBadge } from "@/components/admin/AdminBadge";
 import { AdminStatCard } from "@/components/admin/AdminStatCard";
 import { AdminStatsGrid } from "@/components/admin/AdminStatsGrid";
@@ -15,7 +15,7 @@ import {
   DescriptionList,
   DescriptionTerm,
   DescriptionDetails,
-} from "@/components/catalyst/description-list";
+} from "@/components/ui/description-list";
 
 export const dynamic = "force-dynamic";
 

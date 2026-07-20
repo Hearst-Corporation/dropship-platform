@@ -5,7 +5,7 @@ import { pickStorefrontComponent } from "@/lib/storefront-routing";
 import { resolveDesign } from "@/lib/design/runtime";
 import { buildMockStore, mockProductsForTemplate } from "./_mock";
 import Link from "next/link";
-import { Badge } from "@/components/catalyst/badge";
+import { Badge } from "@/components/ui/badge";
 
 export const dynamic = "force-dynamic";
 

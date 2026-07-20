@@ -6,10 +6,10 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
 import { AdminSection } from "@/components/admin/AdminSection";
-import { Button } from "@/components/catalyst/button";
-import { Field, Label, Description } from "@/components/catalyst/fieldset";
-import { Input } from "@/components/catalyst/input";
-import { Code, Strong } from "@/components/catalyst/text";
+import { Button } from "@/components/ui/button";
+import { Field, Label, Description } from "@/components/ui/fieldset";
+import { Input } from "@/components/ui/input";
+import { Code, Strong } from "@/components/ui/text";
 
 export function StoreCustomDomainForm({
   storeId,

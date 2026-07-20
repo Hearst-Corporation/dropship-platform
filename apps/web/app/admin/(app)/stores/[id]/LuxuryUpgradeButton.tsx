@@ -4,8 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/client-fetch";
 import { AdminSection } from "@/components/admin/AdminSection";
-import { Button } from "@/components/catalyst/button";
-import { Code, Strong } from "@/components/catalyst/text";
+import { Button } from "@/components/ui/button";
+import { Code, Strong } from "@/components/ui/text";
 
 /**
  * One-click luxury upgrade — re-renders the store's visuals through fal.ai

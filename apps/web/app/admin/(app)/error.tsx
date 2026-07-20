@@ -2,8 +2,8 @@
 
 import { useEffect } from "react";
 import * as Sentry from "@sentry/nextjs";
-import { Button } from "@/components/catalyst/button";
-import { Heading } from "@/components/catalyst/heading";
+import { Button } from "@/components/ui/button";
+import { Heading } from "@/components/ui/heading";
 
 /**
  * Error boundary de la zone admin (segment (app)). Reste sur le shell sombre

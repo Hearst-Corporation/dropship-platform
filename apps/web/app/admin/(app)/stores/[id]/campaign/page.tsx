@@ -4,10 +4,10 @@ import { getDbRead } from "@/lib/db";
 import { resolveStoreId } from "@/lib/resolve-store";
 import { loadStoreReport } from "@/lib/agent/store-report";
 import { getChannelConnections } from "@/lib/ads/all-campaigns";
-import { Heading, Subheading } from "@/components/catalyst/heading";
-import { Text } from "@/components/catalyst/text";
-import { Badge } from "@/components/catalyst/badge";
-import { Button } from "@/components/catalyst/button";
+import { Heading, Subheading } from "@/components/ui/heading";
+import { Text } from "@/components/ui/text";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableHead,
@@ -15,12 +15,12 @@ import {
   TableRow,
   TableHeader,
   TableCell,
-} from "@/components/catalyst/table";
+} from "@/components/ui/table";
 import {
   DescriptionList,
   DescriptionTerm,
   DescriptionDetails,
-} from "@/components/catalyst/description-list";
+} from "@/components/ui/description-list";
 import { AdminSection } from "@/components/admin/AdminSection";
 import { AdminStatsGrid } from "@/components/admin/AdminStatsGrid";
 import { AdminStatCard } from "@/components/admin/AdminStatCard";

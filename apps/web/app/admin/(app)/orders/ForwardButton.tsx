@@ -10,8 +10,8 @@ import {
   DialogDescription,
   DialogBody,
   DialogActions,
-} from "@/components/catalyst/dialog";
-import { Button } from "@/components/catalyst/button";
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   orderId: string;

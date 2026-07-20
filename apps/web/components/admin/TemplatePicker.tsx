@@ -10,8 +10,8 @@ import {
 } from "@/lib/template-catalog";
 import { cn } from "@/lib/utils/cn";
 import { AdminToolbar } from "@/components/admin/AdminToolbar";
-import { Badge } from "@/components/catalyst/badge";
-import { Text, Code, Strong } from "@/components/catalyst/text";
+import { Badge } from "@/components/ui/badge";
+import { Text, Code, Strong } from "@/components/ui/text";
 
 const REGISTER_BADGE_COLOR: Record<TemplateRegister, "amber" | "indigo" | "zinc"> = {
   luxury: "amber",

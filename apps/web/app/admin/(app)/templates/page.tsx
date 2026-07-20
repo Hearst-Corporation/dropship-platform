@@ -16,7 +16,7 @@ import {
   adminText,
   adminTextMuted,
 } from "@/components/admin/admin-surface";
-import { Text } from "@/components/catalyst/text";
+import { Text } from "@/components/ui/text";
 
 export const dynamic = "force-dynamic";
 

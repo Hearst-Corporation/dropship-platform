@@ -6,8 +6,8 @@ import {
   AlertActions,
   AlertDescription,
   AlertTitle,
-} from "@/components/catalyst/alert";
-import { Button } from "@/components/catalyst/button";
+} from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 /**
  * Confirmation dialog for admin actions, built on Catalyst Alert + Button

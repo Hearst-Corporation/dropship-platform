@@ -7,17 +7,17 @@ import {
 } from "@/lib/agent/store-readiness";
 import { loadStoreReport } from "@/lib/agent/store-report";
 import { StoreAvatar } from "@/components/ui";
-import { Heading, Subheading } from "@/components/catalyst/heading";
-import { Text, Strong, Code } from "@/components/catalyst/text";
-import { Button } from "@/components/catalyst/button";
-import { Badge } from "@/components/catalyst/badge";
+import { Heading, Subheading } from "@/components/ui/heading";
+import { Text, Strong, Code } from "@/components/ui/text";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { AdminBadge } from "@/components/admin/AdminBadge";
 import { SmartReadinessPanel } from "@/components/smart";
 import {
   DescriptionList,
   DescriptionTerm,
   DescriptionDetails,
-} from "@/components/catalyst/description-list";
+} from "@/components/ui/description-list";
 export const dynamic = "force-dynamic";
 interface StoreDiagnosticRow {
   id: string;

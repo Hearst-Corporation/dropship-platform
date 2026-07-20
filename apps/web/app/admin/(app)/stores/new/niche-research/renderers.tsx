@@ -1,5 +1,5 @@
-import { Badge } from "@/components/catalyst/badge";
-import { Text } from "@/components/catalyst/text";
+import { Badge } from "@/components/ui/badge";
+import { Text } from "@/components/ui/text";
 import { adminBgInset, adminBorder, adminBorderSoft, adminText, adminTextMuted } from "@/components/admin/admin-surface";
 import { cn } from "@/lib/utils/cn";
 

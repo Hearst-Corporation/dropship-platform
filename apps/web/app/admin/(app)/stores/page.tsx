@@ -6,15 +6,15 @@ import {
   CubeIcon,
 } from "@heroicons/react/16/solid";
 import { getDbRead } from "@/lib/db";
-import { Text } from "@/components/catalyst/text";
-import { Button } from "@/components/catalyst/button";
-import { Badge } from "@/components/catalyst/badge";
+import { Text } from "@/components/ui/text";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Pagination,
   PaginationPrevious,
   PaginationNext,
   PaginationList,
-} from "@/components/catalyst/pagination";
+} from "@/components/ui/pagination";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminStatsGrid } from "@/components/admin/AdminStatsGrid";
 import { AdminStatCard } from "@/components/admin/AdminStatCard";

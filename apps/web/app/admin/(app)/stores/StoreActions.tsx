@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { TrashIcon } from "@heroicons/react/24/outline";
-import { Button } from "@/components/catalyst/button";
+import { Button } from "@/components/ui/button";
 import { AdminConfirmDialog } from "@/components/admin/AdminConfirmDialog";
 
 export function StoreActions({

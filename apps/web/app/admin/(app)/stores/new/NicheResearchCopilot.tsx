@@ -27,9 +27,9 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Trash2 } from 'lucide-react';
-import { Button } from '@/components/catalyst/button';
-import { Select } from '@/components/catalyst/select';
-import { Textarea } from '@/components/catalyst/textarea';
+import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import {
   adminBgInset,
   adminBgPanel,

@@ -5,8 +5,8 @@ import { apiFetch } from '@/lib/client-fetch';
 import { useState, useRef, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
-import { Button } from '@/components/catalyst/button';
-import { TextLink } from '@/components/catalyst/text';
+import { Button } from '@/components/ui/button';
+import { TextLink } from '@/components/ui/text';
 import {
   adminBgInset,
   adminBgPanel,

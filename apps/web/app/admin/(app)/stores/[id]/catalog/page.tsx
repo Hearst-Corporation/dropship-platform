@@ -3,8 +3,8 @@ import { getDbRead } from "@/lib/db";
 import { resolveStoreId } from "@/lib/resolve-store";
 import { AdminBadge } from "@/components/admin/AdminBadge";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
-import { Badge } from "@/components/catalyst/badge";
-import { Button } from "@/components/catalyst/button";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 import { AdminDataTable } from "@/components/admin/AdminDataTable";
 import { AdminAssetCell } from "@/components/admin/AdminAssetCell";
@@ -18,7 +18,7 @@ import {
   DropdownItem,
   DropdownLabel,
   DropdownMenu,
-} from "@/components/catalyst/dropdown";
+} from "@/components/ui/dropdown";
 import {
   Table,
   TableHead,
@@ -26,7 +26,7 @@ import {
   TableRow,
   TableHeader,
   TableCell,
-} from "@/components/catalyst/table";
+} from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 

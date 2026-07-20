@@ -11,7 +11,7 @@ import {
   ChartBarIcon,
   Cog6ToothIcon,
 } from "@heroicons/react/20/solid";
-import { SidebarLayout } from "@/components/catalyst/sidebar-layout";
+import { SidebarLayout } from "@/components/ui/sidebar-layout";
 import {
   Sidebar,
   SidebarBody,
@@ -19,13 +19,13 @@ import {
   SidebarItem,
   SidebarLabel,
   SidebarSection,
-} from "@/components/catalyst/sidebar";
+} from "@/components/ui/sidebar";
 import {
   Navbar,
   NavbarItem,
   NavbarSection,
   NavbarSpacer,
-} from "@/components/catalyst/navbar";
+} from "@/components/ui/navbar";
 import { SuperAgentRail } from "@/components/admin/SuperAgentRail";
 
 /**

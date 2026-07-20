@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { getDbRead } from "@/lib/db";
 import { resolveStoreId } from "@/lib/resolve-store";
-import { Heading } from "@/components/catalyst/heading";
-import { Text } from "@/components/catalyst/text";
+import { Heading } from "@/components/ui/heading";
+import { Text } from "@/components/ui/text";
 import { StoreTemplateForm } from "../StoreTemplateForm";
 import { LuxuryUpgradeButton } from "../LuxuryUpgradeButton";
 import { StoreCustomDomainForm } from "../StoreCustomDomainForm";

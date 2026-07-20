@@ -5,7 +5,7 @@ import Image from "next/image";
 import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
 import { BuildingStorefrontIcon } from "@heroicons/react/24/outline";
 import { StoreAvatar } from "@/components/ui";
-import { Button } from "@/components/catalyst/button";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableHead,
@@ -13,7 +13,7 @@ import {
   TableRow,
   TableHeader,
   TableCell,
-} from "@/components/catalyst/table";
+} from "@/components/ui/table";
 import { AdminDataTable } from "@/components/admin/AdminDataTable";
 import { AdminBadge } from "@/components/admin/AdminBadge";
 import { AdminStoreCell } from "@/components/admin/AdminStoreCell";

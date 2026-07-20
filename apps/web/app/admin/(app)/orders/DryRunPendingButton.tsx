@@ -4,7 +4,7 @@ import { apiFetch } from "@/lib/client-fetch";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/catalyst/button";
+import { Button } from "@/components/ui/button";
 
 interface BatchResult {
   scanned: number;
