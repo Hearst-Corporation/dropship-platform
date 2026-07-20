@@ -15,3 +15,13 @@ export {
 export { Specs, type SpecsProps, Comparison, type ComparisonProps } from './specs';
 export { Proof, type ProofProps } from './proof';
 export { Offer, type OfferProps, FinalCTA, type FinalCTAProps } from './offer';
+export { Showcase, type ShowcaseProps } from './showcase';
+export { Transformation, type TransformationProps } from './transformation';
+export { Bundle, type BundleProps, type BundleProduct } from './bundle';
+export {
+  Reassurance,
+  type ReassuranceProps,
+  type ReassuranceItem,
+  DEFAULT_REASSURANCE,
+} from './reassurance';
+export { StickyCta, type StickyCtaProps } from './sticky-cta';
