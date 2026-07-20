@@ -1,5 +1,6 @@
 import { getDbRead } from '@/lib/db';
 import { getTemplateEntry } from '@/lib/template-catalog';
+import { factoryLocalOnly } from '@/lib/factory-mode';
 
 export interface ReadinessResult {
   score: number;
@@ -170,11 +171,18 @@ export async function evaluateStoreReadiness(
     }
   }
 
-  // Medusa
+  // Medusa. In FACTORY_LOCAL_ONLY the store intentionally has no Medusa
+  // channel (products live in GPU1 Postgres only), so a missing channel is a
+  // warning — the store is QA-able and can be marked ready. Publishing is
+  // still blocked separately by the QA publish gate (no live checkout).
   if (!store.medusa_sales_channel_id || !store.medusa_publishable_key) {
-    blockers.push('Canal de vente Medusa non configuré');
-    deduct(20);
-    nextActions.push('Reprovisionner le canal Medusa');
+    if (factoryLocalOnly()) {
+      warnings.push('Canal de vente Medusa non configuré (mode factory local — checkout différé)');
+    } else {
+      blockers.push('Canal de vente Medusa non configuré');
+      deduct(20);
+      nextActions.push('Reprovisionner le canal Medusa');
+    }
   }
 
   // Smart components / landing content

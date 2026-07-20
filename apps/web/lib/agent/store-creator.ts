@@ -7,6 +7,7 @@ import { filterByImageQuality, type ImageQualityVerdict } from './image-quality'
 import { filterByListingQuality, DEFAULT_LISTING_QUALITY_THRESHOLD } from './listing-quality';
 import { generateCollectionHero, generateMonoAssets } from './asset-generator';
 import { persistSupplierProductImage } from './supplier-image';
+import { factoryLocalOnly } from '@/lib/factory-mode';
 import { suggestTemplate } from '@/lib/template-catalog';
 import { writeLandingContent } from './landing-writer';
 import { extractJson, extractAndValidateJson, type JsonExtractionError } from './json';
@@ -987,7 +988,15 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
       // pending its sales channel.
       let channelId: string | null = null;
       let publishableKey: string | null = null;
-      try {
+      if (factoryLocalOnly()) {
+        // FACTORY_LOCAL_ONLY: never provision on prod Medusa. Store + products
+        // live only in the isolated GPU1 Postgres; medusaOk stays false so the
+        // product-import branch below is skipped and everything goes local_only.
+        emit({
+          type: 'progress',
+          message: '🏭 FACTORY_LOCAL_ONLY : Medusa prod non touché — store en DB GPU1 uniquement (canal de vente/checkout différés).',
+        });
+      } else try {
         emit({ type: 'step', message: 'Création du canal de vente Medusa...' });
         const channel = await medusa.createSalesChannel(
           input.storeName,

@@ -10,6 +10,7 @@
  * Secret API key: header x-medusa-access-token (voir Medusa Admin > Settings > Secret API Keys)
  */
 import 'server-only';
+import { assertMedusaWriteAllowed } from "@/lib/factory-mode";
 import { getMedusaBaseUrl } from './medusa-shared';
 
 // Re-exported for back-compat: server-side callers still import
@@ -509,6 +510,7 @@ class MedusaAPI {
   }
 
   async updateProduct(productId: string, updates: Partial<MedusaProduct>): Promise<MedusaProduct> {
+    assertMedusaWriteAllowed('updateProduct');
     const response = await this.fetchWithRetry(`${this.baseUrl}/admin/products/${productId}`, {
       method: 'POST',
       headers: await this.adminJsonHeaders(),
@@ -524,6 +526,7 @@ class MedusaAPI {
   }
 
   async deleteProduct(productId: string): Promise<void> {
+    assertMedusaWriteAllowed('deleteProduct');
     const response = await this.fetchWithRetry(`${this.baseUrl}/admin/products/${productId}`, {
       method: 'DELETE',
       headers: await this.getAdminAuthHeaders(),
@@ -565,6 +568,7 @@ class MedusaAPI {
   }
 
   async createSalesChannel(name: string, description?: string): Promise<{ id: string; name: string }> {
+    assertMedusaWriteAllowed('createSalesChannel');
     const response = await this.fetchWithRetry(`${this.baseUrl}/admin/sales-channels`, {
       method: 'POST',
       headers: await this.adminJsonHeaders(),
@@ -576,6 +580,7 @@ class MedusaAPI {
   }
 
   async deleteSalesChannel(id: string): Promise<void> {
+    assertMedusaWriteAllowed('deleteSalesChannel');
     const response = await this.fetchWithRetry(`${this.baseUrl}/admin/sales-channels/${id}`, {
       method: 'DELETE',
       headers: await this.getAdminAuthHeaders(),
@@ -605,6 +610,7 @@ class MedusaAPI {
   }
 
   async linkSalesChannelsToStockLocation(stockLocationId: string, salesChannelIds: string[]): Promise<void> {
+    assertMedusaWriteAllowed('linkSalesChannelsToStockLocation');
     const response = await this.fetchWithRetry(`${this.baseUrl}/admin/stock-locations/${stockLocationId}/sales-channels`, {
       method: 'POST',
       headers: await this.adminJsonHeaders(),
@@ -624,6 +630,7 @@ class MedusaAPI {
   }
 
   async createPublishableApiKey(title: string): Promise<{ id: string; token: string; title: string }> {
+    assertMedusaWriteAllowed('createPublishableApiKey');
     // Medusa v2: POST /admin/api-keys with type: "publishable"
     const response = await this.fetchWithRetry(`${this.baseUrl}/admin/api-keys`, {
       method: 'POST',
@@ -636,6 +643,7 @@ class MedusaAPI {
   }
 
   async addSalesChannelsToPublishableKey(keyId: string, salesChannelIds: string[]): Promise<void> {
+    assertMedusaWriteAllowed('addSalesChannelsToPublishableKey');
     // Medusa v2: POST /admin/api-keys/:id/sales-channels with { add: [...] }
     const response = await this.fetchWithRetry(`${this.baseUrl}/admin/api-keys/${keyId}/sales-channels`, {
       method: 'POST',
@@ -649,6 +657,7 @@ class MedusaAPI {
     product: Parameters<typeof this.createProduct>[0],
     salesChannelId: string,
   ): Promise<MedusaProduct> {
+    assertMedusaWriteAllowed('createProductWithChannel');
     const created = await this.createProduct({ ...product, status: 'published' });
     await this.addProductsToSalesChannel(salesChannelId, [created.id]);
     return created;
