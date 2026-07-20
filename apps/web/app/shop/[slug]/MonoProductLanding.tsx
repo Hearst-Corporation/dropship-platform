@@ -100,14 +100,14 @@ function SectionHeading({
       {titleHtml ? (
         <h2
           id={id}
-          className="text-3xl font-bold tracking-tight sm:text-4xl"
+          className="text-2xl font-bold tracking-tight sm:text-4xl"
           style={{ fontFamily: DS.fontDisplay, letterSpacing: DS.headingTracking }}
           dangerouslySetInnerHTML={{ __html: sanitizeRichText(titleHtml) }}
         />
       ) : (
         <h2
           id={id}
-          className="text-3xl font-bold tracking-tight sm:text-4xl"
+          className="text-2xl font-bold tracking-tight sm:text-4xl"
           style={{ fontFamily: DS.fontDisplay, letterSpacing: DS.headingTracking }}
         >
           {title}
