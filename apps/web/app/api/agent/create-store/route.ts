@@ -4,6 +4,7 @@ import { createStore } from '@/lib/agent/store-creator';
 import { checkRateLimit, clientIp } from '@/lib/rate-limit';
 import { TEMPLATE_IDS } from '@/lib/template-catalog';
 import { zEnumFromReadonly } from '@/lib/zod-utils';
+import { ACCENTS } from '@/lib/accent';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -30,36 +31,10 @@ const schema = z.object({
   skipAudio: z.boolean().optional().default(false),
   // Design system locked at creation: which preset + the primary/accent the
   // operator confirmed in the chat. Optional — store-creator falls back to
-  // editorial-serif + neutral palette if missing (legacy callers).
-  designPreset: z
-    .enum([
-      'editorial-serif',
-      'tech-mono',
-      'brutalist-luxe',
-      'gen-z-bold',
-      'lifestyle-warm',
-      'gadget-graphite',
-      'pet-playful',
-      'gourmet-noir',
-      'home-linen',
-      'kids-crayon',
-      'jewel-mono',
-      'trail-forge',
-      'auto-carbon',
-      'urban-concrete',
-      'gift-ribbon',
-      'scandi-minimal',
-      'art-deco-glam',
-      'brutal-neon',
-      'y2k-pastel',
-      'mono-architect',
-      'botanical-green',
-      'coastal-nautical',
-      'diner-retro',
-      'wabi-sabi',
-      'desert-terracotta',
-    ])
-    .optional(),
+  // Unified design system: `designPreset` is now a brand ACCENT name (indigo
+  // by default). The 25 legacy per-store presets were removed with the old
+  // design system — store-creator defaults to indigo when this is absent.
+  designPreset: zEnumFromReadonly(ACCENTS).optional(),
   primaryColor: Hex.optional(),
   accentColor: Hex.optional(),
   // Storefront template id from the catalog. The research-copilot suggests
@@ -70,6 +45,9 @@ const schema = z.object({
   // Free-form operator brief: constraints on margins, shipping, compliance,
   // excluded product families. Steers selection, enrichment and the ads plan.
   brief: z.string().max(4000).optional(),
+  // Demo escape hatch: allow synthetic (AI-generated) products when no
+  // supplier responds. OFF by default — a real factory store must be sourced.
+  allowSynthetic: z.boolean().optional(),
   // Target markets as ISO country codes (['FR', 'AE'], max 5).
   markets: z
     .array(z.string().regex(/^[A-Za-z]{2,3}$/))

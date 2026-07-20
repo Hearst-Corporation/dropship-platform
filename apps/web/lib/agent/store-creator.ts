@@ -8,6 +8,7 @@ import { filterByListingQuality, DEFAULT_LISTING_QUALITY_THRESHOLD } from './lis
 import { generateCollectionHero, generateMonoAssets } from './asset-generator';
 import { persistSupplierProductImage } from './supplier-image';
 import { factoryLocalOnly } from '@/lib/factory-mode';
+import type { Accent } from '@/lib/accent';
 import { suggestTemplate } from '@/lib/template-catalog';
 import { writeLandingContent } from './landing-writer';
 import { extractJson, extractAndValidateJson, type JsonExtractionError } from './json';
@@ -55,32 +56,8 @@ export interface StoreCreationInput {
    * component reads from `dropship_stores.design_preset` + `.palette`
    * instead of inventing colors or fonts on each render.
    */
-  designPreset?:
-    | 'editorial-serif'
-    | 'tech-mono'
-    | 'brutalist-luxe'
-    | 'gen-z-bold'
-    | 'lifestyle-warm'
-    | 'gadget-graphite'
-    | 'pet-playful'
-    | 'gourmet-noir'
-    | 'home-linen'
-    | 'kids-crayon'
-    | 'jewel-mono'
-    | 'trail-forge'
-    | 'auto-carbon'
-    | 'urban-concrete'
-    | 'gift-ribbon'
-    | 'scandi-minimal'
-    | 'art-deco-glam'
-    | 'brutal-neon'
-    | 'y2k-pastel'
-    | 'mono-architect'
-    | 'botanical-green'
-    | 'coastal-nautical'
-    | 'diner-retro'
-    | 'wabi-sabi'
-    | 'desert-terracotta';
+  /** Brand accent name (indigo default). Replaces the 25 legacy presets. */
+  designPreset?: Accent;
   primaryColor?: string;
   accentColor?: string;
   /** Storefront template id chosen by the operator (or suggested by the
@@ -96,7 +73,16 @@ export interface StoreCreationInput {
   brief?: string;
   /** Target markets as ISO country codes (default ['FR']). */
   markets?: string[];
+  /**
+   * Allow synthetic (AI-generated) products when no supplier responds.
+   * OFF by default: a real factory store must come from a real sourced
+   * product. Set true only for explicit demo/synthetic stores.
+   */
+  allowSynthetic?: boolean;
 }
+
+/** Below this deterministic score, a product is too weak to build a store on. */
+const MIN_VIABLE_SCORE = 0.5;
 
 export interface AgentEvent {
   type: 'step' | 'progress' | 'success' | 'error' | 'done';
@@ -880,6 +866,28 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
 
       let enriched: EnrichedProduct[];
       let branding: BrandingResult;
+
+      // Block 5 — weak-product gate. In factory mode we never build a store on
+      // a weak product: score the best remaining candidate and abort if it's
+      // below the viability threshold.
+      if (factoryLocalOnly() && !input.allowSynthetic && rawProducts.length > 0) {
+        const best = rankAndKeepTop(rawProducts, 1)[0];
+        const bestScore = best?._score ?? 0;
+        if (bestScore < MIN_VIABLE_SCORE) {
+          const msg = `Produit trop faible (score ${bestScore.toFixed(2)} < ${MIN_VIABLE_SCORE}) — pas de store factory sur un produit faible.`;
+          emit({ type: 'progress', message: `⛔ ${msg}` });
+          throw new Error(msg);
+        }
+      }
+
+      // Block 6 — no AI fallback in a real factory. A factory store must come
+      // from a real sourced product; synthetic generation is demo-only.
+      if (rawProducts.length === 0 && factoryLocalOnly() && !input.allowSynthetic) {
+        const msg =
+          "FACTORY_LOCAL_ONLY : aucun fournisseur réel n'a répondu — pas de fallback IA. Un store factory doit venir d'un produit réel sourcé. (Passe synthetic=true pour un store demo.)";
+        emit({ type: 'progress', message: `⛔ ${msg}` });
+        throw new Error(msg);
+      }
 
       if (rawProducts.length === 0) {
         // Fallback: let Claude generate the whole catalog. This can THROW when
