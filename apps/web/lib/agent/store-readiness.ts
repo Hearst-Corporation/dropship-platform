@@ -111,7 +111,12 @@ export async function evaluateStoreReadiness(
     blockers.push(`Template inconnu: ${store.template}`);
     deduct(10);
     nextActions.push('Choisir un template valide dans le catalogue');
-  } else {
+  } else if (store.mode !== 'mono') {
+    // `minProducts` is a collection-grid capacity hint: it only matters when
+    // the storefront actually lays out several products. A mono store renders
+    // MonoProductLanding (one hero SKU) regardless of the template's own mode,
+    // so enforcing it there would permanently block a correctly-built mono
+    // store from publishing. The "zéro produit" blocker below still applies.
     const minProducts = templateEntry.minProducts;
     if (products.length < minProducts) {
       blockers.push(`Le template ${store.template} requiert au moins ${minProducts} produits (${products.length} trouvé${products.length > 1 ? 's' : ''})`);
