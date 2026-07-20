@@ -85,7 +85,7 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
             <span className="block truncate text-sm font-semibold text-white">
               Hearst Merchant
             </span>
-            <span className="block text-admin-kicker font-medium uppercase tracking-wider text-indigo-500 text-indigo-400">
+            <span className="block text-admin-kicker font-medium uppercase tracking-wider text-indigo-400">
               Dropship
             </span>
           </div>

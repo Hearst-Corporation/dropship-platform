@@ -176,3 +176,250 @@ body {
   font-feature-settings: "cv11", "ss01";
   font-variant-numeric: tabular-nums;
 }
+
+/* ============================================================
+   Admin semantic tokens + storefront classes (from the legacy
+   admin layer). Restored so the 58 admin files' surfaces/borders
+   render again — mapped onto the unified indigo/zinc palette
+   (accent already #4f46e5 = indigo). Single source of truth.
+   ============================================================ */
+@theme {
+  --color-admin-bg: var(--admin-bg);
+  --color-admin-bg-subtle: var(--admin-bg-subtle);
+  --color-admin-bg-muted: var(--admin-bg-muted);
+  --color-admin-chrome: var(--admin-chrome);
+  --color-admin-chrome-soft: var(--admin-chrome-soft);
+  --color-admin-border: var(--admin-border);
+  --color-admin-border-strong: var(--admin-border-strong);
+  --color-admin-border-soft: var(--admin-border-soft);
+  --color-admin-text: var(--admin-text);
+  --color-admin-text-secondary: var(--admin-text-secondary);
+  --color-admin-text-muted: var(--admin-text-muted);
+  --color-admin-text-faint: var(--admin-text-faint);
+  --color-admin-text-inverse: var(--admin-text-inverse);
+  --color-admin-accent: var(--admin-accent);
+  --color-admin-accent-hover: var(--admin-accent-hover);
+  --color-admin-accent-soft: var(--admin-accent-soft);
+  --color-admin-success: var(--admin-success);
+  --color-admin-warning: var(--admin-warning);
+  --color-admin-danger: var(--admin-danger);
+
+  /* Admin Deep Black surfaces (see `.dark` block in @layer base) */
+  --color-admin-surface-panel: var(--admin-surface-panel);
+  --color-admin-surface-inset: var(--admin-surface-inset);
+  --color-admin-surface-highlight: var(--admin-surface-highlight);
+  --color-admin-surface-raised: var(--admin-surface-raised);
+  --color-admin-surface-skeleton: var(--admin-surface-skeleton);
+  --color-admin-surface-muted: var(--admin-surface-muted);
+  --color-admin-surface-track: var(--admin-surface-track);
+  --color-admin-surface-dot: var(--admin-surface-dot);
+  --color-admin-border: var(--admin-border-default);
+  --color-admin-border-strong: var(--admin-border-strong);
+  --color-admin-border-soft: var(--admin-border-soft);
+  --color-admin-ring: var(--admin-ring-default);
+  --color-admin-ring-strong: var(--admin-ring-strong);
+  --color-admin-ring-hover: var(--admin-ring-hover);
+  --color-admin-preview-chrome: var(--admin-preview-chrome);
+
+  /* KPI strip (indigo accent row) */
+  --color-admin-surface-kpi: var(--admin-surface-kpi);
+  --color-admin-border-kpi: var(--admin-border-kpi);
+  --color-admin-kpi-divider: var(--admin-kpi-divider);
+  --color-admin-on-kpi: var(--admin-text-on-kpi);
+  --color-admin-on-kpi-muted: var(--admin-text-on-kpi-muted);
+  --color-admin-on-kpi-faint: var(--admin-text-on-kpi-faint);
+
+  --radius-admin-sm: var(--admin-radius-sm);
+  --radius-admin-md: var(--admin-radius-md);
+  --radius-admin-lg: var(--admin-radius-lg);
+  --radius-admin-xl: var(--admin-radius-xl);
+
+  --shadow-admin-card: var(--admin-shadow-card);
+
+  /* Storefront-facing type/spacing utilities kept from the storefront primitives
+     (used by app/cart, app/checkout, app/products, app/error, app/not-found and
+     the shop templates). Restored here after the cockpit-shell Tailwind config
+     was purged so `text-kicker`, `tracking-*` and `shadow-cta` resolve again. */
+  --text-kicker: 0.6875rem;
+  --text-kicker--line-height: 1rem;
+  --tracking-cta: 0.12em;
+  --tracking-kicker: 0.2em;
+  --tracking-label: 0.16em;
+  --shadow-cta: 0 12px 24px -8px rgb(0 0 0 / 0.18), 0 6px 10px -6px rgb(0 0 0 / 0.12);
+
+  /* Admin dense-UI eyebrow/kicker size — deliberately smaller than the storefront
+     --text-kicker (11px) above. Used for admin table headers, stat labels and
+     nav eyebrows where the tighter 10px size is the intended density. */
+  --text-admin-kicker: 0.625rem;
+  --text-admin-kicker--line-height: 0.875rem;
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DESIGN SYSTEM — Light SaaS B2B (Tailwind Plus foundation)
+   ---------------------------------------------------------------------------
+   The admin UI is built from the Catalyst kit (components/catalyst/*) + the
+   storefront primitives (components/ui/*). No bespoke dark design system anymore.
+   Tokens below drive the few CSS-var references that survive in shared,
+   storefront-facing code (StoreShell, components/ui/* used by the store
+   templates we keep). They are aliases onto the light palette so the kept
+   storefront primitives render correctly without the deleted cockpit-shell
+   tokens.css.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  :root {
+    /* ── Core light palette (zinc/indigo SaaS) ───────────────────────────── */
+    --bg: #ffffff;
+    --bg-subtle: #fafafa;        /* zinc-50  */
+    --bg-muted: #f4f4f5;         /* zinc-100 */
+    --surface: #ffffff;
+    --border: #e4e4e7;           /* zinc-200 */
+    --border-strong: #d4d4d8;    /* zinc-300 */
+    --text: #18181b;             /* zinc-900 */
+    --text-secondary: #3f3f46;   /* zinc-700 */
+    --text-muted: #71717a;       /* zinc-500 */
+    --text-faint: #a1a1aa;       /* zinc-400 */
+    --accent: #4f46e5;           /* indigo-600 */
+    --accent-strong: #4338ca;    /* indigo-700 */
+    --accent-soft: #eef2ff;      /* indigo-50  */
+    --success: #16a34a;
+    --warning: #d97706;
+    --danger: #dc2626;
+
+    /* ── Compat shim — kept storefront primitives reference these names ─────
+       (components/ui/Button, StoreShell, shop templates). Aliased onto the
+       light palette so nothing renders against the removed dark tokens. ──── */
+
+    /* cockpit-shell --ct-* aliases */
+    --ct-bg-deep: var(--bg-subtle);
+    --ct-surface-0: var(--bg);
+    --ct-surface-1: var(--bg);
+    --ct-surface-2: var(--bg-subtle);
+    --ct-surface-3: var(--bg-muted);
+    --ct-border: var(--border);
+    --ct-border-soft: var(--border);
+    --ct-border-strong: var(--border-strong);
+    --ct-border-accent: var(--accent);
+    --ct-text-primary: var(--text);
+    --ct-text-strong: var(--text);
+    --ct-text-body: var(--text-secondary);
+    --ct-text-muted: var(--text-muted);
+    --ct-text-faint: var(--text-faint);
+    --ct-accent: var(--accent);
+    --ct-accent-strong: var(--accent-strong);
+    --ct-accent-soft: var(--accent-soft);
+    --ct-accent-maroon: var(--accent);
+    --ct-shadow-depth: 0 1px 2px rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.10);
+    --ct-dur-base: 200ms;
+    --ct-ease: cubic-bezier(0.4, 0, 0.2, 1);
+    --ct-warning: var(--warning);
+    --ct-warning-soft: #fffbeb;
+    --ct-warning-border: #fcd34d;
+    --ct-warning-text: #92400e;
+
+    /* admin-* aliases (components/ui/Button still binds these) */
+    --admin-bg: var(--bg);
+    --admin-bg-subtle: var(--bg-subtle);
+    --admin-bg-muted: var(--bg-muted);
+    --admin-chrome: var(--accent);
+    --admin-chrome-soft: var(--accent-strong);
+    --admin-border: var(--border);
+    --admin-border-strong: var(--border-strong);
+    --admin-border-soft: var(--border);
+    --admin-text: var(--text);
+    --admin-text-secondary: var(--text-secondary);
+    --admin-text-muted: var(--text-muted);
+    --admin-text-faint: var(--text-faint);
+    --admin-text-inverse: #ffffff;
+    --admin-accent: var(--accent);
+    --admin-accent-hover: var(--accent-strong);
+    --admin-accent-soft: var(--accent-soft);
+    --admin-success: var(--success);
+    --admin-warning: var(--warning);
+    --admin-danger: var(--danger);
+    --admin-radius-sm: 6px;
+    --admin-radius-md: 8px;
+    --admin-radius-lg: 12px;
+    --admin-radius-xl: 16px;
+    --admin-shadow-card: var(--ct-shadow-depth);
+  }
+
+  /* Admin Deep Black — forced via `.dark` wrapper in AdminLayoutClient. */
+  .dark {
+    --admin-surface-panel: #000000;
+    --admin-surface-inset: #000000;
+    --admin-surface-highlight: #0a0a0a;
+    --admin-surface-raised: #141414;
+    --admin-surface-skeleton: #0a0a0a;
+    --admin-surface-muted: #111111;
+    --admin-surface-track: #0a0a0a;
+    --admin-surface-dot: rgb(255 255 255 / 0.18);
+    --admin-border-default: rgb(255 255 255 / 0.08);
+    --admin-border-strong: rgb(255 255 255 / 0.12);
+    --admin-border-soft: rgb(255 255 255 / 0.05);
+    --admin-ring-default: rgb(255 255 255 / 0.08);
+    --admin-ring-strong: rgb(255 255 255 / 0.12);
+    --admin-ring-hover: rgb(255 255 255 / 0.12);
+    --admin-preview-chrome: rgb(0 0 0 / 0.92);
+    /* KPI strip — indigo accent, white type */
+    --admin-surface-kpi: #4f46e5;
+    --admin-border-kpi: rgb(255 255 255 / 0.14);
+    --admin-kpi-divider: rgb(255 255 255 / 0.14);
+    --admin-text-on-kpi: #ffffff;
+    --admin-text-on-kpi-muted: rgb(255 255 255 / 0.72);
+    --admin-text-on-kpi-faint: rgb(255 255 255 / 0.55);
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+/* Storefront-facing component classes kept from the storefront primitives.
+   Restored after the cockpit-shell CSS was purged (they were referenced by
+   app/cart, app/checkout, app/products, app/legal but no longer defined),
+   so those page headings/cards render styled instead of browser-default. */
+@layer components {
+  .ct-title {
+    font-size: clamp(1.75rem, 1.35rem + 1.6vw, 2.25rem);
+    line-height: 1.15;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  .ct-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--admin-radius-xl);
+    padding: 2rem;
+    box-shadow: var(--ct-shadow-depth);
+  }
+}
