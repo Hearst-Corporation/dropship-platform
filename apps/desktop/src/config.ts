@@ -140,6 +140,29 @@ export function getConfig(): ResolvedConfig {
 }
 
 /**
+ * Decode the cached Basic header back into its two parts.
+ *
+ * Electron's `login` event callback takes username/password separately, but we
+ * deliberately never keep the plaintext password around (see getConfig). The
+ * header itself is already in memory, so decoding it on demand adds no new
+ * exposure — nothing is read from disk, logged or persisted here.
+ */
+export function getBasicCredentials(): { username: string; password: string } | null {
+  const { basicAuthHeader } = getConfig();
+  if (!basicAuthHeader) return null;
+  const encoded = basicAuthHeader.replace(/^Basic\s+/i, '');
+  let decoded: string;
+  try {
+    decoded = Buffer.from(encoded, 'base64').toString('utf8');
+  } catch {
+    return null;
+  }
+  const sep = decoded.indexOf(':');
+  if (sep === -1) return null;
+  return { username: decoded.slice(0, sep), password: decoded.slice(sep + 1) };
+}
+
+/**
  * Resolve a URL path (e.g. '/admin/orders') against the configured baseUrl
  * origin. Always returns an absolute URL.
  */

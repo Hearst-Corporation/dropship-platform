@@ -22,7 +22,7 @@ import {
 import log from 'electron-log';
 import { autoUpdater } from 'electron-updater';
 
-import { getConfig } from './config';
+import { getBasicCredentials, getConfig } from './config';
 import {
   notifyFromRenderer,
   startAnomalyWatcher,
@@ -67,6 +67,29 @@ function installAuthHeader(): void {
       details.requestHeaders.Authorization = basicAuthHeader;
     }
     callback({ requestHeaders: details.requestHeaders });
+  });
+}
+
+/**
+ * Belt-and-braces auto-login.
+ *
+ * `installAuthHeader` covers requests that go through the default session AND
+ * whose URL starts with the configured origin. Anything outside that — a
+ * redirect landing on another host, a window using its own partition, or a
+ * request racing the header hook at startup — still gets a 401 and macOS pops
+ * its native username/password dialog. Answering the `login` event here means
+ * the operator is never asked to retype credentials we already hold.
+ *
+ * Proxy challenges are left alone: those are the OS/network's business, not
+ * the admin's, and we have no proxy credentials to offer.
+ */
+function installAutoLogin(): void {
+  app.on('login', (event, _webContents, _request, authInfo, callback) => {
+    if (authInfo.isProxy) return;
+    const creds = getBasicCredentials();
+    if (!creds) return; // no credentials configured — let Electron prompt.
+    event.preventDefault();
+    callback(creds.username, creds.password);
   });
 }
 
@@ -310,6 +333,9 @@ function setupAutoUpdater(): void {
 
 app.on('ready', async () => {
   app.setName('Hearst Dropship');
+  // Registered before the header hook so a challenge raced at startup is
+  // still answered automatically rather than surfacing the native dialog.
+  installAutoLogin();
   installAuthHeader();
   Menu.setApplicationMenu(buildAppMenu());
   registerShortcuts();
