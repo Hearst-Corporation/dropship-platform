@@ -558,7 +558,11 @@ describe('zendropClient metadata', () => {
     expect(zendropClient.id).toBe('zendrop');
     expect(zendropClient.label).toBe('Zendrop');
     expect(zendropClient.tier).toBe('v1');
-    expect(zendropClient.status).toBe('active');
+    // `search_only`, not `active`: this is the unverified OAuth2+PKCE variant
+    // that the registry does NOT wire in (it uses ./zendrop-connector). Nothing
+    // here has proven it can forward a real order, so it must not advertise
+    // fulfillment readiness.
+    expect(zendropClient.status).toBe('search_only');
     expect(zendropClient.capabilities.unitOrder).toBe(true);
     expect(zendropClient.capabilities.noStock).toBe(true);
     expect(zendropClient.capabilities.directShip).toBe(true);

@@ -296,11 +296,22 @@ async function getAccessTokenDetailed(): Promise<
 // SupplierClient implementation
 // ---------------------------------------------------------------------------
 
+/**
+ * ⚠️ NOT the client wired into the registry. This is the OAuth2+PKCE variant,
+ * still unverified against a live account. `lib/suppliers/registry.ts` imports
+ * `zendropClient` from `./zendrop-connector` (token auth, verified live).
+ *
+ * Both files export a symbol named `zendropClient`, so a mistaken import is
+ * easy to make — it already happened once. Status is therefore declared
+ * honestly as `search_only`: nothing here has proven it can forward a real
+ * customer order, and claiming `active` would let the platform believe
+ * fulfillment works when it does not.
+ */
 export const zendropClient: SupplierClient = {
   id: 'zendrop',
   label: 'Zendrop',
   tier: 'v1',
-  status: 'active',
+  status: 'search_only',
   capabilities: {
     unitOrder: true,
     noStock: true,
