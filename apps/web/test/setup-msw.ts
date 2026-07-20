@@ -8,6 +8,7 @@ import { zendropHandlers } from './handlers/zendrop';
 import { spocketHandlers } from './handlers/spocket';
 import { bigbuyHandlers } from './handlers/bigbuy';
 import { dobaHandlers } from './handlers/doba';
+import { supplierImageHandlers } from './handlers/supplier-images';
 
 /**
  * Shared MSW server used by every Vitest run.
@@ -29,6 +30,8 @@ export const server = setupServer(
   ...spocketHandlers,
   ...bigbuyHandlers,
   ...dobaHandlers,
+  // Product-image CDNs — the pipeline now downloads supplier images.
+  ...supplierImageHandlers,
 );
 
 beforeAll(() => {

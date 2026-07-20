@@ -345,6 +345,12 @@ function contentTypeFor(filename: string): string {
   const ext = path.extname(filename).toLowerCase();
   if (ext === '.png') return 'image/png';
   if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
+  // Supplier product images are frequently webp/avif — without these the
+  // object is served as octet-stream and the browser downloads it instead
+  // of rendering it in the storefront.
+  if (ext === '.webp') return 'image/webp';
+  if (ext === '.avif') return 'image/avif';
+  if (ext === '.gif') return 'image/gif';
   if (ext === '.mp4') return 'video/mp4';
   if (ext === '.webm') return 'video/webm';
   return 'application/octet-stream';

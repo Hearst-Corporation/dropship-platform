@@ -6,6 +6,7 @@ import type { RawProduct } from '@/lib/suppliers/types';
 import { filterByImageQuality, type ImageQualityVerdict } from './image-quality';
 import { filterByListingQuality, DEFAULT_LISTING_QUALITY_THRESHOLD } from './listing-quality';
 import { generateCollectionHero, generateMonoAssets } from './asset-generator';
+import { persistSupplierProductImage } from './supplier-image';
 import { suggestTemplate } from '@/lib/template-catalog';
 import { writeLandingContent } from './landing-writer';
 import { extractJson, extractAndValidateJson, type JsonExtractionError } from './json';
@@ -1041,6 +1042,26 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
       const importOne = async (ep: EnrichedProduct) => {
         let medusaProductId: string | null = null;
         let status: ProductRunReport['status'] = medusaOk ? 'imported' : 'local_only';
+
+        // Take ownership of the supplier image before anything consumes it:
+        // Medusa gets the persisted URL as thumbnail, and so does our own
+        // dropship_store_products row. Without this the storefront hotlinks
+        // the supplier CDN forever. Fails soft — on error `persistedUrl` is
+        // the original URL, which is exactly the old behaviour.
+        const imagePersist = await persistSupplierProductImage({
+          slug,
+          provider: String(ep.supplier),
+          externalId: ep.externalId,
+          imageUrl: ep.imageUrl,
+        });
+        if (imagePersist.warning) {
+          emit({
+            type: 'progress',
+            message: `⚠ Image produit non persistée (${ep.enrichedTitle}): ${imagePersist.warning}`,
+          });
+        }
+        const productImageUrl = imagePersist.persistedUrl;
+
         if (medusaOk && channelId) {
           try {
             const handle = buildMedusaHandle({
@@ -1054,8 +1075,8 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
                 description: ep.enrichedDescription,
                 handle,
                 status: 'published',
-                thumbnail: ep.imageUrl || undefined,
-                images: ep.imageUrl ? [ep.imageUrl] : [],
+                thumbnail: productImageUrl || undefined,
+                images: productImageUrl ? [productImageUrl] : [],
                 options: [{ title: 'Default', values: ['Standard'] }],
                 variants: [
                   {
@@ -1100,7 +1121,7 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
             [
               storeId, medusaProductId, ep.supplier, ep.externalId,
               ep.originalTitle, ep.enrichedTitle, ep.enrichedDescription,
-              ep.priceCents, ep.costCents, ep.imageUrl || null, ep.supplierUrl || null,
+              ep.priceCents, ep.costCents, productImageUrl || null, ep.supplierUrl || null,
               verdict?.score ?? null, JSON.stringify(verdict?.issues ?? []),
             ],
           );
