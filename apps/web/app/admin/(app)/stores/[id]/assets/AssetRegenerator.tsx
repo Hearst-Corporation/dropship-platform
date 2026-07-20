@@ -258,7 +258,7 @@ export function AssetRegenerator({
                     onChange={(e) => setPrompt(e.target.value)}
                     disabled={running}
                     rows={5}
-                    placeholder="Laisse vide pour laisser Claude rédiger un nouveau prompt..."
+                    placeholder="Laisse vide pour laisser l’IA rédiger un nouveau prompt..."
                     className="font-mono"
                   />
                   <Description className="text-xs">

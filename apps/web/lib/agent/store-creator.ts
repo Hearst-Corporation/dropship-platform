@@ -541,7 +541,7 @@ Hard color rule: the three colors must form a coherent palette. If you cannot gu
 
   emit({
     type: 'progress',
-    message: `✨ ${parsed.products.length} produits générés par Claude AI`,
+    message: `✨ ${parsed.products.length} produits générés par l’IA`,
     data: { count: parsed.products.length, source: 'ai-generated' },
   });
 
@@ -681,7 +681,7 @@ response is long:
 
   emit({
     type: 'progress',
-    message: `${enriched.length} produits enrichis par Claude`,
+    message: `${enriched.length} produits enrichis par l’IA`,
     data: { count: enriched.length },
   });
 
@@ -838,7 +838,7 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
       if (rawProducts.length > 0) {
         emit({
           type: 'step',
-          message: `Filtre vision Claude — analyse de ${rawProducts.length} images produit...`,
+          message: `Filtre vision IA — analyse de ${rawProducts.length} images produit...`,
         });
         const { kept, rejected } = await filterByImageQuality(
           rawProducts.map((p) => ({ ...p, imageUrl: p.imageUrl })),

@@ -69,7 +69,7 @@ export function LuxuryUpgradeButton({
           <li>
             · Template basculé sur <Code>luxury-mono</Code> automatiquement
           </li>
-          <li>· Coût indicatif : ≈ 0,55 € par run (fal + Claude Opus)</li>
+          <li>· Coût indicatif : ≈ 0,55 € par run (fal + GPT-4o)</li>
         </ul>
 
         {!confirming ? (

@@ -334,7 +334,7 @@ export async function regenerateAsset(
   const { store, product } = await loadStoreAndProduct(input.storeId);
   const refImageUrl = input.productImageUrl ?? product.image_url!;
 
-  log(input.customPrompt ? 'Utilisation du prompt personnalisé.' : 'Génération du prompt (Claude)...');
+  log(input.customPrompt ? 'Utilisation du prompt personnalisé.' : 'Génération du prompt (IA)...');
   const prompt =
     input.customPrompt && input.customPrompt.trim().length > 0
       ? input.customPrompt.trim()

@@ -598,7 +598,7 @@ export async function generateMonoAssets(
     await ensureDir(runAbs);
   }
 
-  log('Génération des prompts (Claude art director)...');
+  log('Génération des prompts (IA art director)...');
   const prompts = await buildPromptsWithClaude(input);
 
   // Web base path used by the storefront in filesystem mode. Web is rooted

@@ -543,7 +543,7 @@ export default async function PortfolioDashboard() {
       {/* Observabilité agent + alertes opérationnelles */}
       <div className="grid grid-cols-1 gap-6 2xl:grid-cols-2">
         <AdminSection
-          title="Coût Claude 30j"
+          title="Coût IA 30j"
           description="Observabilité des appels agent sur 30 jours."
           actions={
             <Button href="/admin/observability" outline>
