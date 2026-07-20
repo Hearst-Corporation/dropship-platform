@@ -42,7 +42,7 @@ import { isComfyConfigured, getDeploymentIds } from './comfy-client';
 import { isFalConfigured } from './fal-client';
 import { getMedusaBaseUrl, getMedusaAuthMode, medusa } from '@/lib/medusa';
 import { TEMPLATE_IDS } from '@/lib/template-catalog';
-import { DESIGN_PRESETS } from '@/lib/design/presets';
+import { ACCENTS } from '@/lib/accent';
 import { zEnumFromReadonly } from '@/lib/zod-utils';
 import { CANDIDATE_NICHES } from './candidate-niches';
 import { scoreNicheOpportunities } from './niche-scorer';
@@ -224,7 +224,7 @@ const JSON_COLUMNS = new Set(['landing_content', 'palette', 'lifestyle_images'])
 
 const ASSET_KIND_TUPLE = [...ASSET_KINDS] as [AssetKind, ...AssetKind[]];
 const UPDATABLE_TUPLE = [...UPDATABLE_COLUMNS] as [string, ...string[]];
-const DESIGN_PRESET_SLUGS = DESIGN_PRESETS.map((p) => p.slug) as [string, ...string[]];
+const DESIGN_PRESET_SLUGS = [...ACCENTS] as [string, ...string[]];
 
 const SUPER_TOOLS: Anthropic.Messages.Tool[] = [
   ...DEV_TOOLS,

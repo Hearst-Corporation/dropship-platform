@@ -14,7 +14,7 @@ import {
   AXIS_TICK,
   DEFAULT_COLORS,
   GRID_STROKE,
-} from "@/lib/design/chart-tokens";
+} from "@/lib/charts/tokens";
 
 export interface AdminBarSeries {
   key: string;

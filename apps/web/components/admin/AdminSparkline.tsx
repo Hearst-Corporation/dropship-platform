@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import type React from "react";
-import { SPARKLINE_STOP_COLORS } from "@/lib/design/chart-tokens";
+import { SPARKLINE_STOP_COLORS } from "@/lib/charts/tokens";
 
 export interface AdminSparklineProps {
   data: number[];

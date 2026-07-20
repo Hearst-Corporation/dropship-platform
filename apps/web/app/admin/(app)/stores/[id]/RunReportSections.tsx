@@ -112,7 +112,7 @@ export function RunReportSections({
         flush
       >
         <AdminDataTable fixedLayout>
-          <Table dense bleed clip>
+          <Table dense bleed>
             <colgroup>
               <col />
               <col style={{ width: "7rem" }} />
@@ -172,7 +172,7 @@ export function RunReportSections({
           flush
         >
           <AdminDataTable fixedLayout>
-            <Table dense bleed clip>
+            <Table dense bleed>
               <colgroup>
                 <col />
                 <col style={{ width: "6rem" }} />

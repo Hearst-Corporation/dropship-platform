@@ -227,7 +227,7 @@ export default async function OrdersPage() {
             </Text>
           </div>
           <AdminDataTable fixedLayout>
-            <Table dense bleed clip>
+            <Table dense bleed>
               <colgroup>
                 <col style={{ width: "9rem" }} />
                 <col style={{ width: "9rem" }} />
@@ -345,7 +345,7 @@ export default async function OrdersPage() {
           flush
         >
           <AdminDataTable fixedLayout>
-            <Table dense bleed clip>
+            <Table dense bleed>
               <colgroup>
                 <col style={{ width: "8rem" }} />
                 <col style={{ width: "9rem" }} />

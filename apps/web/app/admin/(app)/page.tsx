@@ -480,7 +480,7 @@ export default async function PortfolioDashboard() {
             />
           ) : (
             <AdminDataTable fixedLayout>
-              <Table dense bleed clip>
+              <Table dense bleed>
                 <colgroup>
                   <col style={{ width: "2.5rem" }} />
                   <col />

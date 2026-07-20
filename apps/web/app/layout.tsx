@@ -1,58 +1,43 @@
 import type { Metadata } from 'next';
-import localFont from 'next/font/local';
+import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
-import AppFrame from '@/app/_components/AppFrame';
 
-/**
- * Typography stack — Satoshi Variable everywhere. Self-hosted via next/font
- * so there's zero CLS and no external network call. The variable axis spans
- * weights 300–900; we drive the hierarchy through weight + size, not via a
- * separate display font.
- */
-const satoshi = localFont({
-  src: [
-    {
-      path: '../public/fonts/Satoshi-Variable.woff2',
-      weight: '300 900',
-      style: 'normal',
-    },
-    {
-      path: '../public/fonts/Satoshi-VariableItalic.woff2',
-      weight: '300 900',
-      style: 'italic',
-    },
-  ],
-  variable: '--font-sans',
-  display: 'swap',
+const geistSans = Geist({
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
+});
+
+const geistMono = Geist_Mono({
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
 });
 
 export const metadata: Metadata = {
   title: 'Dropship Platform',
   description: 'Dropship admin & integrations',
   // Google Search Console / Merchant Center site verification.
-  // Token issued in Merchant Center > Add an HTML tag. Rotation = update
-  // NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION env var, redeploy.
   ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
     ? { verification: { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION } }
     : {}),
 };
 
+// data-accent : indigo (défaut dropship) | fuchsia | bordeaux | amber | emerald | teal | blue | violet
+// Bascule côté client via lib/accent.ts (localStorage).
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  // TikTok Developer Portal domain verification. They issue a token when
-  // you click "Verify URL properties" on the app submission form; we
-  // surface it as a <meta> in the document head. Set
-  // NEXT_PUBLIC_TIKTOK_SITE_VERIFICATION in the Vercel env after copying
-  // the value from TikTok, redeploy, then click Verify in the portal.
   const tiktokVerif = process.env.NEXT_PUBLIC_TIKTOK_SITE_VERIFICATION;
   return (
-    <html lang="fr" className={satoshi.variable}>
+    <html
+      lang="fr"
+      data-accent="indigo"
+      className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+    >
       <head>
         {tiktokVerif && (
           <meta name="tiktok-developers-site-verification" content={tiktokVerif} />
         )}
       </head>
-      <body className="min-h-screen antialiased font-sans">
-        <AppFrame>{children}</AppFrame>
+      <body className="min-h-full flex flex-col bg-white dark:bg-zinc-950 font-sans">
+        {children}
       </body>
     </html>
   );

@@ -522,7 +522,7 @@ export default async function StoreCampaignPage({
         flush
       >
         <AdminDataTable fixedLayout>
-          <Table dense bleed clip>
+          <Table dense bleed>
             <colgroup>
               <col style={{ width: "4.5rem" }} />
               <col />
@@ -657,7 +657,7 @@ export default async function StoreCampaignPage({
             </div>
           ) : null}
           <AdminDataTable fixedLayout>
-            <Table dense bleed clip>
+            <Table dense bleed>
               <colgroup>
                 <col />
                 <col style={{ width: "6rem" }} />

@@ -15,7 +15,7 @@ import { trackedOpenAIMessage } from './openai-agent';
 import { runContext } from './run-context';
 import { rankAndKeepTop } from './product-scorer';
 import { buildMedusaHandle, slugifyTitle } from './handle';
-import { buildPaletteFromPreset, getPreset } from '@/lib/design/presets';
+import { buildStorePalette, DEFAULT_PRESET } from '@/lib/store-palette';
 import { generateGoogleAdsPlan, stageGoogleAdsPlan } from './ads-planner';
 import { evaluateStoreReadiness } from './store-readiness';
 import {
@@ -1169,13 +1169,11 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
       // Locked design system: the picker passed (or defaulted) a preset slug.
       // Resolve it to a curated preset and freeze the palette in DB so every
       // storefront component reads the same source of truth from now on.
-      const presetSlug = input.designPreset ?? 'editorial-serif';
-      const preset = getPreset(presetSlug);
-      const palette = buildPaletteFromPreset(
-        preset,
-        branding.primaryColor,
-        branding.accentColor,
-      );
+      const presetSlug = input.designPreset ?? DEFAULT_PRESET;
+      const palette = buildStorePalette(branding.primaryColor, branding.accentColor);
+      // Art-direction hint for the asset generator (previously carried by the
+      // per-preset imageryMood; the unified design system uses one default).
+      const imageryMood = 'premium editorial studio, clean lighting';
 
       // Mono stores can't go 'active' until hero asset generation succeeds;
       // collection stores have no asset pipeline, so they activate here.
@@ -1191,7 +1189,7 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
           branding.tagline, branding.description,
           branding.primaryColor, branding.secondaryColor, branding.accentColor,
           branding.logoEmoji, channelId, publishableKey, imported,
-          preset.slug, JSON.stringify(palette), storeId,
+          presetSlug, JSON.stringify(palette), storeId,
         ],
       );
 
@@ -1234,7 +1232,7 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
           storeSlug: slug,
           storeName: input.storeName,
           niche: input.niche,
-          imageryMood: preset.imageryMood,
+          imageryMood: imageryMood,
           onProgress: (msg) => emit({ type: 'progress', message: msg }),
         });
         if (hero.heroUrl) {
@@ -1307,8 +1305,8 @@ export async function* createStore(input: StoreCreationInput): AsyncGenerator<Ag
                 // if the operator didn't explicitly set skipAudio.
                 skipAudio: input.skipVideo ? true : input.skipAudio,
                 design: {
-                  presetSlug: preset.slug,
-                  imageryMood: preset.imageryMood,
+                  presetSlug: presetSlug,
+                  imageryMood: imageryMood,
                   primaryColor: palette.primary,
                   accentColor: palette.accent,
                 },

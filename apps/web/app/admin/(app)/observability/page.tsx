@@ -226,7 +226,7 @@ export default async function ObservabilityPage() {
 
       <AdminSection title="Par canal" flush>
         <AdminDataTable fixedLayout>
-          <Table dense bleed clip>
+          <Table dense bleed>
             <colgroup>
               <col />
               <col style={{ width: "7rem" }} />
@@ -292,7 +292,7 @@ export default async function ObservabilityPage() {
           </div>
         ) : (
           <AdminDataTable fixedLayout>
-            <Table dense bleed clip>
+            <Table dense bleed>
               <colgroup>
                 <col />
                 <col style={{ width: "9rem" }} />

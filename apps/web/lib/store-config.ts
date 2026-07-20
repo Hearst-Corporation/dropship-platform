@@ -1,6 +1,6 @@
 import { getDbRead } from '@/lib/db';
 import { tryDecryptSecret } from '@/lib/secrets';
-import type { StorePalette } from '@/lib/design/presets';
+import type { StorePalette } from '@/lib/store-palette';
 import type { StoreTemplate as CatalogStoreTemplate } from '@/lib/template-catalog';
 
 export type StoreStatus =

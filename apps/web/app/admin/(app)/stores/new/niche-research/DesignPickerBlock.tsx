@@ -1,8 +1,13 @@
 import { useMemo } from 'react';
-import { DESIGN_PRESETS } from '@/lib/design/presets';
 import { adminBgInset, adminBorder, adminText, adminTextMuted } from '@/components/admin/admin-surface';
 import { cn } from '@/lib/utils/cn';
 import type { DesignProposal } from './types';
+
+/** Accent display labels — the store's only visual choice on the unified system. */
+const ACCENT_LABELS: Record<string, string> = {
+  indigo: 'Indigo', fuchsia: 'Fuchsia', bordeaux: 'Bordeaux', amber: 'Ambre',
+  emerald: 'Émeraude', teal: 'Teal', blue: 'Bleu', violet: 'Violet',
+};
 
 /**
  * This card renders `DesignProposal[]` — always exactly 3 AI-curated
@@ -15,21 +20,16 @@ import type { DesignProposal } from './types';
  * single source of truth for a preset's label/tagline/display font instead
  * of re-declaring another copy of that catalog here.
  */
-const PRESET_BY_SLUG = new Map(DESIGN_PRESETS.map((p) => [p.slug, p]));
-
 function labelFor(slug: DesignProposal['preset']) {
-  const preset = PRESET_BY_SLUG.get(slug);
   return {
-    label: preset?.label ?? slug,
-    tagline: preset?.tagline ?? '',
+    label: ACCENT_LABELS[slug] ?? slug,
+    tagline: '',
   };
 }
 
-function displayFontFor(slug: DesignProposal['preset']) {
-  const preset = PRESET_BY_SLUG.get(slug);
-  if (!preset) return 'Georgia, serif';
-  const { family, italic } = preset.fonts.display;
-  return `'${family}', ${italic ? 'Georgia, serif' : 'system-ui, sans-serif'}`;
+function displayFontFor(_slug: DesignProposal['preset']) {
+  // Unified design system — one typeface (Geist) across every store.
+  return 'var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif';
 }
 
 export function DesignPickerBlock({

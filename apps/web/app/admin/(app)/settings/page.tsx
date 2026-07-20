@@ -317,7 +317,7 @@ function SupplierPolicyTable({ rows }: { rows: SupplierPolicyRow[] }) {
 
   return (
     <AdminDataTable fixedLayout>
-      <Table dense bleed clip>
+      <Table dense bleed>
         <colgroup>
           <col />
           <col style={{ width: "7rem" }} />

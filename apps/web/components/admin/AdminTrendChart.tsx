@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { AXIS_TICK, DEFAULT_COLORS } from "@/lib/design/chart-tokens";
+import { AXIS_TICK, DEFAULT_COLORS } from "@/lib/charts/tokens";
 
 export interface AdminTrendSeries {
   key: string;

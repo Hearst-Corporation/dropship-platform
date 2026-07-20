@@ -137,7 +137,7 @@ export function StoresTable({ rows, paginated = false }: StoresTableProps) {
         />
       ) : (
         <AdminDataTable fixedLayout>
-          <Table dense bleed clip>
+          <Table dense bleed>
             <colgroup>
               <col />
               <col style={{ width: "10rem" }} />

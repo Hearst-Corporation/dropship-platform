@@ -263,7 +263,7 @@ export default async function StoreAnalyticsPage({
           />
         ) : (
           <AdminDataTable fixedLayout>
-            <Table dense bleed clip>
+            <Table dense bleed>
               <colgroup>
                 <col style={{ width: "6rem" }} />
                 <col />

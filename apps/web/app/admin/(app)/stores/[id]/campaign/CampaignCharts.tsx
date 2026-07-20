@@ -19,7 +19,7 @@ import {
   adminChartSurfaceFill,
   adminPopover,
 } from "@/components/admin/admin-surface";
-import { AXIS_TICK, DEFAULT_COLORS } from "@/lib/design/chart-tokens";
+import { AXIS_TICK, DEFAULT_COLORS } from "@/lib/charts/tokens";
 import { formatEur } from "@/lib/format";
 
 /**

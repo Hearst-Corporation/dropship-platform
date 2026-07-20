@@ -145,7 +145,7 @@ export function CatalogTable({ products }: { products: MedusaProduct[] }) {
         </AdminDataTable>
       ) : (
         <AdminDataTable fixedLayout>
-          <Table dense bleed clip>
+          <Table dense bleed>
             <colgroup>
               <col />
               <col style={{ width: "5.5rem" }} />
