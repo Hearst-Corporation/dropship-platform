@@ -63,23 +63,29 @@ export default async function StoreCatalogPage({
   if (!storeId) notFound();
   const db = getDbRead();
 
-  const storeRes = await db.query<StoreRow>(
-    `SELECT id, slug, name, logo_emoji, niche FROM dropship_stores WHERE id = $1 LIMIT 1`,
-    [storeId],
-  );
-  const store = storeRes.rows[0];
-  if (!store) notFound();
-
-  const { rows: products } = await db.query<ProductRow>(
-    `SELECT id, supplier, external_id, supplier_url, enriched_title, enriched_description,
+  // Les deux requêtes ne dépendent que de storeId : les enchaîner coûtait un
+  // aller-retour de plus vers Railway à chaque rendu (page force-dynamic).
+  const [storeRes, productsRes] = await Promise.all([
+    db.query<StoreRow>(
+      `SELECT id, slug, name, logo_emoji, niche FROM dropship_stores WHERE id = $1 LIMIT 1`,
+      [storeId],
+    ),
+    db.query<ProductRow>(
+      `SELECT id, supplier, external_id, supplier_url, enriched_title, enriched_description,
             price_cents, cost_cents, image_url, medusa_product_id,
             image_quality_score, created_at
        FROM dropship_store_products
       WHERE store_id = $1
       ORDER BY created_at ASC
       LIMIT 500`,
-    [storeId],
-  );
+      [storeId],
+    ),
+  ]);
+
+  const store = storeRes.rows[0];
+  if (!store) notFound();
+
+  const products = productsRes.rows;
 
   const totalRetailCents = products.reduce((s, p) => s + p.price_cents, 0);
   const totalCostCents = products.reduce((s, p) => s + p.cost_cents, 0);

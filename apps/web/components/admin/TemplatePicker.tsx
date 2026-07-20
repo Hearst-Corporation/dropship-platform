@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Squares2X2Icon } from "@heroicons/react/24/outline";
 import {
   TEMPLATE_CATALOG,
+  REGISTER_LABEL,
   type StoreTemplate,
   type TemplateRegister,
 } from "@/lib/template-catalog";
@@ -16,12 +17,6 @@ const REGISTER_BADGE_COLOR: Record<TemplateRegister, "amber" | "indigo" | "zinc"
   luxury: "amber",
   premium: "indigo",
   mass: "zinc",
-};
-
-const REGISTER_LABEL: Record<TemplateRegister, string> = {
-  luxury: "Luxe",
-  premium: "Premium",
-  mass: "Mass-market",
 };
 
 const REGISTER_FILTER_OPTIONS = [

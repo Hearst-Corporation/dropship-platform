@@ -67,6 +67,28 @@ const FALLBACK_SELLING_POINTS: Array<{ title: string; body: string }> = [
 ];
 
 /**
+ * Libellés de structure — ils nomment le module, pas la boutique. Ils restent
+ * ici plutôt que dans `landing_content` : une section sans titre dès que le LLM
+ * en oublie un est exactement le défaut que cette hiérarchie corrige. Regroupés
+ * pour que la voix de la page se relise d'un bloc.
+ */
+const SECTION_COPY = {
+  specs: 'Caractéristiques',
+  benefitsKicker: 'Bénéfices',
+  benefitsTitle: 'Ce qui fait la différence',
+  storyKicker: 'Le projet',
+  galleryKicker: 'En situation',
+  galleryTitle: 'Le produit dans la vraie vie',
+  includedKicker: 'Contenu',
+  includedTitle: 'Dans la boîte',
+  pricingKicker: 'Le juste prix',
+  pricingTitle: 'Pourquoi ce tarif',
+  trustKicker: 'Sans risque',
+  trustTitle: 'Commander en confiance',
+  finalTitle: 'Passez commande, testez chez vous',
+} as const;
+
+/**
  * En-tête de section : kicker + H2 + lede optionnel. Un seul composant pour
  * toutes les sections, ce qui garantit que chaque grand module porte un titre
  * visible au même niveau typographique.
@@ -97,22 +119,16 @@ function SectionHeading({
           {kicker}
         </p>
       )}
-      {titleHtml ? (
-        <h2
-          id={id}
-          className="text-2xl font-bold tracking-tight sm:text-4xl"
-          style={{ fontFamily: DS.fontDisplay, letterSpacing: DS.headingTracking }}
-          dangerouslySetInnerHTML={{ __html: sanitizeRichText(titleHtml) }}
-        />
-      ) : (
-        <h2
-          id={id}
-          className="text-2xl font-bold tracking-tight sm:text-4xl"
-          style={{ fontFamily: DS.fontDisplay, letterSpacing: DS.headingTracking }}
-        >
-          {title}
-        </h2>
-      )}
+      {/* Une seule balise : dupliquer le h2 pour ne changer que la source du
+          contenu obligeait à répercuter chaque ajustement typo deux fois. */}
+      <h2
+        id={id}
+        className="text-2xl font-bold tracking-tight sm:text-4xl"
+        style={{ fontFamily: DS.fontDisplay, letterSpacing: DS.headingTracking }}
+        {...(titleHtml
+          ? { dangerouslySetInnerHTML: { __html: sanitizeRichText(titleHtml) } }
+          : { children: title })}
+      />
       {lede && (
         <p className="mt-4 text-lg leading-relaxed" style={{ color: DS.textMuted }}>
           {lede}
@@ -165,13 +181,11 @@ export function MonoProductLanding({
   const beachKicker = copy.beachMoment?.kicker || null;
   const beachOnGallery = hasGallery && Boolean(beachHeadlineHtml || beachKicker);
 
-  const galleryKicker = beachOnGallery ? beachKicker || 'En situation' : 'En situation';
+  const galleryKicker = (beachOnGallery && beachKicker) || SECTION_COPY.galleryKicker;
   const galleryHeadlineHtml = beachOnGallery ? beachHeadlineHtml : null;
-  const galleryTitle = galleryHeadlineHtml ? null : 'Le produit dans la vraie vie';
 
-  const benefitsKicker = !beachOnGallery && beachKicker ? beachKicker : 'Bénéfices';
-  const benefitsHeadlineHtml = !beachOnGallery ? beachHeadlineHtml : null;
-  const benefitsTitle = benefitsHeadlineHtml ? null : 'Ce qui fait la différence';
+  const benefitsKicker = (!beachOnGallery && beachKicker) || SECTION_COPY.benefitsKicker;
+  const benefitsHeadlineHtml = beachOnGallery ? null : beachHeadlineHtml;
 
   const finalKicker = copy.finalCta?.kicker || 'Prêt ?';
   const finalHeadline = copy.finalCta?.headline_html;
@@ -252,20 +266,13 @@ export function MonoProductLanding({
                 {heroKicker}
               </p>
             )}
-            {heroHeadline ? (
-              <h1
-                className="text-4xl font-bold tracking-tight text-white sm:text-6xl lg:text-7xl"
-                style={{ fontFamily: DS.fontDisplay, letterSpacing: DS.headingTracking }}
-                dangerouslySetInnerHTML={{ __html: sanitizeRichText(heroHeadline) }}
-              />
-            ) : (
-              <h1
-                className="text-4xl font-bold tracking-tight text-white sm:text-6xl lg:text-7xl"
-                style={{ fontFamily: DS.fontDisplay, letterSpacing: DS.headingTracking }}
-              >
-                {store.name}
-              </h1>
-            )}
+            <h1
+              className="text-4xl font-bold tracking-tight text-white sm:text-6xl lg:text-7xl"
+              style={{ fontFamily: DS.fontDisplay, letterSpacing: DS.headingTracking }}
+              {...(heroHeadline
+                ? { dangerouslySetInnerHTML: { __html: sanitizeRichText(heroHeadline) } }
+                : { children: store.name })}
+            />
             {heroLede && (
               <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-white/85 sm:text-xl">
                 {heroLede}
@@ -324,8 +331,8 @@ export function MonoProductLanding({
               <SectionHeading
                 id="showcase-heading"
                 kicker={copy.showcase?.kicker}
-                titleHtml={copy.showcase?.headline_html ?? null}
-                title={copy.showcase?.headline_html ? null : featured?.title || store.name}
+                titleHtml={copy.showcase?.headline_html}
+                title={featured?.title || store.name}
                 lede={copy.showcase?.lede}
               />
 
@@ -335,7 +342,7 @@ export function MonoProductLanding({
                     className="text-xs font-semibold uppercase tracking-[0.2em]"
                     style={{ color: DS.textMuted }}
                   >
-                    Caractéristiques
+                    {SECTION_COPY.specs}
                   </h3>
                   <dl className="mt-3">
                     {specs.map((spec, i) => (
@@ -380,7 +387,7 @@ export function MonoProductLanding({
               id="selling-points-heading"
               kicker={benefitsKicker}
               titleHtml={benefitsHeadlineHtml}
-              title={benefitsTitle}
+              title={SECTION_COPY.benefitsTitle}
             />
             <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-3">
               {sellingPoints.map((point, i) => (
@@ -409,7 +416,11 @@ export function MonoProductLanding({
         {copy.storyHeadline && (
           <section aria-labelledby="story-heading" className={SECTION_LG}>
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-              <SectionHeading id="story-heading" kicker="Le projet" title={copy.storyHeadline} />
+              <SectionHeading
+                id="story-heading"
+                kicker={SECTION_COPY.storyKicker}
+                title={copy.storyHeadline}
+              />
               <div className={`mt-6 ${PROSE} space-y-4`}>
                 {copy.storyBody?.map((para, i) => (
                   <p key={i} className="text-lg leading-relaxed" style={{ color: DS.textMuted }}>
@@ -429,7 +440,7 @@ export function MonoProductLanding({
                 id="gallery-heading"
                 kicker={galleryKicker}
                 titleHtml={galleryHeadlineHtml}
-                title={galleryTitle}
+                title={SECTION_COPY.galleryTitle}
               />
               {lifestyleImages.length > 0 && (
                 <div
@@ -478,7 +489,12 @@ export function MonoProductLanding({
             style={{ borderColor: DS.border, backgroundColor: DS.surface }}
           >
             <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-              <SectionHeading id="included-heading" kicker="Contenu" title="Dans la boîte" align="center" />
+              <SectionHeading
+                id="included-heading"
+                kicker={SECTION_COPY.includedKicker}
+                title={SECTION_COPY.includedTitle}
+                align="center"
+              />
               <ul className="mt-10">
                 {includedItems.map((item, i) => (
                   <li
@@ -504,14 +520,17 @@ export function MonoProductLanding({
         {hasPricing && (
           <section aria-labelledby="pricing-heading" className={SECTION_MD}>
             <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+              {/* Sans argumentaire de prix, la section porte en fait sur
+                  l'emballage : on la titre par son contenu réel plutôt que de
+                  laisser un titre « prix » au-dessus d'autre chose. */}
               <SectionHeading
                 id="pricing-heading"
-                kicker="Le juste prix"
-                title="Pourquoi ce tarif"
-                lede={copy.priceRationale}
+                kicker={SECTION_COPY.pricingKicker}
+                title={copy.priceRationale ? SECTION_COPY.pricingTitle : copy.packagingHeadline}
+                lede={copy.priceRationale ?? copy.packagingBody}
                 align="center"
               />
-              {copy.packagingHeadline && copy.packagingBody && (
+              {copy.priceRationale && copy.packagingHeadline && copy.packagingBody && (
                 <div className={`mx-auto mt-10 ${PROSE} text-center`}>
                   <h3 className="text-lg font-semibold tracking-tight">{copy.packagingHeadline}</h3>
                   <p className="mt-2 text-base leading-relaxed" style={{ color: DS.textMuted }}>
@@ -531,7 +550,11 @@ export function MonoProductLanding({
           style={{ borderColor: DS.border, backgroundColor: DS.surface }}
         >
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <SectionHeading id="trust-heading" kicker="Sans risque" title="Commander en confiance" />
+            <SectionHeading
+              id="trust-heading"
+              kicker={SECTION_COPY.trustKicker}
+              title={SECTION_COPY.trustTitle}
+            />
             <div className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-3">
               {trustItems.map((item, i) => (
                 <div key={i} className="flex flex-col gap-1.5">
@@ -552,8 +575,8 @@ export function MonoProductLanding({
             <SectionHeading
               id="final-cta-heading"
               kicker={finalKicker}
-              titleHtml={finalHeadline ?? null}
-              title={finalHeadline ? null : 'Passez commande, testez chez vous'}
+              titleHtml={finalHeadline}
+              title={SECTION_COPY.finalTitle}
               lede={finalLede}
               align="center"
             />

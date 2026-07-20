@@ -109,6 +109,14 @@ export const adminChartPlaceholder = `flex items-center justify-center rounded-l
 export const adminPreviewChrome =
   "border-b border-admin-border-strong bg-admin-preview-chrome backdrop-blur-sm";
 
+/**
+ * Corner label sitting on top of an arbitrary storefront screenshot. Opaque
+ * tint rather than a backdrop-filter: the thumbnail underneath is opaque, so a
+ * blur layer would cost a compositing layer per card for no visible effect.
+ */
+export const adminPreviewBadge =
+  "bg-black/60 text-white/85";
+
 /** Flat accent hairline (unused — kept for API stability). */
 export const adminAccentTop = "";
 

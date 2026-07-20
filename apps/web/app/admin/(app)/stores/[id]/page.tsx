@@ -49,17 +49,11 @@ interface StoreDetailRow {
   custom_domain: string | null;
 }
 
+/** Seules les colonnes agrégées sur cette page — voir la requête plus bas. */
 interface ProductRow {
-  id: string;
   supplier: string;
-  enriched_title: string;
-  enriched_description: string;
   price_cents: number;
   cost_cents: number;
-  image_url: string | null;
-  supplier_url: string | null;
-  medusa_product_id: string | null;
-  created_at: string;
 }
 
 export default async function StoreDetailPage({
@@ -85,9 +79,11 @@ export default async function StoreDetailPage({
      FROM dropship_stores WHERE id = $1 LIMIT 1`,
       [storeId],
     ),
+    // Cette page ne calcule que des agrégats (compte, moyennes, répartition
+    // fournisseurs) : inutile de rapatrier les descriptions enrichies, qui
+    // pèsent plusieurs Ko par ligne sur 500 lignes.
     db.query<ProductRow>(
-      `SELECT id, supplier, enriched_title, enriched_description, price_cents, cost_cents,
-            image_url, supplier_url, medusa_product_id, created_at
+      `SELECT supplier, price_cents, cost_cents
      FROM dropship_store_products WHERE store_id = $1 ORDER BY created_at ASC LIMIT 500`,
       [storeId],
     ),

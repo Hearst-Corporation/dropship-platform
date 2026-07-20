@@ -1,13 +1,21 @@
 import { promises as fs } from "fs";
 import path from "path";
+import clsx from "clsx";
 import Link from "next/link";
+import Image from "next/image";
 import { Squares2X2Icon } from "@heroicons/react/24/outline";
 import {
   TEMPLATE_CATALOG,
+  REGISTER_LABEL,
   type TemplateRegister,
 } from "@/lib/template-catalog";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminSection } from "@/components/admin/AdminSection";
+import {
+  adminPreviewBadge,
+  adminText,
+  adminTextMuted,
+} from "@/components/admin/admin-surface";
 import { Text } from "@/components/catalyst/text";
 
 export const dynamic = "force-dynamic";
@@ -60,6 +68,10 @@ export default async function TemplatesGalleryPage() {
     byRegister[t.register].push(t);
   }
 
+  const firstRegisterWithEntries = (
+    ["luxury", "premium", "mass"] as TemplateRegister[]
+  ).find((r) => byRegister[r].length > 0);
+
   return (
     <div className="space-y-8">
       <AdminPageHeader
@@ -70,6 +82,9 @@ export default async function TemplatesGalleryPage() {
       {(["luxury", "premium", "mass"] as TemplateRegister[]).map((reg) => {
         const entries = byRegister[reg];
         if (!entries.length) return null;
+        // Première section non vide : sa première rangée est au-dessus de la
+        // ligne de flottaison, donc l'image LCP. Next l'exige en priority.
+        const isFirstSection = reg === firstRegisterWithEntries;
         return (
           <AdminSection
             key={reg}
@@ -79,7 +94,7 @@ export default async function TemplatesGalleryPage() {
             }
           >
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
-              {entries.map((t) => {
+              {entries.map((t, i) => {
                 const preview = previewByid[t.id];
                 // Une seule ligne de méta en texte discret plutôt qu'une rangée
                 // de badges : l'aperçu et le nom doivent porter la carte.
@@ -98,43 +113,59 @@ export default async function TemplatesGalleryPage() {
                     rel="noopener noreferrer"
                     className="group flex min-w-0 flex-col overflow-hidden bg-admin-surface-panel ring-1 ring-admin-ring transition hover:ring-admin-ring-strong"
                   >
-                    <div className="relative block aspect-[16/10] w-full overflow-hidden bg-admin-surface-panel">
+                    <div className="relative aspect-[16/10] w-full overflow-hidden bg-admin-surface-panel">
                       {preview ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
+                        // next/image : les captures dans public/template-previews
+                        // pèsent jusqu'à 4 Mo pour un rendu en ~380 px de large.
+                        <Image
                           src={preview}
                           alt={t.label}
-                          loading="lazy"
-                          decoding="async"
-                          className="absolute inset-0 h-full w-full object-cover object-top"
+                          fill
+                          sizes="(min-width: 1536px) 33vw, (min-width: 640px) 50vw, 100vw"
+                          priority={isFirstSection && i < 3}
+                          className="object-cover object-top"
                         />
                       ) : (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-admin-surface-panel">
                           <Squares2X2Icon
-                            className="size-6 text-zinc-400"
+                            className={clsx("size-6", adminTextMuted)}
                             aria-hidden="true"
                           />
-                          <span className="text-xs font-medium text-zinc-500">
+                          <span
+                            className={clsx("text-xs font-medium", adminTextMuted)}
+                          >
                             Aperçu à générer
                           </span>
                         </div>
                       )}
                       {/* Repère de registre : évite que toutes les vignettes se
                           ressemblent quand le rendu est encore générique. */}
-                      <span className="absolute left-0 top-0 bg-black/55 px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.15em] text-white/85 backdrop-blur-sm">
-                        {t.register}
+                      <span
+                        className={clsx(
+                          "absolute left-0 top-0 px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.15em]",
+                          adminPreviewBadge,
+                        )}
+                      >
+                        {REGISTER_LABEL[t.register]}
                       </span>
                     </div>
                     <div className="flex min-w-0 flex-1 flex-col gap-1 p-4">
-                      <h3 className="truncate text-sm font-semibold text-white">
+                      <h3
+                        className={clsx("truncate text-sm font-semibold", adminText)}
+                      >
                         {t.label}
                       </h3>
                       <Text className="line-clamp-2 !text-xs">{t.hint}</Text>
                       <div className="mt-auto flex items-center justify-between gap-3 pt-3">
-                        <span className="truncate text-xs text-zinc-500">
+                        <span className={clsx("truncate text-xs", adminTextMuted)}>
                           {meta}
                         </span>
-                        <span className="shrink-0 text-xs font-medium text-zinc-400 transition-colors group-hover:text-indigo-400">
+                        <span
+                          className={clsx(
+                            "shrink-0 text-xs font-medium transition-colors group-hover:text-indigo-400",
+                            adminTextMuted,
+                          )}
+                        >
                           Voir en live &#8594;
                         </span>
                       </div>

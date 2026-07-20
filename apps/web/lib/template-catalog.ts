@@ -33,6 +33,18 @@ export type TemplateNiche =
   | 'kids';
 
 export type TemplateRegister = 'mass' | 'premium' | 'luxury';
+
+/**
+ * Libellé FR court du registre, à côté du type qu'il nomme. L'admin est en
+ * français : afficher l'enum brut (`luxury`, `mass`) laissait fuiter de
+ * l'anglais dans l'UI, et chaque page avait fini par se réinventer son propre
+ * vocabulaire.
+ */
+export const REGISTER_LABEL: Record<TemplateRegister, string> = {
+  luxury: 'Luxe',
+  premium: 'Premium',
+  mass: 'Mass-market',
+};
 export type TemplateMode = 'mono' | 'collection' | 'editorial' | 'split';
 export type TemplateMood =
   | 'minimal'
