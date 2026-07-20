@@ -6,12 +6,9 @@ import {
   TEMPLATE_CATALOG,
   type TemplateRegister,
 } from "@/lib/template-catalog";
-import { Subheading } from "@/components/catalyst/heading";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminSection } from "@/components/admin/AdminSection";
-import { Text, Code, Strong } from "@/components/catalyst/text";
-import { Badge } from "@/components/catalyst/badge";
-import { Button } from "@/components/catalyst/button";
+import { Text } from "@/components/catalyst/text";
 
 export const dynamic = "force-dynamic";
 
@@ -84,17 +81,24 @@ export default async function TemplatesGalleryPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
               {entries.map((t) => {
                 const preview = previewByid[t.id];
+                // Une seule ligne de méta en texte discret plutôt qu'une rangée
+                // de badges : l'aperçu et le nom doivent porter la carte.
+                const meta = [
+                  t.mode,
+                  t.niches.length > 0 ? t.niches[0] : "tous secteurs",
+                  t.niches.length > 1 ? `+${t.niches.length - 1}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ");
                 return (
-                  <div
+                  <Link
                     key={t.id}
-                    className="flex min-w-0 flex-col overflow-hidden bg-admin-surface-panel ring-1 ring-admin-ring transition hover:ring-admin-ring-strong"
+                    href={`/admin/templates/${t.id}/preview`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex min-w-0 flex-col overflow-hidden bg-admin-surface-panel ring-1 ring-admin-ring transition hover:ring-admin-ring-strong"
                   >
-                    <Link
-                      href={`/admin/templates/${t.id}/preview`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="relative block aspect-[16/10] w-full overflow-hidden bg-admin-surface-panel"
-                    >
+                    <div className="relative block aspect-[16/10] w-full overflow-hidden bg-admin-surface-panel">
                       {preview ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -115,42 +119,27 @@ export default async function TemplatesGalleryPage() {
                           </span>
                         </div>
                       )}
-                    </Link>
-                    <div className="flex min-w-0 flex-1 flex-col gap-3 p-4">
-                      <div className="flex min-w-0 flex-col gap-1">
-                        <Strong>{t.label}</Strong>
-                        <Text className="line-clamp-2 !text-xs">{t.hint}</Text>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <Badge color="zinc">{t.mode}</Badge>
-                        {t.niches.length > 0 ? (
-                          <>
-                            {t.niches.slice(0, 3).map((n) => (
-                              <Badge key={n} color="indigo">
-                                {n}
-                              </Badge>
-                            ))}
-                            {t.niches.length > 3 && (
-                              <Badge color="zinc">+{t.niches.length - 3}</Badge>
-                            )}
-                          </>
-                        ) : (
-                          <Badge color="zinc">Tous secteurs</Badge>
-                        )}
-                      </div>
-                      <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-1">
-                        <Code className="truncate">{t.id}</Code>
-                        <Button
-                          href={`/admin/templates/${t.id}/preview`}
-                          plain
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
+                      {/* Repère de registre : évite que toutes les vignettes se
+                          ressemblent quand le rendu est encore générique. */}
+                      <span className="absolute left-0 top-0 bg-black/55 px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.15em] text-white/85 backdrop-blur-sm">
+                        {t.register}
+                      </span>
+                    </div>
+                    <div className="flex min-w-0 flex-1 flex-col gap-1 p-4">
+                      <h3 className="truncate text-sm font-semibold text-white">
+                        {t.label}
+                      </h3>
+                      <Text className="line-clamp-2 !text-xs">{t.hint}</Text>
+                      <div className="mt-auto flex items-center justify-between gap-3 pt-3">
+                        <span className="truncate text-xs text-zinc-500">
+                          {meta}
+                        </span>
+                        <span className="shrink-0 text-xs font-medium text-zinc-400 transition-colors group-hover:text-indigo-400">
                           Voir en live &#8594;
-                        </Button>
+                        </span>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>

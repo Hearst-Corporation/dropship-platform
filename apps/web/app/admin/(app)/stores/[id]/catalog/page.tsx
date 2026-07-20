@@ -1,9 +1,8 @@
 import { notFound } from "next/navigation";
 import { getDbRead } from "@/lib/db";
 import { resolveStoreId } from "@/lib/resolve-store";
-import { Heading } from "@/components/catalyst/heading";
-import { Text } from "@/components/catalyst/text";
 import { AdminBadge } from "@/components/admin/AdminBadge";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
@@ -107,29 +106,23 @@ export default async function StoreCatalogPage({
 
   return (
     <div className="space-y-8">
-      <div className="flex min-w-0 flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0">
-          <Text className="text-xs/5 font-medium uppercase tracking-wider">
-            Catalogue
-          </Text>
-          <Heading>Produits du store</Heading>
-          <Text>
-            Niche · {store.niche} · Géré par l&apos;agent à la création,
-            modifiable via Curation.
-          </Text>
-        </div>
-        <Button color="indigo" href={`/admin/stores/${id}/copilot`}>
-          Discuter avec le copilote
-        </Button>
-      </div>
+      <AdminPageHeader
+        title="Produits du store"
+        subtitle={`Niche · ${store.niche} · Géré par l'agent à la création, modifiable via Curation.`}
+        actions={
+          <Button color="indigo" href={`/admin/stores/${id}/copilot`}>
+            Discuter avec le copilote
+          </Button>
+        }
+      />
 
-      <AdminSection title="Aperçu">
-        <AdminStatsGrid cols={4}>
-          {stats.map((stat) => (
-            <AdminStatCard key={stat.label} label={stat.label} value={stat.value} />
-          ))}
-        </AdminStatsGrid>
-      </AdminSection>
+      {/* Stats hors panneau titré : elles sont secondaires par rapport au
+          tableau, qui est le vrai contenu de la page. */}
+      <AdminStatsGrid cols={4}>
+        {stats.map((stat) => (
+          <AdminStatCard key={stat.label} label={stat.label} value={stat.value} />
+        ))}
+      </AdminStatsGrid>
 
       <AdminSection
         title={`${products.length} produit${products.length > 1 ? "s" : ""}`}

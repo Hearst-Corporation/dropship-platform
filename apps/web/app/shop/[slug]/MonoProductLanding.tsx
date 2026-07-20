@@ -18,7 +18,23 @@ type Products = Awaited<ReturnType<typeof listProducts>>['products'];
  *
  * Colors and typography come from the locked design system (`--ds-*` vars
  * injected by shop layout). luxury_copy and beach_moment are merged when present.
+ *
+ * Reading order is the narrative one, not the data one:
+ *   hero (promesse) → produit + specs → bénéfices → récit → preuve visuelle
+ *   → contenu de la boîte → prix → objections → achat.
+ * Exactly one H1 (the hero), one visible H2 per section, H3 reserved for
+ * sub-modules inside a section.
  */
+
+// ── Rythme ────────────────────────────────────────────────────────────────
+// Deux paliers seulement : les grands modules respirent, les sections de
+// liaison (contenu, prix, objections) restent plus serrées. Uniformiser les
+// paddings est ce qui donnait l'impression de blocs empilés.
+const SECTION_LG = 'py-20 sm:py-28';
+const SECTION_MD = 'py-16 sm:py-20';
+
+/** Largeur de lecture confortable (~65 caractères) pour la prose. */
+const PROSE = 'max-w-2xl';
 
 const FALLBACK_TRUST: Array<{ title: string; body: string }> = [
   {
@@ -49,6 +65,62 @@ const FALLBACK_SELLING_POINTS: Array<{ title: string; body: string }> = [
     body: 'Numéro de suivi envoyé par email dès l\'expédition, support réactif.',
   },
 ];
+
+/**
+ * En-tête de section : kicker + H2 + lede optionnel. Un seul composant pour
+ * toutes les sections, ce qui garantit que chaque grand module porte un titre
+ * visible au même niveau typographique.
+ */
+function SectionHeading({
+  id,
+  kicker,
+  title,
+  titleHtml,
+  lede,
+  align = 'left',
+}: {
+  id: string;
+  kicker?: string | null;
+  title?: string | null;
+  titleHtml?: string | null;
+  lede?: string | null;
+  align?: 'left' | 'center';
+}) {
+  const centered = align === 'center';
+  return (
+    <div className={centered ? `mx-auto ${PROSE} text-center` : PROSE}>
+      {kicker && (
+        <p
+          className="mb-3 text-xs font-semibold uppercase tracking-[0.25em]"
+          style={{ color: DS.accent }}
+        >
+          {kicker}
+        </p>
+      )}
+      {titleHtml ? (
+        <h2
+          id={id}
+          className="text-3xl font-bold tracking-tight sm:text-4xl"
+          style={{ fontFamily: DS.fontDisplay, letterSpacing: DS.headingTracking }}
+          dangerouslySetInnerHTML={{ __html: sanitizeRichText(titleHtml) }}
+        />
+      ) : (
+        <h2
+          id={id}
+          className="text-3xl font-bold tracking-tight sm:text-4xl"
+          style={{ fontFamily: DS.fontDisplay, letterSpacing: DS.headingTracking }}
+        >
+          {title}
+        </h2>
+      )}
+      {lede && (
+        <p className="mt-4 text-lg leading-relaxed" style={{ color: DS.textMuted }}>
+          {lede}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function MonoProductLanding({
   store,
@@ -83,6 +155,23 @@ export function MonoProductLanding({
   const includedItems = copy.includedItems ?? [];
   const lifestyleImages = store.lifestyleImages.slice(0, 3);
   const showcaseImage = store.cutoutImageUrl || productThumbnail;
+  const hasGallery = lifestyleImages.length > 0 || Boolean(store.promoVideoUrl);
+  const hasPricing = Boolean(copy.priceRationale || (copy.packagingHeadline && copy.packagingBody));
+
+  // `beach_moment` n'a pas de corps : rendu seul il donnait une section vide
+  // avec un titre flottant. On le réaffecte comme en-tête d'un module qui a du
+  // contenu — la preuve visuelle en priorité, sinon les bénéfices.
+  const beachHeadlineHtml = copy.beachMoment?.headline_html || null;
+  const beachKicker = copy.beachMoment?.kicker || null;
+  const beachOnGallery = hasGallery && Boolean(beachHeadlineHtml || beachKicker);
+
+  const galleryKicker = beachOnGallery ? beachKicker || 'En situation' : 'En situation';
+  const galleryHeadlineHtml = beachOnGallery ? beachHeadlineHtml : null;
+  const galleryTitle = galleryHeadlineHtml ? null : 'Le produit dans la vraie vie';
+
+  const benefitsKicker = !beachOnGallery && beachKicker ? beachKicker : 'Bénéfices';
+  const benefitsHeadlineHtml = !beachOnGallery ? beachHeadlineHtml : null;
+  const benefitsTitle = benefitsHeadlineHtml ? null : 'Ce qui fait la différence';
 
   const finalKicker = copy.finalCta?.kicker || 'Prêt ?';
   const finalHeadline = copy.finalCta?.headline_html;
@@ -90,6 +179,8 @@ export function MonoProductLanding({
     copy.finalNote ||
     copy.finalCta?.lede ||
     'Livraison suivie et essai de 30 jours chez vous, retour gratuit si besoin.';
+
+  const buyLabel = price ? `Acheter · ${price}` : 'Acheter';
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: DS.bg, color: DS.text, fontFamily: DS.fontBody }}>
@@ -131,7 +222,7 @@ export function MonoProductLanding({
       </nav>
 
       <main>
-        {/* 2 ── HERO plein écran */}
+        {/* 2 ── HERO plein écran — le seul H1 de la page */}
         <header className="relative flex min-h-[calc(100svh-3.5rem)] items-center overflow-hidden">
           {store.heroImageUrl ? (
             <>
@@ -157,108 +248,56 @@ export function MonoProductLanding({
 
           <div className="relative mx-auto w-full max-w-4xl px-4 py-24 text-center sm:px-6 sm:py-32 lg:px-8">
             {heroKicker && (
-              <p className="mb-4 text-xs font-semibold uppercase tracking-[0.25em] text-white/70 sm:text-sm">
+              <p className="mb-5 text-[0.7rem] font-semibold uppercase tracking-[0.3em] text-white/65 sm:text-xs">
                 {heroKicker}
               </p>
             )}
             {heroHeadline ? (
               <h1
                 className="text-4xl font-bold tracking-tight text-white sm:text-6xl lg:text-7xl"
+                style={{ fontFamily: DS.fontDisplay, letterSpacing: DS.headingTracking }}
                 dangerouslySetInnerHTML={{ __html: sanitizeRichText(heroHeadline) }}
               />
             ) : (
-              <h1 className="text-4xl font-bold tracking-tight text-white sm:text-6xl lg:text-7xl">
+              <h1
+                className="text-4xl font-bold tracking-tight text-white sm:text-6xl lg:text-7xl"
+                style={{ fontFamily: DS.fontDisplay, letterSpacing: DS.headingTracking }}
+              >
                 {store.name}
               </h1>
             )}
             {heroLede && (
-              <p className="mx-auto mt-6 max-w-xl text-lg text-white/85 sm:text-xl">{heroLede}</p>
+              <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-white/85 sm:text-xl">
+                {heroLede}
+              </p>
             )}
-            {price && (
-              <p className="mt-6 text-2xl font-semibold text-white sm:text-3xl">{price}</p>
-            )}
+            {/* CTA principal en premier, prix intégré au bouton : une seule
+                accroche forte au lieu d'un prix nu qui concurrence le H1. */}
             <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
-              <Link
-                href="#decouvrir"
-                className="inline-block w-full rounded-full border-2 border-white px-8 py-3.5 text-base font-semibold text-white transition-colors hover:bg-white/10 sm:w-auto"
-              >
-                Découvrir
-              </Link>
               {featured && (
                 <Link
                   href={productHref}
-                  className="inline-block w-full rounded-full px-8 py-3.5 text-base font-semibold text-white transition-opacity hover:opacity-90 sm:w-auto"
-                  style={{ backgroundColor: store.heroImageUrl ? DS.primary : 'rgba(0, 0, 0, 0.35)' }}
+                  className="inline-block w-full rounded-full px-8 py-3.5 text-base font-semibold text-white shadow-sm transition-opacity hover:opacity-90 sm:w-auto"
+                  style={{ backgroundColor: DS.primary }}
                 >
-                  Acheter
+                  {buyLabel}
                 </Link>
               )}
+              <Link
+                href="#produit"
+                className="inline-block w-full rounded-full border border-white/50 px-8 py-3.5 text-base font-medium text-white/90 transition-colors hover:bg-white/10 sm:w-auto"
+              >
+                Découvrir
+              </Link>
             </div>
           </div>
         </header>
 
-        {/* 3 ── Bande trust */}
+        {/* 3 ── LE PRODUIT : qu'est-ce que c'est, et quelles caractéristiques */}
         <section
-          aria-labelledby="trust-heading"
-          className="border-b py-10"
-          style={{ borderColor: DS.border, backgroundColor: DS.surface }}
-        >
-          <h2 id="trust-heading" className="sr-only">
-            Nos engagements
-          </h2>
-          <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 sm:grid-cols-3 sm:px-6 lg:px-8">
-            {trustItems.map((item, i) => (
-              <div key={i} className="flex flex-col gap-1.5">
-                <div className="mb-1 h-0.5 w-8" style={{ backgroundColor: DS.accent }} />
-                <h3 className="text-sm font-semibold uppercase tracking-wider">{item.title}</h3>
-                <p className="text-sm" style={{ color: DS.textMuted }}>
-                  {item.body}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {copy.beachMoment && (copy.beachMoment.headline_html || copy.beachMoment.kicker) && (
-          <section aria-labelledby="beach-heading" className="py-16 sm:py-20">
-            <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
-              {copy.beachMoment.kicker && (
-                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.25em]" style={{ color: DS.accent }}>
-                  {copy.beachMoment.kicker}
-                </p>
-              )}
-              {copy.beachMoment.headline_html && (
-                <h2
-                  id="beach-heading"
-                  className="text-3xl font-bold tracking-tight sm:text-4xl"
-                  style={{ fontFamily: DS.fontDisplay }}
-                  dangerouslySetInnerHTML={{ __html: sanitizeRichText(copy.beachMoment.headline_html) }}
-                />
-              )}
-            </div>
-          </section>
-        )}
-
-        {copy.storyHeadline && (
-          <section aria-labelledby="story-heading" className="border-y py-16 sm:py-20" style={{ borderColor: DS.border, backgroundColor: DS.surface }}>
-            <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-              <h2 id="story-heading" className="text-3xl font-bold tracking-tight sm:text-4xl" style={{ fontFamily: DS.fontDisplay }}>
-                {copy.storyHeadline}
-              </h2>
-              {copy.storyBody?.map((para, i) => (
-                <p key={i} className="mt-4 text-lg leading-relaxed" style={{ color: DS.textMuted }}>
-                  {para}
-                </p>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* 4 ── SHOWCASE produit + specs */}
-        <section
-          id="decouvrir"
+          id="produit"
           aria-labelledby="showcase-heading"
-          className="scroll-mt-14 py-16 sm:py-24"
+          className={`scroll-mt-14 ${SECTION_LG}`}
         >
           <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8">
             <div className="overflow-hidden rounded-2xl" style={{ backgroundColor: DS.surface }}>
@@ -282,56 +321,45 @@ export function MonoProductLanding({
             </div>
 
             <div>
-              {copy.showcase?.kicker && (
-                <p
-                  className="mb-3 text-xs font-semibold uppercase tracking-[0.25em]"
-                  style={{ color: DS.accent }}
-                >
-                  {copy.showcase.kicker}
-                </p>
-              )}
-              {copy.showcase?.headline_html ? (
-                <h2
-                  id="showcase-heading"
-                  className="text-3xl font-bold tracking-tight sm:text-4xl"
-                  style={{ fontFamily: DS.fontDisplay, letterSpacing: DS.headingTracking }}
-                  dangerouslySetInnerHTML={{ __html: sanitizeRichText(copy.showcase.headline_html) }}
-                />
-              ) : (
-                <h2 id="showcase-heading" className="text-3xl font-bold tracking-tight sm:text-4xl" style={{ fontFamily: DS.fontDisplay }}>
-                  {featured?.title || store.name}
-                </h2>
-              )}
-              {copy.showcase?.lede && (
-                <p className="mt-4 text-lg" style={{ color: DS.textMuted }}>
-                  {copy.showcase.lede}
-                </p>
-              )}
+              <SectionHeading
+                id="showcase-heading"
+                kicker={copy.showcase?.kicker}
+                titleHtml={copy.showcase?.headline_html ?? null}
+                title={copy.showcase?.headline_html ? null : featured?.title || store.name}
+                lede={copy.showcase?.lede}
+              />
 
               {specs.length > 0 && (
-                <dl className="mt-8 divide-y" style={{ borderColor: DS.border }}>
-                  {specs.map((spec, i) => (
-                    <div
-                      key={i}
-                      className="flex items-baseline justify-between gap-4 border-t py-3 first:border-t-0"
-                      style={{ borderColor: DS.border }}
-                    >
-                      <dt
-                        className="text-sm font-medium uppercase tracking-wide"
-                        style={{ color: DS.textMuted }}
+                <div className="mt-10">
+                  <h3
+                    className="text-xs font-semibold uppercase tracking-[0.2em]"
+                    style={{ color: DS.textMuted }}
+                  >
+                    Caractéristiques
+                  </h3>
+                  <dl className="mt-3">
+                    {specs.map((spec, i) => (
+                      <div
+                        key={i}
+                        className="flex items-baseline justify-between gap-6 border-t py-3.5 first:border-t-0"
+                        style={{ borderColor: DS.border }}
                       >
-                        {spec.key}
-                      </dt>
-                      <dd className="text-right text-sm font-semibold">{spec.value}</dd>
-                    </div>
-                  ))}
-                </dl>
+                        <dt className="text-sm" style={{ color: DS.textMuted }}>
+                          {spec.key}
+                        </dt>
+                        <dd className="text-right text-base font-semibold tabular-nums">
+                          {spec.value}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
               )}
 
               {featured && (
                 <Link
                   href={productHref}
-                  className="mt-8 inline-block rounded-full px-8 py-3 text-base font-semibold text-white transition-opacity hover:opacity-90"
+                  className="mt-10 inline-block rounded-full px-8 py-3 text-base font-semibold text-white transition-opacity hover:opacity-90"
                   style={{ backgroundColor: DS.primary }}
                 >
                   Voir la fiche produit
@@ -341,17 +369,20 @@ export function MonoProductLanding({
           </div>
         </section>
 
-        {/* 5 ── SELLING POINTS */}
+        {/* 4 ── BÉNÉFICES : pourquoi c'est mieux (titre désormais visible) */}
         <section
           aria-labelledby="selling-points-heading"
-          className="border-y py-16 sm:py-24"
+          className={`border-y ${SECTION_LG}`}
           style={{ borderColor: DS.border, backgroundColor: DS.surface }}
         >
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <h2 id="selling-points-heading" className="sr-only">
-              Pourquoi le choisir
-            </h2>
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+            <SectionHeading
+              id="selling-points-heading"
+              kicker={benefitsKicker}
+              titleHtml={benefitsHeadlineHtml}
+              title={benefitsTitle}
+            />
+            <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-3">
               {sellingPoints.map((point, i) => (
                 <div
                   key={i}
@@ -374,16 +405,35 @@ export function MonoProductLanding({
           </div>
         </section>
 
-        {/* 6 ── GALERIE lifestyle (+ vidéo) */}
-        {(lifestyleImages.length > 0 || store.promoVideoUrl) && (
-          <section aria-labelledby="gallery-heading" className="py-16 sm:py-24">
+        {/* 5 ── RÉCIT (stores luxury uniquement) */}
+        {copy.storyHeadline && (
+          <section aria-labelledby="story-heading" className={SECTION_LG}>
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-              <h2 id="gallery-heading" className="sr-only">
-                Le produit en situation
-              </h2>
+              <SectionHeading id="story-heading" kicker="Le projet" title={copy.storyHeadline} />
+              <div className={`mt-6 ${PROSE} space-y-4`}>
+                {copy.storyBody?.map((para, i) => (
+                  <p key={i} className="text-lg leading-relaxed" style={{ color: DS.textMuted }}>
+                    {para}
+                  </p>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* 6 ── PREUVE VISUELLE — reprend le titre de beach_moment */}
+        {hasGallery && (
+          <section aria-labelledby="gallery-heading" className={SECTION_LG}>
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <SectionHeading
+                id="gallery-heading"
+                kicker={galleryKicker}
+                titleHtml={galleryHeadlineHtml}
+                title={galleryTitle}
+              />
               {lifestyleImages.length > 0 && (
                 <div
-                  className={`grid grid-cols-1 gap-4 sm:gap-6 ${
+                  className={`mt-12 grid grid-cols-1 gap-4 sm:gap-6 ${
                     lifestyleImages.length === 1
                       ? ''
                       : lifestyleImages.length === 2
@@ -405,9 +455,7 @@ export function MonoProductLanding({
                 </div>
               )}
               {store.promoVideoUrl && (
-                <div
-                  className={`overflow-hidden rounded-2xl ${lifestyleImages.length > 0 ? 'mt-6' : ''}`}
-                >
+                <div className="mt-6 overflow-hidden rounded-2xl">
                   <video
                     src={store.promoVideoUrl}
                     autoPlay
@@ -422,21 +470,16 @@ export function MonoProductLanding({
           </section>
         )}
 
-        {/* 7 ── Dans la boîte */}
+        {/* 7 ── CE QUE VOUS RECEVEZ */}
         {includedItems.length > 0 && (
           <section
             aria-labelledby="included-heading"
-            className="border-y py-16 sm:py-20"
+            className={`border-y ${SECTION_MD}`}
             style={{ borderColor: DS.border, backgroundColor: DS.surface }}
           >
             <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-              <h2
-                id="included-heading"
-                className="text-center text-2xl font-bold tracking-tight sm:text-3xl"
-              >
-                Dans la boîte
-              </h2>
-              <ul className="mt-8 divide-y" style={{ borderColor: DS.border }}>
+              <SectionHeading id="included-heading" kicker="Contenu" title="Dans la boîte" align="center" />
+              <ul className="mt-10">
                 {includedItems.map((item, i) => (
                   <li
                     key={i}
@@ -457,20 +500,21 @@ export function MonoProductLanding({
           </section>
         )}
 
-        {(copy.priceRationale || (copy.packagingHeadline && copy.packagingBody)) && (
-          <section className="border-y py-16 sm:py-20" style={{ borderColor: DS.border, backgroundColor: DS.surface }}>
-            <div className="mx-auto max-w-3xl space-y-8 px-4 sm:px-6 lg:px-8">
-              {copy.priceRationale && (
-                <p className="text-center text-lg leading-relaxed" style={{ color: DS.textMuted }}>
-                  {copy.priceRationale}
-                </p>
-              )}
+        {/* 8 ── LE PRIX (stores luxury uniquement) */}
+        {hasPricing && (
+          <section aria-labelledby="pricing-heading" className={SECTION_MD}>
+            <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+              <SectionHeading
+                id="pricing-heading"
+                kicker="Le juste prix"
+                title="Pourquoi ce tarif"
+                lede={copy.priceRationale}
+                align="center"
+              />
               {copy.packagingHeadline && copy.packagingBody && (
-                <div className="text-center">
-                  <h2 className="text-2xl font-semibold" style={{ fontFamily: DS.fontDisplay }}>
-                    {copy.packagingHeadline}
-                  </h2>
-                  <p className="mt-3 text-base" style={{ color: DS.textMuted }}>
+                <div className={`mx-auto mt-10 ${PROSE} text-center`}>
+                  <h3 className="text-lg font-semibold tracking-tight">{copy.packagingHeadline}</h3>
+                  <p className="mt-2 text-base leading-relaxed" style={{ color: DS.textMuted }}>
                     {copy.packagingBody}
                   </p>
                 </div>
@@ -479,38 +523,47 @@ export function MonoProductLanding({
           </section>
         )}
 
-        {/* 8 ── FINAL CTA */}
-        <section aria-labelledby="final-cta-heading" className="py-20 sm:py-28">
+        {/* 9 ── OBJECTIONS — les garanties arrivent au moment de décider,
+                plus juste sous le hero où elles coupaient la lecture. */}
+        <section
+          aria-labelledby="trust-heading"
+          className={`border-y ${SECTION_MD}`}
+          style={{ borderColor: DS.border, backgroundColor: DS.surface }}
+        >
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <SectionHeading id="trust-heading" kicker="Sans risque" title="Commander en confiance" />
+            <div className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-3">
+              {trustItems.map((item, i) => (
+                <div key={i} className="flex flex-col gap-1.5">
+                  <div className="mb-1 h-0.5 w-8" style={{ backgroundColor: DS.accent }} />
+                  <h3 className="text-sm font-semibold uppercase tracking-wider">{item.title}</h3>
+                  <p className="text-sm leading-relaxed" style={{ color: DS.textMuted }}>
+                    {item.body}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* 10 ── ACHAT */}
+        <section aria-labelledby="final-cta-heading" className={SECTION_LG}>
           <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
-            <p
-              className="mb-4 text-xs font-semibold uppercase tracking-[0.25em]"
-              style={{ color: DS.accent }}
-            >
-              {finalKicker}
-            </p>
-            {finalHeadline ? (
-              <h2
-                id="final-cta-heading"
-                className="text-3xl font-bold tracking-tight sm:text-5xl"
-                dangerouslySetInnerHTML={{ __html: sanitizeRichText(finalHeadline) }}
-              />
-            ) : (
-              <h2 id="final-cta-heading" className="text-3xl font-bold tracking-tight sm:text-5xl">
-                Passez commande, testez chez vous
-              </h2>
-            )}
-            {finalLede && (
-              <p className="mt-5 text-lg" style={{ color: DS.textMuted }}>
-                {finalLede}
-              </p>
-            )}
-            <div className="mt-10 flex flex-col items-center gap-4">
+            <SectionHeading
+              id="final-cta-heading"
+              kicker={finalKicker}
+              titleHtml={finalHeadline ?? null}
+              title={finalHeadline ? null : 'Passez commande, testez chez vous'}
+              lede={finalLede}
+              align="center"
+            />
+            <div className="mt-12 flex flex-col items-center gap-4">
               <Link
                 href={productHref}
-                className="inline-block w-full rounded-full px-12 py-4 text-lg font-semibold text-white transition-opacity hover:opacity-90 sm:w-auto"
+                className="inline-block w-full rounded-full px-12 py-4 text-lg font-semibold text-white shadow-sm transition-opacity hover:opacity-90 sm:w-auto"
                 style={{ backgroundColor: DS.primary }}
               >
-                {price ? `Acheter · ${price}` : 'Acheter'}
+                {buyLabel}
               </Link>
               <p className="text-sm" style={{ color: DS.textMuted }}>
                 Paiement sécurisé, livraison suivie

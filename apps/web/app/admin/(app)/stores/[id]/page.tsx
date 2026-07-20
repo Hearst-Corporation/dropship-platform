@@ -11,7 +11,6 @@ import { AdminBadge } from "@/components/admin/AdminBadge";
 import { AdminStatCard } from "@/components/admin/AdminStatCard";
 import { AdminStatsGrid } from "@/components/admin/AdminStatsGrid";
 import { AdminSection } from "@/components/admin/AdminSection";
-import { Button } from "@/components/catalyst/button";
 import {
   DescriptionList,
   DescriptionTerm,
@@ -144,13 +143,14 @@ export default async function StoreDetailPage({
         </div>
       </div>
 
-      <AdminSection title="Indicateurs">
-        <AdminStatsGrid cols={4}>
-          {kpis.map((kpi) => (
-            <AdminStatCard key={kpi.label} label={kpi.label} value={kpi.value} />
-          ))}
-        </AdminStatsGrid>
-      </AdminSection>
+      {/* Les stat cards sont déjà des surfaces : les envelopper dans un panneau
+          titré ajoutait un niveau de hiérarchie qui les mettait au même poids
+          que les vraies sections. */}
+      <AdminStatsGrid cols={4}>
+        {kpis.map((kpi) => (
+          <AdminStatCard key={kpi.label} label={kpi.label} value={kpi.value} />
+        ))}
+      </AdminStatsGrid>
 
       <AdminSection
         title="Informations"
@@ -163,6 +163,16 @@ export default async function StoreDetailPage({
         <DescriptionList className="sm:grid-cols-2">
           <DescriptionTerm>Niche</DescriptionTerm>
           <DescriptionDetails>{store.niche || "—"}</DescriptionDetails>
+
+          <DescriptionTerm>Catalogue</DescriptionTerm>
+          <DescriptionDetails>
+            <Strong>{products.length}</Strong> produit
+            {products.length > 1 ? "s" : ""} import&eacute;
+            {products.length > 1 ? "s" : ""}
+            <TextLink href={`/admin/stores/${store.id}/catalog`} className="ml-3">
+              Voir le catalogue
+            </TextLink>
+          </DescriptionDetails>
 
           <DescriptionTerm>Fournisseurs</DescriptionTerm>
           <DescriptionDetails>
@@ -205,25 +215,6 @@ export default async function StoreDetailPage({
             </>
           )}
         </DescriptionList>
-      </AdminSection>
-
-      <AdminSection
-        title="Catalogue"
-        actions={
-          <Button
-            color="indigo"
-            href={`/admin/stores/${store.id}/catalog`}
-            className="shrink-0"
-          >
-            Voir le catalogue
-          </Button>
-        }
-      >
-        <Text>
-          <Strong>{products.length}</Strong> produit
-          {products.length > 1 ? "s" : ""} import&eacute;
-          {products.length > 1 ? "s" : ""}.
-        </Text>
       </AdminSection>
 
       <RunReportSections report={runReport} />
