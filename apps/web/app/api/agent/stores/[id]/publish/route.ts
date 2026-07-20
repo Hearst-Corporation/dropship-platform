@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { resolveStoreId } from '@/lib/resolve-store';
 import { evaluateStoreReadiness } from '@/lib/agent/store-readiness';
+import { evaluatePublishGuard } from '@/lib/agent/publish-guard';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,21 @@ export async function POST(
       {
         error: 'Store not ready for publication',
         readiness,
+      },
+      { status: 422 },
+    );
+  }
+
+  // QA publish gate — safety, not completeness. Blocks live checkout that
+  // isn't proven, hotlinked images, health claims, generic templates and
+  // AI-fallback products before anything goes public.
+  const guard = await evaluatePublishGuard(storeId);
+  if (!guard.ok) {
+    return NextResponse.json(
+      {
+        error: 'Publication bloquée par le QA gate',
+        blockers: guard.blockers,
+        warnings: guard.warnings,
       },
       { status: 422 },
     );
