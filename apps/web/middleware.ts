@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import {
+  AGENTS_DISABLED_BODY,
+  AGENTS_DISABLED_HEADERS,
+  dropshipAgentsEnabled,
+} from '@/lib/agent/agents-enabled';
+
 /**
  * Edge middleware. Three distinct responsibilities:
  *
@@ -90,6 +96,48 @@ async function resolveCustomDomain(host: string, baseUrl: string): Promise<strin
     // Network error or timeout — don't cache, let the next request retry.
     return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Agent kill-switch — LLM routes blocked unless DROPSHIP_AGENTS_ENABLED=1
+// ---------------------------------------------------------------------------
+
+/**
+ * When agents are disabled, only operational `/api/agent/*` routes stay up
+ * (orders, store list/delete/publish, metrics, anomaly cron). Everything that
+ * can invoke OpenAI / fal.ai / store-creator returns 503 at the edge.
+ */
+function isAgentRouteAllowedWhenDisabled(path: string, method: string): boolean {
+  if (path.startsWith('/api/agent/orders')) return true;
+  if (path === '/api/agent/stores' && method === 'GET') return true;
+  if (path === '/api/agent/ops/anomaly-watch') return true;
+
+  const storeSub = /^\/api\/agent\/stores\/[^/]+(\/.*)?$/;
+  const m = path.match(storeSub);
+  if (!m) return false;
+
+  const suffix = m[1] ?? '';
+  if (suffix === '' && method === 'DELETE') return true;
+  if (suffix === '/metrics' && method === 'GET') return true;
+  if (suffix === '/diagnostic' && method === 'GET') return true;
+  if (suffix === '/assets' && method === 'GET') return true;
+  if (suffix === '/publish' && method === 'POST') return true;
+  if (suffix === '/unpublish' && method === 'POST') return true;
+
+  return false;
+}
+
+function agentsRouteBlocked(path: string, method: string): boolean {
+  if (!path.startsWith('/api/agent/')) return false;
+  if (dropshipAgentsEnabled()) return false;
+  return !isAgentRouteAllowedWhenDisabled(path, method);
+}
+
+function agentsDisabled(): NextResponse {
+  return new NextResponse(AGENTS_DISABLED_BODY, {
+    status: 503,
+    headers: AGENTS_DISABLED_HEADERS,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -196,6 +244,11 @@ export async function middleware(req: NextRequest) {
   // ── 2. Storefront: capture UTMs, never block ───────────────────────────
   if (path.startsWith('/shop/')) {
     return captureUtm(req, NextResponse.next());
+  }
+
+  // ── 2b. Agent kill-switch (before auth — blocked routes never reach LLM) ─
+  if (agentsRouteBlocked(path, req.method)) {
+    return agentsDisabled();
   }
 
   // ── 3. Admin: enforce Basic auth (with carved-out public exceptions) ───
